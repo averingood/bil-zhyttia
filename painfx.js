@@ -81,6 +81,7 @@
     const k = gloomOf(joy);
     if (k <= 0) return;
     g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);   // кадр копіюється сам на себе — без наближення, яке могла лишити сцена
     g.filter = 'saturate(' + (1 - 0.85 * k).toFixed(3) + ') brightness(' + (1 - 0.4 * k).toFixed(3) + ')';
     g.drawImage(g.canvas, 0, 0);
     g.filter = 'none';
