@@ -646,7 +646,7 @@
         <div class="painbar">${cells}</div>
         <div class="tip">
           <p>Базовий ${s.base} · тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ' · знято сьогодні −' + s.relief : ''}.</p>
-          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня), дзвінок лікарю (−${C.actions.doctor.baseDrop}, лише з болем ${C.actions.doctor.minPain}+). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}.</p>
+          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня), дзвінок лікарю (−${C.actions.doctor.baseDrop}, лише з болем ${C.actions.doctor.minPain}+). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}. Лікуванням — не нижче ${G.minBase(game)}: тримає на плаву, але не виліковує.</p>
           <p class="why"><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flarePain}, кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
           <p class="why"><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
         </div>

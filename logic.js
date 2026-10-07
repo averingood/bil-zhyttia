@@ -313,7 +313,7 @@
         if (pain(s) < a.minPain) return no('Лікар приймає лише з сильним болем — від ' + a.minPain);
         if (s.money < a.money) return no('Прийом коштує ' + a.money + ' ₴ — не вистачає');
         if (s.day - (s.lastDoctor || -99) < a.cooldown) return no('Лікар чекає на тебе з дня ' + ((s.lastDoctor || 0) + a.cooldown) + ': спершу хай подіє призначення');
-        if (s.base <= C.night.minBasePain) return no('Базовий біль і так на мінімумі');
+        if (s.base <= minBase(s)) return no('Базовий біль і так на мінімумі');
         break;
       case 'course':
         if ((s.courseToday || 0) >= a.perDay) return no('Курсову пігулку сьогодні вже випив');
@@ -567,7 +567,7 @@
         s.money -= a.money;
         s.lastDoctor = s.day;
         s.doctorDrops = (s.doctorDrops || 0) + 1;
-        s.base = Math.max(C.night.minBasePain, s.base - a.baseDrop);
+        s.base = Math.max(minBase(s), s.base - a.baseDrop);
         s.stats.doctor = (s.stats.doctor || 0) + 1;
         note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base;
         break;
@@ -605,7 +605,7 @@
   function recalcBase(s) {
     const N = C.night, tb = s.trainBase != null ? s.trainBase : s.baseStart;
     const raw = tb - (s.courseOn ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0);
-    s.base = Math.max(N.minBasePain, Math.min(s.baseStart + N.chronic.cap, raw));
+    s.base = Math.max(minBase(s), Math.min(s.baseStart + N.chronic.cap, raw));
   }
   // Хронізація: +1 до базового, якщо ще не на межі. Повертає, чи справді піднявся.
   function chronify(s) {
@@ -636,6 +636,12 @@
   }
 
   // Кава підкручує нічне загострення.
+  // Нижче за стартовий мінус maxRelief базовий біль не опускається: лікування тримає на плаву, але не виліковує.
+  function minBase(s) {
+    const d = C.difficulty[s.difficulty] || {};
+    return Math.max(C.night.minBasePain, s.baseStart - (d.maxRelief != null ? d.maxRelief : C.night.maxRelief));
+  }
+
   function flareChanceTonight(s) {
     return Math.min(1, s.flareChance + (s.coffeeToday || 0) * C.actions.coffee.flareAdd);
   }
@@ -644,11 +650,11 @@
   // done — скільки днів вправ уже в поточному колі з per.
   function baseProgress(s) {
     const per = C.night.trainingsPerBaseDrop;
-    const atMin = s.base <= C.night.minBasePain;
+    const atMin = s.base <= minBase(s);
     let done = s.trainings % per;
     // Щойно зроблений п'ятий день: база знизиться вночі, коло ще не обнулилося.
     const dropTonight = !atMin && s.trainings > 0 && done === 0 &&
-      Math.max(C.night.minBasePain, s.baseStart - Math.floor(s.trainings / per)) < (s.trainBase != null ? s.trainBase : s.baseStart);
+      Math.max(minBase(s), s.baseStart - Math.floor(s.trainings / per)) < (s.trainBase != null ? s.trainBase : s.baseStart);
     if (dropTonight) done = per;
     return { done, per, atMin, dropTonight };
   }
@@ -765,7 +771,7 @@
       else ev.push({ kind: 'info', text: 'Пропущено пігулку: курс доведеться почати спочатку' });
       s.courseStreak = 0; s.courseOn = false;
     }
-    const trainBase = Math.max(N.minBasePain, s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
+    const trainBase = Math.max(minBase(s), s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
     if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився' });
     s.trainBase = trainBase;
     recalcBase(s);
@@ -1182,7 +1188,7 @@
     createGame, doAction, endDay, songTitle, rentOf, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (inv.worry != null ? C.friends.worry.lines[inv.worry] : (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text),
-    slotsOf, slotName, dayPhase,
+    slotsOf, slotName, dayPhase, minBase,
     pain, rawPain, stateKey, stateOfPain, stateCfg, meetingsRecent, inviteToday, energyCost,
     clone,
     setConfig(cfg) { C = cfg; },
