@@ -114,7 +114,10 @@
       day: 1, slot: 0,
       baseStart: diff.basePain, base: diff.basePain, extra: C.start.extraPain, relief: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
-      money: C.start.money, joy: C.start.joy,
+      // Рівень складності — це обставини життя: гроші, оренда, скільки друзів, як платить робота.
+      money: diff.money != null ? diff.money : C.start.money, joy: C.start.joy,
+      friendNames: C.friends.names.slice(0, diff.friends || C.friends.names.length),
+      rentAmount: diff.rent != null ? diff.rent : C.rent.amount, payMult: diff.payMult || 1,
       trainings: 0, trainBase: null, courseStreak: 0, courseToday: 0, courseOn: false, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
       book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess, song: { n: 1, done: 0 }, doctorDrops: 0, lastDoctor: -99,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
@@ -171,7 +174,7 @@
   }
 
   // Друзі, які можуть прийти: не втрачені й ті, кому ми не винні грошей.
-  const friendsLeft = (s) => C.friends.names.filter((n) => !(s.lostFriends || {})[n]);
+  const friendsLeft = (s) => (s.friendNames || C.friends.names).filter((n) => !(s.lostFriends || {})[n]);
   const freeFriends = (s) => friendsLeft(s).filter((n) => !(s.debts || {})[n]);
 
   function addInvite(s, day) {
@@ -338,8 +341,9 @@
   }
   const maxWorkScore = () => C.work.meeting.questions * C.work.meeting.payRight;
   // Частковий графік урізає заробіток, але не штрафи.
+  const rentOf = (s) => (s.rentAmount != null ? s.rentAmount : C.rent.amount);
   function workPay(s, score) {
-    return score > 0 ? Math.round(score * (s.partTime ? C.work.partTimeMult : 1)) : score;
+    return score > 0 ? Math.round(score * (s.partTime ? C.work.partTimeMult : 1) * (s.payMult || 1)) : score;
   }
 
   function inviteToday(s) {
@@ -782,7 +786,7 @@
     // Друзі помічають, що ти зник: напрошуються на завтра, щоб самотність не стала пасткою.
     const Wr = C.friends.worry, tomorrow = s.day + 1;
     // Менше друзів — менше шансів, що хтось напише: двоє — 2/3, один — 1/3, жодного — нікому.
-    const share = freeFriends(s).length / C.friends.names.length;
+    const share = freeFriends(s).length / (s.friendNames || C.friends.names).length;
     if (tomorrow <= s.days && !s.invites[tomorrow] && (s.joy <= 0 || (s.daysAlone >= Wr.afterDays && s.joy < Wr.lowJoy))) {
       const chance = s.joy <= 0 ? Wr.numb : Math.min(Wr.max, Wr.base + Wr.perDay * Math.max(0, s.daysAlone - Wr.afterDays));
       if (rand(s) < chance * share) {
@@ -842,8 +846,8 @@
 
   function calendarNight(s, day, ev, j) {
     if (isRentDay(day)) {
-      s.money -= C.rent.amount;
-      ev.push({ kind: 'money', text: 'Оренда: −' + C.rent.amount + ' ₴' });
+      s.money -= rentOf(s);
+      ev.push({ kind: 'money', text: 'Оренда: −' + rentOf(s) + ' ₴' });
     }
     if (isDeadlineDay(day)) {
       const need = C.work.unitsPerDeadline;
@@ -989,7 +993,7 @@
       const inv = s.invites[d];
       out.push({
         day: d,
-        rent: isRentDay(d) ? C.rent.amount : 0,
+        rent: isRentDay(d) ? rentOf(s) : 0,
         deadline: isDeadlineDay(d) ? C.work.unitsPerDeadline : 0,
         invite: inv && inv.status !== 'cancelled' ? { name: inv.name, status: inv.status } : null,   // скасовані (борг, втрачений друг) не показуємо
         payout: s.pending.filter((p) => p.day === d).reduce((a, p) => a + p.amount, 0),
@@ -1017,7 +1021,7 @@
     for (let d = s.day; d <= Math.min(s.days, s.day + 6); d++) {
       if (!isRentDay(d)) continue;
       const incoming = s.pending.filter((p) => p.day <= d).reduce((a, p) => a + p.amount, 0);
-      out.push({ kind: 'money', t: 'Оренда ' + C.rent.amount + ' ₴ у день ' + d + '. До того надійде ' + incoming + ' ₴.' });
+      out.push({ kind: 'money', t: 'Оренда ' + rentOf(s) + ' ₴ у день ' + d + '. До того надійде ' + incoming + ' ₴.' });
       break;
     }
     if (s.exerciseToday === 0 && stiffTonight(s))
@@ -1108,7 +1112,7 @@
 
   const api = {
     ZONES, ACTIONS, ACTION_IDS, CAUSES,
-    createGame, doAction, endDay, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
+    createGame, doAction, endDay, rentOf, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (inv.worry != null ? C.friends.worry.lines[inv.worry] : (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text),
     slotsOf, slotName, dayPhase,

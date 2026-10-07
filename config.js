@@ -38,9 +38,11 @@
     start: { money: 170, joy: 60, extraPain: 0 },   // +20 відтоді, як прибирання забирає слоти
 
     difficulty: {
-      easy:   { name: 'Легше',    basePain: 3, flareChance: 0.08 },
+      // Загострення скрізь 15%. Складність — це базовий біль плюс обставини: на «Легше» є запас грошей,
+      // на «Тяжко» коло вузьке — лише двоє друзів. Біль 3 і 7 давали «завжди легко» і «завжди сильно».
+      easy:   { name: 'Легше',    basePain: 4, flareChance: 0.15, money: 220, note: 'є запас грошей (+50 ₴)' },
       normal: { name: 'Середньо', basePain: 5, flareChance: 0.15 },
-      hard:   { name: 'Тяжко',    basePain: 7, flareChance: 0.22 },
+      hard:   { name: 'Тяжко',    basePain: 6, flareChance: 0.15, friends: 2, note: 'лише двоє друзів' },
     },
 
     actions: {

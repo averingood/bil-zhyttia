@@ -113,7 +113,7 @@ function loans(s) {
   if (!LOANS) return;
   const ask = L.debtAsk(s);
   if (ask && s.money >= ask.amount + 5) L.repay(s, ask.name);
-  if (s.money < 30) { const n = C.friends.names.find((x) => L.canBorrow(s, x)); if (n) L.borrow(s, n); }
+  if (s.money < 30) { const n = (s.friendNames || C.friends.names).find((x) => L.canBorrow(s, x)); if (n) L.borrow(s, n); }
 }
 
 function play(strat, diff, seed, days) {

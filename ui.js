@@ -441,7 +441,7 @@
   function showBorrow() {
     if (phase !== 'play') return;
     const L = C.friends.loan;
-    const rows = C.friends.names.map((n) => {
+    const rows = (game.friendNames || C.friends.names).map((n) => {
       const d = (game.debts || {})[n], gone = (game.lostFriends || {})[n];
       if (gone) return '';
       const why = d ? 'уже винен ' + d.amount + ' ₴' : '';
@@ -634,7 +634,7 @@
         <div class="sub fogwrap"><span class="${hidden ? 'fog' : ''}">Очікується: ${pendTxt}</span></div>
         ${Object.entries(s.debts || {}).map(([n, d]) => `<div class="debt"><span>Винен ${esc(n)} ${d.amount} ₴ · спитає в день ${d.askDay}</span>
           <button class="btn ghost" data-repay="${esc(n)}" ${s.money < d.amount ? 'disabled' : ''}>Повернути</button></div>`).join('')}
-        ${phase === 'play' && C.friends.names.some((n) => G.canBorrow(s, n)) ? `<button class="btn ghost" id="borrowBtn">Позичити ${C.friends.loan.amount} ₴ у друзів</button>` : ''}
+        ${phase === 'play' && (s.friendNames || C.friends.names).some((n) => G.canBorrow(s, n)) ? `<button class="btn ghost" id="borrowBtn">Позичити ${C.friends.loan.amount} ₴ у друзів</button>` : ''}
       </div>
 
       <div class="sec">
@@ -741,7 +741,7 @@
     phase = 'setup';
     const diffs = Object.entries(C.difficulty).map(([k, d]) => `
       <label class="opt"><input type="radio" name="diff" id="diff-${k}" value="${k}" ${k === setupChoice.difficulty ? 'checked' : ''}>
-        <span>${d.name}</span><small>Базовий біль ${d.basePain}, шанс нічного загострення ${Math.round(d.flareChance * 100)}%</small></label>`).join('');
+        <span>${d.name}</span><small>Базовий біль ${d.basePain}${d.note ? ', ' + d.note : ''}</small></label>`).join('');
     openModal(`
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і ресурсу, скільки дозволяє ранковий біль.
