@@ -58,8 +58,18 @@
       ctx.putImageData(buf, 0, 0);
       g.imageSmoothingEnabled = false;
       g.drawImage(cv, 0, 0, W, H);
-      // Знеболювальне: легкий туман на все.
-      if (painkiller) { g.filter = 'blur(0.6px)'; g.drawImage(g.canvas, 0, 0); g.filter = 'none'; }
+      // Знеболювальне: легке двоїння в очах і засвіт. Читати можна, але світ трохи «плаває».
+      if (painkiller) {
+        const dx = 3 + Math.sin(t * 0.9) * 2, dy = Math.sin(t * 0.6) * 1.2;
+        g.save();
+        g.globalAlpha = 0.28; g.drawImage(g.canvas, dx * W / LW / 2, dy * H / LH / 2);
+        g.globalAlpha = 1;
+        const gl = g.createRadialGradient(W * 0.62, H * 0.18, 0, W * 0.62, H * 0.18, W * 0.75);
+        gl.addColorStop(0, 'rgba(255,248,230,' + (0.22 + Math.sin(t * 1.3) * 0.04).toFixed(3) + ')');
+        gl.addColorStop(1, 'rgba(255,248,230,0)');
+        g.globalCompositeOperation = 'screen'; g.fillStyle = gl; g.fillRect(0, 0, W, H);
+        g.restore();
+      }
     }
     return { draw };
   }

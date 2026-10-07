@@ -187,6 +187,18 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
+    // Вправи — «Слухай тіло» від першої особи: повтори й перенапруга стають якістю вправ.
+    if (id === 'exercise' && setupChoice.scenes && window.MatGame) {
+      phase = 'scene';
+      held.clear(); applyKeys();
+      window.MatGame.start({
+        wrap: $('canvasWrap'), bar: $('actionBar'),
+        pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
+        onDone: (res) => { phase = 'play'; finishAction(id, p, { mat: res }); },
+      });
+      renderAll();
+      return;
+    }
     // Робота — планерка від першої особи; результат стає оплатою.
     if (id === 'work' && setupChoice.scenes && window.Meeting) {
       phase = 'scene';
@@ -208,7 +220,7 @@
     return {
       money: game.money, joy: game.joy, energy: game.energy, borrowed: game.borrowed, pain: G.pain(game),
       pending: game.pending.reduce((a, x) => a + x.amount, 0), warmth: game.warmth || 0, trainings: game.trainings,
-      fed: game.fed, workWeek: game.workWeek,
+      fed: game.fed, workWeek: game.workWeek, exQ: game.exerciseQuality,
     };
   }
   function showDelta(b, extra) {
@@ -220,9 +232,11 @@
     if (a.borrowed > b.borrowed) parts.push({ t: 'позичено ' + (a.borrowed - b.borrowed) + ': завтра біль +' + (a.borrowed - b.borrowed), k: 'bad' });
     if (a.joy !== b.joy) parts.push({ t: 'радість ' + sg(a.joy - b.joy), k: a.joy > b.joy ? 'good' : 'bad' });
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
-    if (a.trainings > b.trainings) {
-      parts.push({ t: 'тимчасовий біль завтра −' + C.actions.exercise.reliefTomorrow, k: 'good' });
-      parts.push({ t: G.baseProgressText(game), k: '' });
+    if (a.exQ !== b.exQ && a.exQ) {
+      if (a.exQ === 'good') parts.push({ t: 'тимчасовий біль завтра −' + C.actions.exercise.reliefTomorrow, k: 'good' });
+      if (a.exQ === 'strain') parts.push({ t: 'перестарався: тимчасовий біль завтра +' + C.actions.exercise.mat.strainPain, k: 'bad' });
+      if (a.exQ === 'short') parts.push({ t: 'замало повторів: вправи не зараховано', k: 'bad' });
+      if (a.trainings > b.trainings) parts.push({ t: G.baseProgressText(game), k: '' });
     }
     if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
     if (a.workWeek > b.workWeek) parts.push({ t: 'робота ' + a.workWeek + '/' + C.work.unitsPerDeadline, k: '' });
@@ -370,8 +384,8 @@
     }
     const list = G.zoneActions(game, z);
     // Біля столу й дивана — перемикач міні-ігор: вирішуєш просто перед планеркою чи гостями.
-    const sceneZone = z === 'desk' || z === 'sofa';
-    const sceneBtn = sceneZone ? `<button class="scene-tog ${setupChoice.scenes ? 'on' : ''}" id="sceneTog" title="Клавіша M">${z === 'desk' ? 'Планерка' : 'Розмова'}: ${setupChoice.scenes ? 'грати' : 'авто'} <kbd>M</kbd></button>` : '';
+    const sceneZone = z === 'desk' || z === 'sofa' || z === 'mat';
+    const sceneBtn = sceneZone ? `<button class="scene-tog ${setupChoice.scenes ? 'on' : ''}" id="sceneTog" title="Клавіша M">${z === 'desk' ? 'Планерка' : z === 'mat' ? 'Вправи' : 'Розмова'}: ${setupChoice.scenes ? 'грати' : 'авто'} <kbd>M</kbd></button>` : '';
     el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span>${sceneBtn}<span class="ab-meta">${slotTxt}</span></div>
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
     el.querySelectorAll('.act').forEach((b) => { b.onclick = () => act(b.dataset.id); });
@@ -627,7 +641,7 @@
       <label class="opt"><input type="radio" name="len" id="len-${n}" value="${n}" ${n === setupChoice.days ? 'checked' : ''}>
         <span>${n} днів</span><small>Оренда кожні ${C.rent.every} днів, дедлайн щотижня</small></label>`).join('');
     openModal(`
-      <h1>Запас сил</h1>
+      <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і сил, скільки дозволяє ранковий біль.
       Розподіляй їх між роботою, радістю і тим, що знижує біль. Сили можна позичати, але завтра вони повернуться болем.</p>
       <p class="sub">Гра закінчується, якщо радість або гроші падають до нуля. Біль 10 — це лікарня.</p>

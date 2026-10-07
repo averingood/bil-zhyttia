@@ -48,7 +48,10 @@
       create:   { energy: 1, joy: 6, streakBonus: 1, streakMax: 4 },
       friends:  { energy: 2, inviteEnergy: 1, joy: 10 },   // прийняти тих, хто сам просився, легше, ніж кликати
       // Вправи окупаються завтра, розтяжка допомагає одразу.
-      exercise: { energy: 2, reliefTomorrow: 1, perDay: 1 },
+      exercise: { energy: 2, reliefTomorrow: 1, perDay: 1,
+        // Килимок від першої особи: тримай повтор, відпускай, коли спалахує біль.
+        mat: { reps: 6, minReps: 3, holdSeconds: 1.5, strainPain: 1,
+          spike: { light: 0.15, medium: 0.35, strong: 0.55 } } },
       stretch:  { energy: 1, reliefToday: 1 },
       cook:     { money: 5 },               // сили беруться з таблиці станів
       delivery: { energy: 0, money: 18 },

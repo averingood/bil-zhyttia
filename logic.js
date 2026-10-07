@@ -173,7 +173,7 @@
     s.relief = 0;
     s.borrowed = 0;
     s.restedToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0;
-    s.coffeeToday = 0; s.sleptEarly = false;
+    s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null;
     s.fed = false; s.foodType = null;
     const st = stateKey(s);
     s.energyMorning = Math.max(0, C.states[st].energy - s.hungerPenalty);
@@ -365,11 +365,16 @@
         }
         break;
       }
-      case 'exercise':
+      case 'exercise': {
+        // opts.mat — підсумок міні-гри { reps, strain }; без неї вправи вдалі.
+        const m = opts.mat, M = a.mat;
+        s.exerciseQuality = !m ? 'good' : m.strain > 0 ? 'strain' : m.reps < M.minReps ? 'short' : 'good';
         s.exerciseToday++;
-        s.trainings++;
-        note = 'вправ усього ' + s.trainings;
+        if (s.exerciseQuality !== 'short') s.trainings++;
+        note = s.exerciseQuality === 'short' ? 'замало повторів, не зараховано'
+          : s.exerciseQuality === 'strain' ? 'перестарався, днів вправ ' + s.trainings : 'днів вправ ' + s.trainings;
         break;
+      }
       case 'stretch': {
         const before = pain(s);
         s.relief = Math.min(s.relief + a.reliefToday, s.base + s.extra);
@@ -519,9 +524,15 @@
 
     // 4. Вправи: м'язи тримають краще, завтра болить менше.
     if (s.exerciseToday > 0) {
-      const less = s.exerciseToday * C.actions.exercise.reliefTomorrow;
-      s.extra -= less;
-      ev.push({ kind: 'good', text: 'Після вправ: тимчасовий біль −' + less });
+      const q = s.exerciseQuality || 'good';
+      if (q === 'good') {
+        const less = s.exerciseToday * C.actions.exercise.reliefTomorrow;
+        s.extra -= less;
+        ev.push({ kind: 'good', text: 'Після вправ: тимчасовий біль −' + less });
+      } else if (q === 'strain') {
+        s.extra += C.actions.exercise.mat.strainPain;
+        ev.push({ kind: 'pain', text: 'Вправи крізь біль: перестарався, тимчасовий біль +' + C.actions.exercise.mat.strainPain });
+      } else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано' });
     }
 
     // 5. Вправи знижують базу.
