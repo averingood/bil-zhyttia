@@ -244,7 +244,7 @@
   .btn:hover { border-color: var(--accent); }
   .btn.ghost { background: transparent; color: var(--muted); padding: 4px 12px; font-size: 19px; justify-self: start; }
   .btn.ghost:hover { color: var(--fg); }
-  .scene-tog { margin-left: auto; margin-right: 10px; background: transparent; border: 2px solid var(--line); color: var(--muted); font: inherit; font-size: 18px; padding: 0 8px; cursor: pointer; }
+  .scene-tog { position: absolute; top: 8px; right: 8px; z-index: 4; background: rgba(15,17,26,.8); border: 2px solid var(--line); color: var(--muted); font: inherit; font-size: 19px; padding: 2px 10px; cursor: pointer; }
   .scene-tog.on { color: var(--fg); border-color: var(--accent, #d9a441); }
   .scene-tog kbd { font-size: 14px; opacity: .7; }
   .btn.primary { background: var(--accent); color: var(--ink); border-color: var(--accent); font-weight: 400; }
@@ -302,6 +302,7 @@
   <main id="stage">
     <div id="canvasWrap">
       <canvas id="room" aria-label="Квартира"></canvas>
+      <button id="sceneTog" class="scene-tog" type="button" title="Планерки, розмови, вправи й читання від першої особи. Клавіша M" hidden></button>
       <div id="hoverLabel" hidden></div>
       <div id="cutCaption" hidden></div>
       <div id="toast" hidden></div>

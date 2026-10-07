@@ -406,13 +406,9 @@
       return;
     }
     const list = G.zoneActions(game, z);
-    // Біля столу й дивана — перемикач міні-ігор: вирішуєш просто перед планеркою чи гостями.
-    const sceneZone = z === 'desk' || z === 'sofa' || z === 'mat' || z === 'books';
-    const sceneBtn = sceneZone ? `<button class="scene-tog ${setupChoice.scenes ? 'on' : ''}" id="sceneTog" title="Клавіша M">${z === 'desk' ? 'Планерка' : z === 'mat' ? 'Вправи' : z === 'books' ? 'Читання' : 'Розмова'}: ${setupChoice.scenes ? 'грати' : 'авто'} <kbd>M</kbd></button>` : '';
-    el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span>${sceneBtn}<span class="ab-meta">${slotTxt}</span></div>
+    el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span><span class="ab-meta">${slotTxt}</span></div>
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
     el.querySelectorAll('.act').forEach((b) => { b.onclick = () => act(b.dataset.id); });
-    if (sceneZone) $('sceneTog').onclick = toggleScenes;
     bindInvite(el);
   }
 
@@ -597,6 +593,7 @@
         <div class="sec-h"><span class="lbl">Вправи для бази</span><span class="val">${bp.atMin ? '—' : bp.done + '/' + bp.per}</span></div>
         <div class="sub">${bp.atMin ? 'Базовий біль на мінімумі' : bp.dropTonight ? 'Уночі база ' + s.base + ' → ' + (s.base - 1)
           : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і база ' + s.base + ' → ' + (s.base - 1)}</div>
+        ${s.courseStreak || s.courseToday ? `<div class="sub" ${s.courseOn ? 'style="color:var(--light)"' : ''}>${s.courseOn ? 'Курс ліків діє: база −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}</div>` : ''}
         ${s.daysNoExercise ? `<div class="sub" ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}</div>` : ''}
       </div>
 
@@ -648,7 +645,16 @@
     $('modal').querySelector('[data-k=back]').focus();
   }
 
-  function renderAll() { renderPanel(); renderActions(); renderChips(); }
+  function renderAll() { renderPanel(); renderActions(); renderChips(); renderSceneToggle(); }
+
+  // Один перемикач міні-ігор у кутку над кімнатою: видно одразу, а не лише біля зони.
+  function renderSceneToggle() {
+    const b = $('sceneTog');
+    b.hidden = !game || phase === 'setup' || phase === 'scene' || phase === 'cut';
+    b.classList.toggle('on', setupChoice.scenes);
+    b.innerHTML = 'Міні-ігри: ' + (setupChoice.scenes ? 'увімк.' : 'вимк.') + ' <kbd>M</kbd>';
+  }
+  $('sceneTog').onclick = () => { if (phase === 'play') toggleScenes(); };
 
   // ---------- вікна ----------
 

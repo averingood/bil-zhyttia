@@ -25,6 +25,7 @@
     cook:     { zone: 'kitchen', label: 'Приготувати' },
     delivery: { zone: 'kitchen', label: 'Замовити доставку' },
     meds:     { zone: 'shelf',   label: 'Знеболювальне' },
+    course:   { zone: 'shelf',   label: 'Пігулка з курсу' },
     rest:     { zone: 'sofa',    label: 'Відпочити' },
     sleep:    { zone: 'sofa',    label: 'Лягти раніше' },
     read:     { zone: 'books',   label: 'Почитати' },
@@ -112,7 +113,7 @@
       baseStart: diff.basePain, base: diff.basePain, extra: C.start.extraPain, relief: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
       money: C.start.money, joy: C.start.joy,
-      trainings: 0, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
+      trainings: 0, trainBase: null, courseStreak: 0, courseToday: 0, courseOn: false, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
       book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
       fed: false, foodType: null, hungerPenalty: 0,
@@ -177,7 +178,7 @@
     s.relief = 0;
     s.borrowed = 0;
     s.restedToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0;
-    s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null; s.readToday = 0;
+    s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null; s.readToday = 0; s.courseToday = 0;
     s.fed = false; s.foodType = null;
     const st = stateKey(s);
     s.energyMorning = Math.max(0, C.states[st].energy - s.hungerPenalty - (s.sleepPenalty || 0));
@@ -239,6 +240,10 @@
         break;
       case 'coffee':
         if ((s.coffeeToday || 0) >= a.perDay) return no('Більше кави серце не прийме');
+        break;
+      case 'course':
+        if ((s.courseToday || 0) >= a.perDay) return no('Курсову пігулку сьогодні вже випив');
+        if (s.money < a.money) return no('Не вистачає грошей на курс');
         break;
       case 'read':
         if (pain(s) > a.maxPain) return no('Рядки розпливаються: з болем ' + (a.maxPain + 1) + '+ не читається');
@@ -441,6 +446,12 @@
         }
         break;
       }
+      case 'course':
+        s.money -= a.money;
+        s.courseToday = 1;
+        s.stats.course = (s.stats.course || 0) + 1;
+        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? ', діє' : '') + ', −' + a.money + ' ₴';
+        break;
       case 'clean': {
         const was = s.mess;
         s.mess = 0;
@@ -485,7 +496,7 @@
     let done = s.trainings % per;
     // Щойно зроблений п'ятий день: база знизиться вночі, коло ще не обнулилося.
     const dropTonight = !atMin && s.trainings > 0 && done === 0 &&
-      Math.max(C.night.minBasePain, s.baseStart - Math.floor(s.trainings / per)) < s.base;
+      Math.max(C.night.minBasePain, s.baseStart - Math.floor(s.trainings / per)) < (s.trainBase != null ? s.trainBase : s.baseStart);
     if (dropTonight) done = per;
     return { done, per, atMin, dropTonight };
   }
@@ -585,12 +596,20 @@
       else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано, але й гірше не стало' });
     }
 
-    // 5. Вправи знижують базу.
-    const target = Math.max(N.minBasePain, s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
-    if (target < s.base) {
-      s.base = target;
-      ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився до ' + s.base });
+    // 5. База = старт − вправи − курс. Вправи знижують назавжди, курс — поки п'єш.
+    const CC = C.actions.course;
+    if (s.courseToday) {
+      s.courseStreak = (s.courseStreak || 0) + 1;
+      if (!s.courseOn && s.courseStreak >= CC.days) { s.courseOn = true; ev.push({ kind: 'good', text: s.courseStreak + ' днів курсу поспіль: ліки почали діяти, база −' + CC.baseDrop }); }
+    } else if (s.courseStreak > 0) {
+      if (s.courseOn) ev.push({ kind: 'pain', text: 'Курс перервано: ліки перестали діяти, база знову вища' });
+      else ev.push({ kind: 'info', text: 'Пропущено пігулку: курс доведеться почати спочатку' });
+      s.courseStreak = 0; s.courseOn = false;
     }
+    const trainBase = Math.max(N.minBasePain, s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
+    if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився назавжди' });
+    s.trainBase = trainBase;
+    s.base = Math.max(N.minBasePain, trainBase - (s.courseOn ? CC.baseDrop : 0));
 
     // 6. Загострення.
     const roll = rand(s);
@@ -902,6 +921,8 @@
       out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (сил −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
     if (s.joy <= 0) out.push({ kind: 'fatal', t: 'Радість на нулі: працювати й займатися собою не виходить. Можна замовити їжу й прийняти друзів, якщо покличуть. ' +
       'Ще ' + (C.numb.nights - (s.numbNights || 0)) + ' ноч. без зустрічі — і кінець.' });
+    if (s.courseStreak > 0 && !s.courseToday)
+      out.push({ kind: s.courseOn ? 'pain' : 'info', t: 'Курсова пігулка сьогодні ще не випита. Пропуск — і курс з нуля' + (s.courseOn ? ', база знову зросте на ' + C.actions.course.baseDrop : '') + '.' });
     if (s.creativityBlocked) out.push({ kind: 'joy', t: 'Творчість вимкнена, поки радість не підніметься вище ' + C.joy.creativityOnAbove + '.' });
     if (fc) {
       out.push({ kind: 'info', t: 'Прогноз на ранок: біль ' + fc.pain + ' (' + C.states[fc.state].name.toLowerCase() + ')' +
@@ -942,6 +963,7 @@
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
     if (st.booksRead) kept.push('Дочитано книжок: ' + st.booksRead);
+    if (st.course) kept.push('Курсових пігулок: ' + st.course);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
     if (st.meds) kept.push('Знеболювальне: ' + st.meds + ' р.');
     if (st.earlyNights) kept.push('Лягав раніше: ' + st.earlyNights + ' р.');

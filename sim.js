@@ -93,6 +93,8 @@ const STRATS = {
     if (s.fed && ok(s, 'sleep') && s.extra >= 2 && next !== 'friends' && next !== 'work') return 'sleep';
     return next;
   },
+  // Курс щодня, поки є гроші: пігулка не займає слота.
+  '+курс ліків': (s) => (ok(s, 'course') && s.money > 40 ? 'course' : careful(s)),
   'жадібна': greedy,
   'випадкова': random,
 };
