@@ -561,6 +561,7 @@
       <div class="sec">
         <div class="sec-h"><span class="lbl">Радість</span><span class="val" style="color:var(--joy)">${s.joy}</span></div>
         <div class="joybar"><i style="width:${s.joy}%"></i><b style="left:${C.joy.creativityOffBelow}%"></b><b style="left:${C.joy.creativityOnAbove}%"></b></div>
+        ${s.daysAlone ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо' : ''}</div>` : ''}
         ${s.creativityBlocked ? `<div class="warn">Творчість недоступна до радості ${C.joy.creativityOnAbove}+</div>` : ''}
       </div>
 
@@ -568,6 +569,7 @@
         <div class="sec-h"><span class="lbl">Вправи для бази</span><span class="val">${bp.atMin ? '—' : bp.done + '/' + bp.per}</span></div>
         <div class="sub">${bp.atMin ? 'Базовий біль на мінімумі' : bp.dropTonight ? 'Уночі база ' + s.base + ' → ' + (s.base - 1)
           : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і база ' + s.base + ' → ' + (s.base - 1)}</div>
+        ${s.daysNoExercise ? `<div class="sub" ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}</div>` : ''}
       </div>
 
       <div class="sec">

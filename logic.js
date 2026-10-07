@@ -109,7 +109,7 @@
       baseStart: diff.basePain, base: diff.basePain, extra: C.start.extraPain, relief: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
       money: C.start.money, joy: C.start.joy,
-      trainings: 0,
+      trainings: 0, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
       fed: false, foodType: null, hungerPenalty: 0,
       restedToday: 0, medsToday: 0, exerciseToday: 0, friendsToday: 0,
@@ -176,9 +176,9 @@
     s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null;
     s.fed = false; s.foodType = null;
     const st = stateKey(s);
-    s.energyMorning = Math.max(0, C.states[st].energy - s.hungerPenalty);
+    s.energyMorning = Math.max(0, C.states[st].energy - s.hungerPenalty - (s.sleepPenalty || 0));
     s.energy = s.energyMorning;
-    s.hungerPenalty = 0;
+    s.hungerPenalty = 0; s.sleepPenalty = 0;
     s.morningState = st;
     s.slotsToday = C.states[st].slots;
     const j = journalFor(s, s.day);
@@ -464,6 +464,12 @@
     return 'тимчасовий біль уранці ' + g.with + ' замість ' + g.without;
   }
 
+  // Чи задубіють м'язи цієї ночі, якщо сьогодні без вправ.
+  function stiffTonight(s) {
+    const D = C.night.detrain, n = (s.daysNoExercise || 0) + 1;
+    return n === D.afterDays || (n > D.afterDays && (n - D.afterDays) % D.rollbackEvery === 0);
+  }
+
   function checkLose(s, day) {
     if (s.lost) return;
     let cause = null;
@@ -482,6 +488,7 @@
     const j = journalFor(s, s.day);
     const N = C.night;
     const endState = stateKey(s);
+    const bedPain = pain(s);    // з чим лягаємо: від цього залежить, чи буде безсоння
 
     // Пропозиція друзів, яку так і не прийняли, — це відмова.
     const refused = refuseInvite(s);
@@ -551,6 +558,30 @@
       ev.push({ kind: 'flare', text: 'Загострення вночі: тимчасовий біль +' + N.flarePain });
     }
 
+    // 6а. Пропущені вправи: м'язи дубіють, прогрес до бази тане.
+    const D = N.detrain;
+    if (s.exerciseToday > 0 && s.exerciseQuality !== 'short') s.daysNoExercise = 0;
+    else {
+      s.daysNoExercise = (s.daysNoExercise || 0) + 1;
+      // Дубіють разово на порозі й далі раз на тиждень — не щоночі, інакше біль не спадає зовсім.
+      if (s.daysNoExercise === D.afterDays || (s.daysNoExercise > D.afterDays && (s.daysNoExercise - D.afterDays) % D.rollbackEvery === 0)) {
+        s.extra += D.pain;
+        ev.push({ kind: 'pain', text: s.daysNoExercise + ' дн. без вправ: м’язи дубіють, тимчасовий біль +' + D.pain });
+      }
+      if (s.daysNoExercise % D.rollbackEvery === 0 && s.trainings % N.trainingsPerBaseDrop > 0) {
+        s.trainings--;
+        ev.push({ kind: 'pain', text: 'Тиждень без вправ: до зниження бази знову на день більше' });
+      }
+    }
+
+    // 6б. Погана ніч: з сильним болем важко заснути. Прогноз її не вгадує — це випадковість.
+    const BN = N.badNight;
+    if (opts.forceFlare == null && bedPain >= BN.minPain && rand(s) < (s.sleptEarly ? BN.earlyChance : BN.chance)) {
+      s.sleepPenalty = BN.energy;
+      s.stats.badNights = (s.stats.badNights || 0) + 1;
+      ev.push({ kind: 'bad', text: 'Біль не давав заснути: зранку сил −' + BN.energy });
+    }
+
     // 7. Виплати за роботу.
     payout(s, s.day + 1, ev);
 
@@ -560,6 +591,15 @@
       if (fade > 0) {
         addJoy(s, -fade);
         ev.push({ kind: 'joy', text: 'Хороше швидко стає звичним: радість −' + fade });
+      }
+    }
+    // Самотність: кілька днів без зустрічей.
+    if (s.friendsToday > 0) s.daysAlone = 0;
+    else {
+      s.daysAlone = (s.daysAlone || 0) + 1;
+      if (s.daysAlone >= C.lonely.afterDays) {
+        addJoy(s, C.lonely.joy);
+        ev.push({ kind: 'joy', text: s.daysAlone + ' дн. без зустрічей: самотньо, радість ' + signed(C.lonely.joy) });
       }
     }
     const daily = C.states[endState].joyDaily;
@@ -791,6 +831,13 @@
       out.push({ kind: 'money', t: 'Оренда ' + C.rent.amount + ' ₴ у день ' + d + '. До того надійде ' + incoming + ' ₴.' });
       break;
     }
+    if (s.exerciseToday === 0 && stiffTonight(s))
+      out.push({ kind: 'pain', t: 'Без вправ уже ' + s.daysNoExercise + ' дн. Якщо й сьогодні без них — уночі тимчасовий біль +' + C.night.detrain.pain + '.' });
+    if (s.friendsToday === 0 && (s.daysAlone || 0) + 1 >= C.lonely.afterDays)
+      out.push({ kind: 'joy', t: 'Без зустрічей уже ' + s.daysAlone + ' дн. ' + (s.daysAlone >= C.lonely.afterDays
+        ? 'Щоночі радість ' + signed(C.lonely.joy) + ', поки когось не побачиш.' : 'Ще день наодинці — уночі радість ' + signed(C.lonely.joy) + '.') });
+    if (pain(s) >= C.night.badNight.minPain)
+      out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (сил −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
     if (s.creativityBlocked) out.push({ kind: 'joy', t: 'Творчість вимкнена, поки радість не підніметься вище ' + C.joy.creativityOnAbove + '.' });
     if (fc) {
       out.push({ kind: 'info', t: 'Прогноз на ранок: біль ' + fc.pain + ' (' + C.states[fc.state].name.toLowerCase() + ')' +
@@ -829,6 +876,7 @@
     if (st.stateDays.strong) lost.push('Днів у сильному болю: ' + st.stateDays.strong);
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
+    if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
     if (st.meds) kept.push('Знеболювальне: ' + st.meds + ' р.');
     if (st.earlyNights) kept.push('Лягав раніше: ' + st.earlyNights + ' р.');

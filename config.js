@@ -71,7 +71,14 @@
       trainingsPerBaseDrop: 5,
       minBasePain: 1,
       flarePain: 2,
+      // Без вправ м'язи дубіють: з третього дня поспіль щоночі тимчасовий +1,
+      // а кожен тиждень без вправ забирає день прогресу до бази.
+      detrain: { afterDays: 3, pain: 1, rollbackEvery: 7 },
+      // Лягти з болем 7+ — ризик безсоння: зранку на силу менше. Рано лягти — ризик менший.
+      badNight: { minPain: 7, chance: 0.35, earlyChance: 0.15, energy: 1 },
     },
+    // Кілька днів без зустрічей — радість тане швидше.
+    lonely: { afterDays: 4, joy: -3 },
 
     joy: {
       max: 100,
