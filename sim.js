@@ -26,6 +26,8 @@ function careful(s, opt = {}) {
   if (deadlinePressure(s) >= 0.9 && can(s, 'work')) return 'work';
   // Гравець, що слухається підказки «без вправ уже 2 дн.», поки м'язи не задубіли.
   if (opt.antiDetrain && (s.daysNoExercise || 0) >= C.night.detrain.afterDays - 1 && L.stateKey(s) !== 'strong' && can(s, 'exercise')) return 'exercise';
+  // Прибрати, поки безлад не почав псувати радість.
+  if ((s.mess || 0) >= C.chores.annoyAt - 1 && can(s, 'clean')) return 'clean';
   if (s.joy < 40 && can(s, 'friends')) return 'friends';
   if (s.joy < 55 && can(s, 'create')) return 'create';
   if (opt.exercise === true && L.stateKey(s) !== 'strong' && can(s, 'exercise')) return 'exercise';
@@ -61,6 +63,7 @@ const STRATS = {
   'розважлива': (s) => careful(s),
   '+вправи завжди': (s) => careful(s, { exercise: true }),
   '+вправи з розумом': (s) => careful(s, { exercise: 'smart' }),
+  '+читання для радості': (s) => { const n = careful(s); return n === 'create' && ok(s, 'read') && s.energy >= 1 ? 'read' : n; },
   '+вправи проти задубіння': (s) => careful(s, { antiDetrain: true }),
   '+ліки при болю≥6': (s) => careful(s, { meds: 6 }),
   '+ліки щодня': (s) => careful(s, { meds: 0 }),

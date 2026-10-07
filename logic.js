@@ -13,6 +13,7 @@
     mat:     { name: 'Килимок' },
     kitchen: { name: 'Кухня' },
     shelf:   { name: 'Аптечка' },
+    books:   { name: 'Книжки' },
   };
 
   const ACTIONS = {
@@ -26,6 +27,8 @@
     meds:     { zone: 'shelf',   label: 'Знеболювальне' },
     rest:     { zone: 'sofa',    label: 'Відпочити' },
     sleep:    { zone: 'sofa',    label: 'Лягти раніше' },
+    read:     { zone: 'books',   label: 'Почитати' },
+    clean:    { zone: 'kitchen', label: 'Прибрати й помити посуд' },
     coffee:   { zone: 'kitchen', label: 'Випити кави' },
   };
   const ACTION_IDS = Object.keys(ACTIONS);
@@ -110,6 +113,7 @@
       energy: 0, energyMorning: 0, borrowed: 0,
       money: C.start.money, joy: C.start.joy,
       trainings: 0, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
+      book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
       fed: false, foodType: null, hungerPenalty: 0,
       restedToday: 0, medsToday: 0, exerciseToday: 0, friendsToday: 0,
@@ -173,7 +177,7 @@
     s.relief = 0;
     s.borrowed = 0;
     s.restedToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0;
-    s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null;
+    s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null; s.readToday = 0;
     s.fed = false; s.foodType = null;
     const st = stateKey(s);
     s.energyMorning = Math.max(0, C.states[st].energy - s.hungerPenalty - (s.sleepPenalty || 0));
@@ -232,6 +236,14 @@
         break;
       case 'coffee':
         if ((s.coffeeToday || 0) >= a.perDay) return no('Більше кави серце не прийме');
+        break;
+      case 'read':
+        if (pain(s) > a.maxPain) return no('Рядки розпливаються: з болем ' + (a.maxPain + 1) + '+ не читається');
+        if ((s.readToday || 0) >= a.perDay) return no('Сьогодні вже читав, далі не йде');
+        if (!bookNow(s)) return no('Усі книжки на полиці прочитані');
+        break;
+      case 'clean':
+        if ((s.mess || 0) <= 0) return no('Вдома й так чисто');
         break;
     }
     return { available: true, reason: null };
@@ -411,6 +423,30 @@
         note = 'пропущено слотів: ' + skipped + ', ' + gainTxt;
         break;
       }
+      case 'read': {
+        const b = bookNow(s), before = pain(s);
+        s.readToday = (s.readToday || 0) + 1;
+        s.relief = Math.min(s.relief + a.reliefToday, s.base + s.extra);
+        const gain = Math.round(a.joy * mult);
+        addJoy(s, gain);
+        s.book.done++;
+        note = '«' + b[0] + '» ' + s.book.done + '/' + b[1] + ', радість +' + gain + ', біль ' + before + ' → ' + pain(s) + ' до ночі';
+        if (s.book.done >= b[1]) {
+          addJoy(s, a.finishJoy);
+          s.stats.booksRead = (s.stats.booksRead || 0) + 1;
+          s.lastBookDone = b[0];
+          note += '; дочитав! радість +' + a.finishJoy;
+          s.book = { i: s.book.i + 1, done: 0 };
+        }
+        break;
+      }
+      case 'clean': {
+        const was = s.mess;
+        s.mess = 0;
+        addJoy(s, a.joy);
+        note = 'безлад ' + was + ' → 0, радість +' + a.joy;
+        break;
+      }
       case 'coffee':
         s.energy += a.gain;
         s.coffeeToday = (s.coffeeToday || 0) + 1;
@@ -425,6 +461,14 @@
     if (id === 'sleep') s.slot = slotsOf(s);
     checkLose(s, s.day);
     return { ok: true, note, borrowed: borrowedNow, guests: id === 'friends' ? s.lastGuests : null };
+  }
+
+  // Книжка, яку зараз читаємо: [назва, сесій] або null, якщо полиця прочитана.
+  function bookNow(s) { return C.books[(s.book || { i: 0 }).i] || null; }
+  // Рівень безладу словами — для панелі й підказок.
+  function messText(m) {
+    const H = C.chores;
+    return m <= 0 ? 'чисто' : m < H.annoyAt ? 'трохи безладу' : m < H.badAt ? 'безлад: дратує' : 'безлад: гнітить';
   }
 
   // Кава підкручує нічне загострення.
@@ -593,6 +637,12 @@
         ev.push({ kind: 'joy', text: 'Хороше швидко стає звичним: радість −' + fade });
       }
     }
+    // Хатні справи: безлад росте сам, від готування й гостей — ще більше.
+    const H = C.chores;
+    s.mess = Math.min(H.max, (s.mess || 0) + H.perDay + (s.foodType === 'cook' ? H.cookAdd : 0) + (s.friendsToday > 0 ? H.guestsAdd : 0));
+    if (s.mess >= H.badAt) { addJoy(s, H.badJoy); ev.push({ kind: 'joy', text: 'Вдома безлад, гнітить: радість ' + signed(H.badJoy) }); }
+    else if (s.mess >= H.annoyAt) { addJoy(s, H.annoyJoy); ev.push({ kind: 'joy', text: 'Посуд і речі накопичуються: радість ' + signed(H.annoyJoy) }); }
+
     // Самотність: кілька днів без зустрічей.
     if (s.friendsToday > 0) s.daysAlone = 0;
     else {
@@ -836,6 +886,10 @@
     if (s.friendsToday === 0 && (s.daysAlone || 0) + 1 >= C.lonely.afterDays)
       out.push({ kind: 'joy', t: 'Без зустрічей уже ' + s.daysAlone + ' дн. ' + (s.daysAlone >= C.lonely.afterDays
         ? 'Щоночі радість ' + signed(C.lonely.joy) + ', поки когось не побачиш.' : 'Ще день наодинці — уночі радість ' + signed(C.lonely.joy) + '.') });
+    {
+      const H = C.chores, next = Math.min(H.max, (s.mess || 0) + H.perDay + (s.foodType === 'cook' ? H.cookAdd : 0) + (s.friendsToday > 0 ? H.guestsAdd : 0));
+      if (next >= H.annoyAt) out.push({ kind: 'joy', t: 'Вдома ' + messText(s.mess) + '. Якщо не прибрати, уночі радість ' + signed(next >= H.badAt ? H.badJoy : H.annoyJoy) + '.' });
+    }
     if (pain(s) >= C.night.badNight.minPain)
       out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (сил −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
     if (s.creativityBlocked) out.push({ kind: 'joy', t: 'Творчість вимкнена, поки радість не підніметься вище ' + C.joy.creativityOnAbove + '.' });
@@ -877,6 +931,7 @@
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
+    if (st.booksRead) kept.push('Дочитано книжок: ' + st.booksRead);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
     if (st.meds) kept.push('Знеболювальне: ' + st.meds + ' р.');
     if (st.earlyNights) kept.push('Лягав раніше: ' + st.earlyNights + ' р.');
@@ -896,7 +951,7 @@
 
   const api = {
     ZONES, ACTIONS, ACTION_IDS, CAUSES,
-    createGame, doAction, endDay, flareChanceTonight, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
+    createGame, doAction, endDay, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text,
     slotsOf, slotName, dayPhase,

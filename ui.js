@@ -65,6 +65,7 @@
         food: game.foodType,
         night: phase === 'night',
         joy: game.joy,
+        mess: game.mess,
         invite: phase === 'play' && !!G.inviteToday(game),
       });
     }
@@ -220,7 +221,7 @@
     return {
       money: game.money, joy: game.joy, energy: game.energy, borrowed: game.borrowed, pain: G.pain(game),
       pending: game.pending.reduce((a, x) => a + x.amount, 0), warmth: game.warmth || 0, trainings: game.trainings,
-      fed: game.fed, workWeek: game.workWeek, exQ: game.exerciseQuality,
+      fed: game.fed, workWeek: game.workWeek, exQ: game.exerciseQuality, bookI: game.book ? game.book.i : 0, mess: game.mess,
     };
   }
   function showDelta(b, extra) {
@@ -239,6 +240,8 @@
       if (a.trainings > b.trainings) parts.push({ t: G.baseProgressText(game), k: '' });
     }
     if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
+    if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
+    if (a.mess < b.mess) parts.push({ t: 'вдома чисто', k: 'good' });
     if (a.workWeek > b.workWeek) parts.push({ t: 'робота ' + a.workWeek + '/' + C.work.unitsPerDeadline, k: '' });
     if (a.warmth < b.warmth) parts.push({ t: 'друзі кликатимуть рідше', k: 'bad' });
     if (a.warmth > b.warmth) parts.push({ t: 'друзі кликатимуть частіше', k: 'good' });
@@ -563,6 +566,11 @@
         <div class="joybar"><i style="width:${s.joy}%"></i><b style="left:${C.joy.creativityOffBelow}%"></b><b style="left:${C.joy.creativityOnAbove}%"></b></div>
         ${s.daysAlone ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо' : ''}</div>` : ''}
         ${s.creativityBlocked ? `<div class="warn">Творчість недоступна до радості ${C.joy.creativityOnAbove}+</div>` : ''}
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><span class="lbl">Дім</span><span class="val" ${(s.mess || 0) >= C.chores.annoyAt ? 'style="color:var(--strong)"' : ''}>${esc(G.messText(s.mess || 0))}</span></div>
+        <div class="sub">${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + ' сесій' : 'Усі книжки прочитані'; })()}</div>
       </div>
 
       <div class="sec">
