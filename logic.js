@@ -114,8 +114,9 @@
       setup: { money, friends: friendsN, minBase: minB },
       days: opts.days || C.days, flareChance: SU.flareChance,
       day: 1, slot: 0,
-      // Старт — мінімум + startExtra: лікуванням можна спуститися до мінімуму, нижче — ні.
-      baseStart: minB + SU.startExtra, base: minB + SU.startExtra, extra: C.start.extraPain, relief: 0,
+      // Старт: базовий — на обраному мінімумі, плюс startExtra тимчасового (спадає сам).
+      // Лікування базовий нижче не опускає — лише стримує хронізацію й знімає тимчасовий.
+      baseStart: minB, base: minB, extra: SU.startExtra, relief: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
       money, joy: C.start.joy,
       friendNames: C.friends.names.slice(0, friendsN),
