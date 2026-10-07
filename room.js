@@ -176,6 +176,8 @@
     ['..JJJJ..', '...JJ...', '...KK...'],
   ];
   const HERO_PAL = { H: PAL.hair, S: PAL.skin, E: '#1d1d24', B: PAL.skinD, G: PAL.hood, D: PAL.hoodD, J: PAL.jeans, K: PAL.shoe };
+  // Фінал без радості: усе чорне.
+  const HERO_BLACK = { ...HERO_PAL, G: '#1c1d23', D: '#121318', J: '#24252c', K: '#0b0b0f' };
 
   const CROUCH_LEGS = ['JJJJJJJJ', 'KK....KK'];
   const SLEEP_HEAD = ['.HHHH.', 'HHHHHH', 'HSSSSH', 'SESSES', '.SBBS.'];
@@ -369,6 +371,7 @@
       this.standUp();
       this.path = this.findPath(x, y);
       this.target = zone || null;
+      this.slumpPending = false;
       if (!this.path.length && zone) this.arrive();
     }
 
@@ -386,7 +389,7 @@
 
     setKeys(x, y) {
       this.keys.x = x; this.keys.y = y;
-      if (x || y) { this.standUp(); this.path = []; this.target = null; }
+      if (x || y) { this.standUp(); this.path = []; this.target = null; this.slumpPending = false; }
     }
 
     get walking() { return this.path.length > 0 || this.keys.x !== 0 || this.keys.y !== 0; }
@@ -402,7 +405,20 @@
       return best;
     }
 
-    speed() { return { light: 2.6, medium: 1.9, strong: 1.1 }[this.view.state] || 2; }
+    speed() {
+      if (this.cut && this.cut.slow) return 0.75;   // фінал без радості: важкий, повільний крок
+      return { light: 2.6, medium: 1.9, strong: 1.1 }[this.view.state] || 2;
+    }
+
+    heroPal() { return this.hero.black ? HERO_BLACK : HERO_PAL; }
+
+    // Заціпеніння (радість 0): герой сам іде до крісла-мішка й сідає. Будь-який рух гравця це скасовує.
+    slumpToBag() {
+      if (this.hero.sitting || this.walking || this.visit || this.cut) return;
+      this.path = this.findPath(BAG_FRONT[0], BAG_FRONT[1]);
+      this.target = null;
+      this.slumpPending = true;
+    }
 
     update(dt) {
       this.t += dt;
@@ -442,6 +458,11 @@
         if (Math.abs(sdx) > 0.05) h.dir = sdx > 0 ? 1 : -1;
         h.back = sdy < -0.1;
       } else h.walkT = 0;
+      // Дійшов до мішка в заціпенінні — сідає.
+      if (this.slumpPending && !this.path.length && !this.keys.x && !this.keys.y) {
+        this.slumpPending = false;
+        if (Math.hypot(h.x - BAG_FRONT[0], h.y - BAG_FRONT[1]) < 0.2) { h.sit = 1; h.sitting = true; h.x = BAG_FRONT[0]; h.y = BAG_FRONT[1]; }
+      }
       if (this.bubble && (this.bubble.t -= dt) <= 0) this.bubble = null;
       this.updateVisit(dt);
       if (this.cut) this.updateCut(dt);
@@ -483,6 +504,7 @@
     resetHero() {
       this.cut = null; this.bubble = null; this.target = null; this.path = [];
       this.heroAway = false; this.hero.sitting = false; this.hero.sit = 0;
+      this.hero.black = false; this.slumpPending = false;
       this.hero.x = 5; this.hero.y = 3.2;
     }
 
@@ -490,10 +512,12 @@
     // kind: 'joy' — радість на нулі, 'money' — гроші скінчились.
     playEnding(kind, onDone) {
       this.endVisit(true);
-      this.bubble = null; this.hero.sitting = false; this.hero.sit = 0; this.heroAway = false;
-      this.cut = { ending: kind, phase: 'walk', t: 0, onDone, slot: this.view.slot, caption: '', flash: 0, medics: [],
+      const onBag = kind === 'joy' && this.hero.sit >= 1;
+      this.bubble = null; this.heroAway = false; this.slumpPending = false;
+      if (!onBag) { this.hero.sitting = false; this.hero.sit = 0; }
+      this.cut = { ending: kind, phase: onBag ? 'sit' : 'walk', t: 0, onDone, slot: this.view.slot, caption: '', flash: 0, medics: [],
         sleeping: false, drain: 0, joy0: this.view.joy || 30, boxes: 0 };
-      this.path = kind === 'joy' ? this.findPath(BAG_FRONT[0], BAG_FRONT[1]) : this.findPath(5.4, 7.0);
+      this.path = onBag ? [] : kind === 'joy' ? this.findPath(BAG_FRONT[0], BAG_FRONT[1]) : this.findPath(5.4, 7.0);
       this.target = null;
     }
 
@@ -501,14 +525,27 @@
       const c = this.cut;
       const go = (p) => { c.phase = p; c.t = 0; };
       if (c.ending === 'joy') {
+        // Пуф → підвестися → вдягнути все чорне → повільно вийти. Кімната тим часом вицвітає.
+        c.drain = Math.min(1, c.drain + dt / 6);
         if (c.phase === 'walk') {
-          c.caption = 'Радість упала до нуля';
-          if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('drain'); }
-        } else if (c.phase === 'drain') {
-          // Кімната повільно втрачає колір: радість — це те, що фарбувало світ.
-          c.drain = Math.min(1, c.t / 3);
-          c.caption = c.t < 2.4 ? 'Радість упала до нуля' : 'Нічого не хочеться. Навіть друзям писати.';
-          if (c.t > 6) go('done');
+          c.caption = 'Радість на нулі';
+          if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('sit'); }
+        } else if (c.phase === 'sit') {
+          c.caption = c.t < 1.6 ? 'Радість на нулі' : 'Три ночі. Ніхто так і не прийшов.';
+          if (c.t > 3.6) { this.setHeroSit(0); go('dress'); }
+        } else if (c.phase === 'dress') {
+          // Перевдягається: одяг блимає, поки не стає чорним.
+          c.caption = 'Ти вдягаєш усе чорне.';
+          this.hero.black = c.t > 1.4 || Math.floor(c.t / 0.22) % 2 === 1;
+          if (c.t > 2.2) {
+            this.hero.black = true; c.slow = true;
+            this.path = [...this.findPath(DOOR_IN[0], DOOR_IN[1]), [DOOR[0], DOOR[1]]];
+            go('leave');
+          }
+        } else if (c.phase === 'leave') {
+          c.caption = 'І тихо зачиняєш за собою двері.';
+          if (!this.path.length) { this.heroAway = true; if (c.t > 1.6) go('done'); }
+          else c.t = 0;
         }
       } else {
         if (c.phase === 'walk') {
@@ -1150,7 +1187,7 @@
         if (this.hero.sit > 0) {
           // Сідає у вм'ятину; коли сів, нижній край мішка накриває ноги.
           const from = P(BAG_FRONT[0], BAG_FRONT[1], 0).map(Math.round);
-          this.drawSitter(ctx, this.hero, HERO_PAL, false, from, [p[0], p[1] - 7], true);
+          this.drawSitter(ctx, this.hero, this.heroPal(), false, from, [p[0], p[1] - 7], true);
           if (this.hero.sit >= 1) sprite(ctx, BEANBAG.slice(-BAG_FRONT_ROWS), pal, bx, by + BEANBAG.length - BAG_FRONT_ROWS);
         }
       }, null, [2.15, 6.6, 0.6, 0.6]);
@@ -1221,7 +1258,7 @@
 
     drawHero(ctx) {
       if (this.sleeping()) return; // він на дивані під ковдрою
-      this.drawWalker(ctx, this.hero, HERO_PAL);
+      this.drawWalker(ctx, this.hero, this.heroPal());
     }
 
     drawWalker(ctx, h, pal, long) {

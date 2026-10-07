@@ -34,7 +34,7 @@
   const ACTION_IDS = Object.keys(ACTIONS);
 
   const CAUSES = {
-    joy:   { sphere: 'Радість', text: 'Радість упала до нуля' },
+    joy:   { sphere: 'Радість', text: 'Радість на нулі, і друзі так і не прийшли' },
     money: { sphere: 'Гроші', text: 'Гроші скінчилися' },
   };
 
@@ -206,6 +206,9 @@
   function check(s, id) {
     const a = C.actions[id];
     if (s.lost || s.finished) return no('Гра завершена');
+    // Заціпеніння: нічого не хочеться. Можна лише замовити їжу й відгукнутися, якщо друзі самі покличуть.
+    if (s.joy <= 0 && !C.numb.allowed.includes(id)) return no('Радість на нулі: нічого не хочеться. Лишається замовити їжу й чекати, що покличуть друзі');
+    if (s.joy <= 0 && id === 'friends' && !inviteToday(s)) return no('Самому кликати немає сил — тільки якщо друзі запропонують');
     if (s.slot >= slotsOf(s)) return no('Слоти на сьогодні скінчилися, час спати');
     switch (id) {
       case 'create':
@@ -239,7 +242,6 @@
         break;
       case 'read':
         if (pain(s) > a.maxPain) return no('Рядки розпливаються: з болем ' + (a.maxPain + 1) + '+ не читається');
-        if ((s.readToday || 0) >= a.perDay) return no('Сьогодні вже читав, далі не йде');
         if (!bookNow(s)) return no('Усі книжки на полиці прочитані');
         break;
       case 'clean':
@@ -424,13 +426,12 @@
         break;
       }
       case 'read': {
-        const b = bookNow(s), before = pain(s);
+        const b = bookNow(s);
         s.readToday = (s.readToday || 0) + 1;
-        s.relief = Math.min(s.relief + a.reliefToday, s.base + s.extra);
         const gain = Math.round(a.joy * mult);
         addJoy(s, gain);
         s.book.done++;
-        note = '«' + b[0] + '» ' + s.book.done + '/' + b[1] + ', радість +' + gain + ', біль ' + before + ' → ' + pain(s) + ' до ночі';
+        note = '«' + b[0] + '» ' + s.book.done + '/' + b[1] + ', радість +' + gain;
         if (s.book.done >= b[1]) {
           addJoy(s, a.finishJoy);
           s.stats.booksRead = (s.stats.booksRead || 0) + 1;
@@ -517,8 +518,8 @@
   function checkLose(s, day) {
     if (s.lost) return;
     let cause = null;
-    if (s.joy <= 0) cause = 'joy';
-    else if (s.money <= 0) cause = 'money';
+    // Радість 0 сама гру не закінчує — це робить ніч, коли заціпеніння триває задовго (endDay).
+    if (s.money <= 0) cause = 'money';
     if (cause) s.lost = { cause, day, sphere: CAUSES[cause].sphere, text: CAUSES[cause].text };
   }
 
@@ -681,6 +682,15 @@
       const e = s.extra;
       ev.push({ kind: 'info', text: 'Підсумок на ранок: біль ' + pain(s) + ' (база ' + s.base + (e ? ', тимчасовий ' + signed(e) : '') + ')' });
     }
+    // Заціпеніння: ночі на нулі радості без зустрічі. Зустріч скидає лічильник.
+    if (s.joy > 0 || s.friendsToday > 0) s.numbNights = 0;
+    else {
+      s.numbNights = (s.numbNights || 0) + 1;
+      const left = C.numb.nights - s.numbNights;
+      ev.push({ kind: 'bad', text: left > 0 ? 'Радість на нулі. Ще ' + left + ' ' + (left === 1 ? 'ніч' : 'ночі') + ' без друзів — і кінець.' : 'Радість на нулі вже ' + s.numbNights + ' ночі, і ніхто не прийшов.' });
+      if (left <= 0 && !s.lost) s.lost = { cause: 'joy', day: s.day, sphere: CAUSES.joy.sphere, text: CAUSES.joy.text };
+    }
+    j.night = ev.map((e) => e.text);
     checkLose(s, s.day);
     if (!s.lost) {
       if (s.day >= s.days) s.finished = true;
@@ -890,6 +900,8 @@
     }
     if (pain(s) >= C.night.badNight.minPain)
       out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (сил −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
+    if (s.joy <= 0) out.push({ kind: 'fatal', t: 'Радість на нулі: працювати й займатися собою не виходить. Можна замовити їжу й прийняти друзів, якщо покличуть. ' +
+      'Ще ' + (C.numb.nights - (s.numbNights || 0)) + ' ноч. без зустрічі — і кінець.' });
     if (s.creativityBlocked) out.push({ kind: 'joy', t: 'Творчість вимкнена, поки радість не підніметься вище ' + C.joy.creativityOnAbove + '.' });
     if (fc) {
       out.push({ kind: 'info', t: 'Прогноз на ранок: біль ' + fc.pain + ' (' + C.states[fc.state].name.toLowerCase() + ')' +

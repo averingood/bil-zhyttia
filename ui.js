@@ -21,7 +21,8 @@
   let autoEndedDay = 0;      // не відкривати вікно вдруге, якщо гравець повернувся        // дія, яку виконати, коли герой дійде до зони
   // scenes — планерка й розмови з друзями від першої особи; вимкнено — результат рахується сам.
   // Перемикається в самій грі (біля столу й дивана, клавіша M), тож пам'ятаємо між сесіями.
-  let painHelpOpen = false;   // панель перемальовується часто — довідка не має згортатися сама
+  let painHelpOpen = false;
+  let numbIdle = 0;          // скільки герой стоїть без діла з радістю 0   // панель перемальовується часто — довідка не має згортатися сама
   let setupChoice = { difficulty: 'normal', days: C.days, scenes: loadScenes() };
   function loadScenes() { try { return localStorage.getItem('zapas.scenes') !== '0'; } catch (e) { return true; } }
   function toggleScenes() {
@@ -69,6 +70,11 @@
         invite: phase === 'play' && !!G.inviteToday(game),
       });
     }
+    // Радість 0: коли герой постоїть без діла, він сам іде сидіти на мішок.
+    if (game && phase === 'play' && game.joy <= 0 && !room.visit && !room.cut && !room.walking && !room.hero.sitting && !room.bubble) {
+      numbIdle += dt;
+      if (numbIdle > 3) { numbIdle = 0; room.slumpToBag(); }
+    } else numbIdle = 0;
     room.update(dt);
     room.render();
     const cap = $('cutCaption'), text = room.cut ? room.cut.caption : '';
@@ -188,7 +194,21 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
-    // Вправи — «Слухай тіло» від першої особи: повтори й перенапруга стають якістю вправ.
+    // Читання — розгорнута книжка від першої особи, три перегортання.
+    if (id === 'read' && setupChoice.scenes && window.ReadGame) {
+      const b = G.bookNow(game);
+      phase = 'scene';
+      held.clear(); applyKeys();
+      window.ReadGame.start({
+        wrap: $('canvasWrap'), bar: $('actionBar'),
+        pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
+        book: b ? b[0] : '', session: game.book.done + 1, sessions: b ? b[1] : 0,
+        onDone: () => { phase = 'play'; finishAction(id, p); },
+      });
+      renderAll();
+      return;
+    }
+    // Вправи — повтор рухів за тренером від першої особи: правильні рухи стають якістю вправ.
     if (id === 'exercise' && setupChoice.scenes && window.MatGame) {
       phase = 'scene';
       held.clear(); applyKeys();
@@ -387,8 +407,8 @@
     }
     const list = G.zoneActions(game, z);
     // Біля столу й дивана — перемикач міні-ігор: вирішуєш просто перед планеркою чи гостями.
-    const sceneZone = z === 'desk' || z === 'sofa' || z === 'mat';
-    const sceneBtn = sceneZone ? `<button class="scene-tog ${setupChoice.scenes ? 'on' : ''}" id="sceneTog" title="Клавіша M">${z === 'desk' ? 'Планерка' : z === 'mat' ? 'Вправи' : 'Розмова'}: ${setupChoice.scenes ? 'грати' : 'авто'} <kbd>M</kbd></button>` : '';
+    const sceneZone = z === 'desk' || z === 'sofa' || z === 'mat' || z === 'books';
+    const sceneBtn = sceneZone ? `<button class="scene-tog ${setupChoice.scenes ? 'on' : ''}" id="sceneTog" title="Клавіша M">${z === 'desk' ? 'Планерка' : z === 'mat' ? 'Вправи' : z === 'books' ? 'Читання' : 'Розмова'}: ${setupChoice.scenes ? 'грати' : 'авто'} <kbd>M</kbd></button>` : '';
     el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span>${sceneBtn}<span class="ab-meta">${slotTxt}</span></div>
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
     el.querySelectorAll('.act').forEach((b) => { b.onclick = () => act(b.dataset.id); });
