@@ -56,7 +56,7 @@
           spike: { light: 0.3, medium: 0.5, strong: 0.7 } } },
       stretch:  { energy: 1, reliefToday: 1 },
       cook:     { money: 5 },               // сили беруться з таблиці станів
-      delivery: { energy: 0, money: 18 },
+      delivery: { energy: 0, money: 18, freeSlot: true },   // замовити — хвилина з телефона, вночі воно й так замовляється само
       // Знеболювальне: біль сьогодні −3. Побічна дія — туман: бриф на роботі розмитий.
       meds:     { energy: 0, reliefToday: 3, money: 12, perDay: 1, freeSlot: true },   // ковтнути пігулку — не справа на пів дня
       rest:     { energy: 0, gain: 1, perDay: 1 },
