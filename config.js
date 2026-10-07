@@ -56,7 +56,7 @@
         mat: { series: [3, 4], step: 0.75, grow: 0.25, inputSeconds: 6,   // на повтор серії — як на відповідь на планерці
           baseShare: 1 / 3, reliefShare: 2 / 3,
           spike: { light: 0.3, medium: 0.5, strong: 0.7 } } },
-      stretch:  { energy: 1, reliefToday: 1 },
+      stretch:  { energy: 1, reliefToday: 1, joy: 5 },   // радість рівно +5, без множника стану: тіло дякує одразу
       cook:     { money: 5 },               // сили беруться з таблиці станів
       delivery: { energy: 0, money: 18, freeSlot: true },   // замовити — хвилина з телефона, вночі воно й так замовляється само
       // Знеболювальне: біль сьогодні −3. Побічна дія — туман: бриф на роботі розмитий.

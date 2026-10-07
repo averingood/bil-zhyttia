@@ -463,7 +463,8 @@
       case 'stretch': {
         const before = pain(s);
         s.relief = Math.min(s.relief + a.reliefToday, s.base + s.extra);
-        note = 'біль ' + before + ' → ' + pain(s);
+        addJoy(s, a.joy);
+        note = 'біль ' + before + ' → ' + pain(s) + ', радість +' + a.joy;
         break;
       }
       case 'cook':
