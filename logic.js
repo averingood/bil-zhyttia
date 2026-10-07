@@ -378,13 +378,13 @@
         break;
       }
       case 'exercise': {
-        // opts.mat — підсумок міні-гри { reps, strain }; без неї вправи вдалі.
-        const m = opts.mat, M = a.mat;
-        s.exerciseQuality = !m ? 'good' : m.strain > 0 ? 'strain' : m.reps < M.minReps ? 'short' : 'good';
+        // opts.mat — підсумок міні-гри { right, total }; без неї вправи вдалі.
+        const m = opts.mat, M = a.mat, share = m && m.total ? m.right / m.total : 1;
+        s.exerciseQuality = share >= M.reliefShare ? 'good' : share >= M.baseShare ? 'partial' : 'short';
         s.exerciseToday++;
         if (s.exerciseQuality !== 'short') s.trainings++;
-        note = s.exerciseQuality === 'short' ? 'замало повторів, не зараховано'
-          : s.exerciseQuality === 'strain' ? 'перестарався, днів вправ ' + s.trainings : 'днів вправ ' + s.trainings;
+        note = (m ? 'рухів ' + m.right + ' з ' + m.total + ', ' : '') + (s.exerciseQuality === 'short' ? 'не зараховано'
+          : s.exerciseQuality === 'partial' ? 'частково, днів вправ ' + s.trainings : 'днів вправ ' + s.trainings);
         break;
       }
       case 'stretch': {
@@ -580,10 +580,8 @@
         const less = s.exerciseToday * C.actions.exercise.reliefTomorrow;
         s.extra -= less;
         ev.push({ kind: 'good', text: 'Після вправ: тимчасовий біль −' + less });
-      } else if (q === 'strain') {
-        s.extra += C.actions.exercise.mat.strainPain;
-        ev.push({ kind: 'pain', text: 'Вправи крізь біль: перестарався, тимчасовий біль +' + C.actions.exercise.mat.strainPain });
-      } else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано' });
+      } else if (q === 'partial') ev.push({ kind: 'info', text: 'Вправи частково: день іде до бази, але без −1 на завтра' });
+      else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано, але й гірше не стало' });
     }
 
     // 5. Вправи знижують базу.

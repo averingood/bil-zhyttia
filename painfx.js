@@ -49,8 +49,10 @@
     // g — контекст кадру, W/H — його розмір; glitch — {start, end} або null.
     function draw(g, W, H, t, pain, glitch, painkiller) {
       let grow = 0;
-      if (glitch && t > glitch.start - GROW_IN && t < glitch.end + GROW_OUT) {
-        grow = t < glitch.start ? smooth((t - glitch.start + GROW_IN) / GROW_IN) : t > glitch.end ? smooth(1 - (t - glitch.end) / GROW_OUT) : 1;
+      // glitch.grow — свій час росту й спаду (напр. вправи: короткий спалах на одну стрілку).
+      const gi = glitch && glitch.grow || GROW_IN, go = glitch && glitch.grow || GROW_OUT;
+      if (glitch && t > glitch.start - gi && t < glitch.end + go) {
+        grow = t < glitch.start ? smooth((t - glitch.start + gi) / gi) : t > glitch.end ? smooth(1 - (t - glitch.end) / go) : 1;
       }
       // Кожен напад трохи іншого розміру (від −5% до +15% діаметра): так не вивчиш, де саме край і що лишиться видно.
       if (glitch && glitch.scale == null) glitch.scale = 0.95 + Math.random() * 0.2;

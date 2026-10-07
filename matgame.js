@@ -1,51 +1,38 @@
-// Вправи на килимку від першої особи: «Слухай тіло».
-// Повтор — утримувати пробіл, поки заповнюється смужка. Іноді посеред повтору
-// спалахує біль (ядро розростається знизу) — тоді треба відпустити. Дотиснути
-// крізь біль — перестаратися. Про правила гри не знає: повертає { reps, strain }.
+// Вправи на килимку від першої особи: повтор рухів за тренером.
+// Тренер у телефоні показує послідовність стрілок, гравець повторює її клавішами.
+// Кожен правильний рух іде в залік, помилки не караються: це підтримка, а не іспит.
+// Біль коротким спалахом накриває щонайбільше одну стрілку в серії.
+// Про правила гри не знає: повертає { right, total }.
 (function (root) {
   'use strict';
   const C = root.GAME_CONFIG;
   const W = 412, H = 344, LW = 206, LH = 172;
   const rnd = (n) => Math.floor(Math.random() * n);
-  const pick = (a) => a[rnd(a.length)];
+  const ARR = ['←', '↑', '→', '↓'], CODES = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
 
-  // ---------- кадр: стіна, підлога, килимок, телефон з відео, руки ----------
+  // ---------- кадр: стіна, підлога, килимок, телефон між руками ----------
   const low = document.createElement('canvas'); low.width = LW; low.height = LH;
   const lg = low.getContext('2d');
   const R = (x, y, w, h, c) => { lg.fillStyle = c; lg.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 
-  function drawScene(t, push, strained) {
-    // Стіна і плінтус.
+  function drawScene() {
     R(0, 0, LW, 46, '#2f5b57');
     for (let y = 2; y < 44; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < LW; x += 4) R(x, y, 1, 1, '#356360');
     R(0, 44, LW, 3, '#5a3a26');
-    // Підлога: дошки, що тікають до стіни.
     R(0, 47, LW, LH - 47, '#6b4a32');
     for (let k = 0, y = 50; y < LH; k++, y += 4 + k * 1.6) R(0, y, LW, 1, '#5c3f2a');
-    // Килимок: трапеція від стіни до глядача.
     for (let y = 52; y < LH; y++) {
       const f = (y - 52) / (LH - 52), half = 22 + f * 64;
       R(103 - half, y, half * 2, 1, y % 7 === 0 ? '#36456f' : '#3d4d7a');
       R(103 - half, y, 2, 1, '#2c3860'); R(103 + half - 2, y, 2, 1, '#2c3860');
     }
-    // Гантелі праворуч від килимка.
     R(150, 60, 4, 8, '#26282e'); R(154, 63, 10, 2, '#4a4d55'); R(164, 60, 4, 8, '#26282e');
-    // Телефон, що спирається на стіну, з відео фізіотерапевта.
-    R(86, 12, 34, 44, '#15161b'); R(88, 14, 30, 38, '#cfe0dc');
-    const loop = (Math.sin(t * 2.4) + 1) / 2;            // тренер у відео повільно повторює рух
-    R(100, 40 - Math.round(loop * 4), 6, 6, '#c48b67');   // голова
-    R(98, 46 - Math.round(loop * 4), 10, 4, '#2f8f9a');   // спина
-    R(96, 49, 3, 3, '#2f8f9a'); R(107, 49, 3, 3, '#2f8f9a');
-    R(88, 17, 30, 1, '#b4c9c4');
-    // Руки на килимку: передпліччя з рукавами худі. Тиснуть, коли тримаєш повтор.
-    const dy = Math.round(push * 5), shake = strained ? Math.round(Math.sin(t * 40)) : 0;
+    // Телефон лежить на килимку між руками — саме там, куди дістає ядро болю.
+    R(78, 92, 50, 72, '#15161b'); R(81, 96, 44, 64, '#cfe0dc');
     for (const [x0, dir] of [[50, 1], [128, -1]]) {
-      const x = x0 + shake;
-      R(x, 128 - dy, 28, LH - 128 + dy, '#2d4763');                     // рукав
-      R(x + 2, 128 - dy, 24, 3, '#3a5a7c');
-      R(x + 4 + dir * 2, 116 - dy, 20, 14, '#e0ac84');                  // кисть
-      R(x + 4 + dir * 2, 116 - dy, 20, 2, '#c48b67');
-      for (let k = 0; k < 4; k++) R(x + 6 + dir * 2 + k * 5, 114 - dy, 3, 3, '#e0ac84');
+      R(x0, 128, 28, LH - 128, '#2d4763'); R(x0 + 2, 128, 24, 3, '#3a5a7c');
+      R(x0 + 4 + dir * 2, 116, 20, 14, '#e0ac84'); R(x0 + 4 + dir * 2, 116, 20, 2, '#c48b67');
+      for (let k = 0; k < 4; k++) R(x0 + 6 + dir * 2 + k * 5, 114, 3, 3, '#e0ac84');
     }
   }
 
@@ -71,105 +58,104 @@
     if (ro) ro.observe(o.wrap);
 
     o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Вправи</span><span class="ab-meta" id="scCount"></span></div>
-      <div class="sc-bar"><div class="sc-timer"><i style="width:0%"></i></div><span class="sc-repeat"></span></div>
-      <div class="sc-answers"><button class="ans primary mat-hold" type="button"><kbd>Пробіл</kbd>Тримати повтор</button>
-        <p class="mat-tip">Тримай, поки смужка не заповниться. Спалахнув біль — відпускай.</p></div>
-      <p class="sc-msg"></p>`;
+      <div class="sc-bar"><span class="mat-input"></span><span class="sc-repeat"></span></div>
+      <div class="sc-answers">${ARR.map((a, i) => `<button class="ans mat-arrow" type="button" data-a="${i}" disabled><kbd>${a}</kbd>${['ліво', 'вгору', 'право', 'вниз'][i]}</button>`).join('')}</div>
+      <p class="sc-msg">Дивись на телефон: тренер показує рухи.</p>`;
     fit();
     const $q = (sel) => o.bar.querySelector(sel);
     const now = () => performance.now() / 1000;
+    const STEP = M.step;
 
-    let rep = 0, reps = 0, strain = 0, done = false;
-    // cur: { holding, holdStart, spikeAt, readyAt, over }
-    let cur = null, glitch = null, strainedUntil = 0;
-    const chance = M.spike[o.state] || 0;
+    let round = 0, right = 0, total = 0, seq = [], input = [], mode = 'show', showFrom = 0, glitch = null, done = false;
 
-    function next() {
-      if (rep >= M.reps) { finish(); return; }
-      cur = { holding: false, holdStart: 0, spikeAt: null, readyAt: now(), over: false, spike: Math.random() < chance };
-      glitch = null;
-      $q('#scCount').textContent = 'повтор ' + (rep + 1) + ' з ' + M.reps;
-      $q('.sc-timer i').style.width = '0%';
-    }
     function msg(text, cls) { const m = $q('.sc-msg'); m.className = 'sc-msg ' + (cls || ''); m.textContent = text; }
-    function endRep(text, cls) {
-      cur.over = true; cur.holding = false; rep++;
-      msg(text + ' Зараховано ' + reps + ' з ' + M.reps + '.', cls);
-      setTimeout(() => { if (!done) next(); }, 700);
-    }
-
-    function press() {
-      if (done || !cur || cur.over || cur.holding) return;
-      cur.holding = true; cur.holdStart = now();
-      if (cur.spike) {
-        // Ядро починає рости трохи після початку повтору і накриває до кінця смужки.
-        cur.spikeAt = cur.holdStart + M.holdSeconds * (0.55 + Math.random() * 0.3);
-        glitch = { start: cur.spikeAt, end: cur.spikeAt + 0.5 };
+    function setButtons(on) { o.bar.querySelectorAll('.mat-arrow').forEach((b) => { b.disabled = !on; }); }
+    function newRound() {
+      seq = Array.from({ length: M.series[round] }, () => rnd(4));
+      input = []; mode = 'show'; showFrom = now() + root.PainFX.LEAD * 0.6; glitch = null;
+      // Щонайбільше одна стрілка: короткий спалах рівно на її показ.
+      if (Math.random() < (M.spike[o.state] || 0)) {
+        const k = rnd(seq.length);
+        glitch = { start: showFrom + k * STEP, end: showFrom + k * STEP + STEP * 0.75, grow: M.grow };
       }
+      $q('#scCount').textContent = 'серія ' + (round + 1) + ' з ' + M.series.length + ' · дивись';
+      $q('.mat-input').textContent = '';
+      setButtons(false);
     }
-    function release() {
-      if (done || !cur || cur.over || !cur.holding) return;
-      const t = now();
-      // Той самий підсумок, що й у кадрі: кадри бувають рідкими, а час — ні.
-      if (cur.spikeAt && t >= cur.spikeAt) { strain++; strainedUntil = t + 0.8; endRep('Крізь біль — перестарався.', 'bad'); }
-      else if (t - cur.holdStart >= M.holdSeconds) { reps++; endRep('Повтор є.', 'good'); }
-      else if (cur.spikeAt && t > cur.spikeAt - 1.1) endRep('Відпустив вчасно: тіло подякує.', 'good');
-      else endRep('Рано відпустив, повтор не вийшов.', '');
+    function press(a) {
+      if (done || mode !== 'input') return;
+      input.push(a);
+      $q('.mat-input').textContent = input.map((v) => ARR[v]).join(' ');
+      if (input.length < seq.length) return;
+      const ok = input.filter((v, i) => v === seq[i]).length;
+      right += ok; total += seq.length; mode = 'wait'; setButtons(false);
+      msg('Серія ' + (round + 1) + ': зараховано ' + ok + ' з ' + seq.length +
+        (ok === seq.length ? '. Чисто!' : ok ? '. Кожен рух іде в залік.' : '. Нічого, буває.'), ok ? 'good' : '');
+      setTimeout(() => {
+        if (done) return;
+        round++;
+        if (round < M.series.length) newRound(); else finish();
+      }, 1200);
     }
-
     function finish() {
       done = true;
       $q('#scCount').textContent = '';
       $q('.sc-answers').innerHTML = '';
-      const q = strain > 0 ? 'Перестарався: завтра болітиме більше.' : reps < M.minReps ? 'Замало повторів: вправи не зараховано.' : 'Вправи зараховано.';
-      msg('Повторів ' + reps + ' з ' + M.reps + '. ' + q, strain > 0 || reps < M.minReps ? 'bad' : 'good');
+      const share = total ? right / total : 0;
+      const q = share >= M.reliefShare ? 'завтра біль менший.' : share >= M.baseShare ? 'день іде до бази.' : 'цього разу не зараховано, але й гірше не стало.';
+      msg('Зараховано рухів ' + right + ' з ' + total + ': ' + q, share >= M.baseShare ? 'good' : '');
       setTimeout(close, 500);
     }
 
-    // Клавіші: пробіл тримати; Enter теж, бо пробіл буває зайнятий.
-    const isHold = (e) => e.code === 'Space' || e.code === 'Enter';
-    const kd = (e) => { if (!isHold(e)) return; e.preventDefault(); e.stopPropagation(); if (!e.repeat) press(); };
-    const ku = (e) => { if (!isHold(e)) return; e.preventDefault(); e.stopPropagation(); release(); };
+    const kd = (e) => {
+      const a = CODES.indexOf(e.code);
+      if (a < 0) return;
+      e.preventDefault(); e.stopPropagation();
+      if (!e.repeat) press(a);
+    };
     window.addEventListener('keydown', kd, true);
-    window.addEventListener('keyup', ku, true);
-    const hb = $q('.mat-hold');
-    hb.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
-    window.addEventListener('pointerup', release);
+    o.bar.querySelectorAll('.mat-arrow').forEach((b) => { b.onclick = () => press(Number(b.dataset.a)); });
 
     let closed = false, raf = 0;
     function close() {
       if (closed) return;
       closed = true; cancelAnimationFrame(raf);
       window.removeEventListener('keydown', kd, true);
-      window.removeEventListener('keyup', ku, true);
-      window.removeEventListener('pointerup', release);
       if (ro) ro.disconnect();
       el.remove(); o.bar.innerHTML = '';
-      o.onDone({ reps, strain });
+      o.onDone({ right, total });
     }
 
     function frame() {
       fit();
       const t = now();
-      let push = 0;
-      if (cur && cur.holding) {
-        const p = Math.min(1, (t - cur.holdStart) / M.holdSeconds);
-        push = p;
-        $q('.sc-timer i').style.width = Math.round(p * 100) + '%';
-        if (cur.spikeAt && t >= cur.spikeAt) {
-          strain++; strainedUntil = t + 0.8;
-          endRep('Крізь біль — перестарався.', 'bad');
-        } else if (p >= 1) { reps++; endRep('Повтор є.', 'good'); }
-      } else if (cur && !cur.over && t - cur.readyAt > 8) endRep('Повтор пропущено.', '');
+      if (mode === 'show' && t > showFrom + seq.length * STEP + 0.3) {
+        mode = 'input'; setButtons(true);
+        $q('#scCount').textContent = 'серія ' + (round + 1) + ' з ' + M.series.length + ' · повтори';
+        msg('Повтори рухи стрілками, по черзі.', '');
+      }
       lg.clearRect(0, 0, LW, LH);
-      drawScene(t, push, t < strainedUntil);
+      drawScene();
       g.imageSmoothingEnabled = false;
       g.drawImage(low, 0, 0, W, H);
+      // Екран телефона: стрілки тренера або те, що вже повторив.
+      const px = 81 * 2, py = 96 * 2;
+      g.textBaseline = 'top';
+      if (mode === 'show' && t > showFrom) {
+        const i = Math.floor((t - showFrom) / STEP);
+        if (i < seq.length && (t - showFrom) % STEP < STEP * 0.75) {
+          g.font = '56px Handjet'; g.fillStyle = '#15161b'; g.fillText(ARR[seq[i]], px + 26, py + 30);
+        }
+        g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText((Math.min(i, seq.length - 1) + 1) + '/' + seq.length, px + 6, py + 4);
+      } else if (mode === 'input' || mode === 'wait') {
+        g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText('твоя черга', px + 10, py + 6);
+        g.font = '22px Handjet'; g.fillStyle = '#15161b'; g.fillText(input.map((v) => ARR[v]).join(' '), px + 8, py + 50);
+      }
       root.PainFX.gloom(g, W, H, o.joy != null ? o.joy : 60);
       fx.draw(g, W, H, t, o.pain, glitch, o.painkiller);
       raf = requestAnimationFrame(frame);
     }
-    setTimeout(next, root.PainFX.LEAD * 500);
+    newRound();
     raf = requestAnimationFrame(frame);
   }
 

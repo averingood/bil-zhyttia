@@ -235,8 +235,8 @@
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
     if (a.exQ !== b.exQ && a.exQ) {
       if (a.exQ === 'good') parts.push({ t: 'тимчасовий біль завтра −' + C.actions.exercise.reliefTomorrow, k: 'good' });
-      if (a.exQ === 'strain') parts.push({ t: 'перестарався: тимчасовий біль завтра +' + C.actions.exercise.mat.strainPain, k: 'bad' });
-      if (a.exQ === 'short') parts.push({ t: 'замало повторів: вправи не зараховано', k: 'bad' });
+      if (a.exQ === 'partial') parts.push({ t: 'вправи частково: без −1 на завтра', k: '' });
+      if (a.exQ === 'short') parts.push({ t: 'замало рухів: вправи не зараховано', k: '' });
       if (a.trainings > b.trainings) parts.push({ t: G.baseProgressText(game), k: '' });
     }
     if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
