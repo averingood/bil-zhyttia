@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Килимок: варіанти</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600&family=Tiny5&display=swap">
+<style>
+  :root {
+    --bg: #1d1f2b; --panel: #262938; --panel-2: #2e3244; --line: #3c4058; --ink: #12131a;
+    --fg: #ece3cf; --muted: #9a98a6; --accent: #d4a03e; --good: #8fd16a; --bad: #e2584a;
+  }
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 19px/1.25 'Handjet', system-ui, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+  h1 { font-family: 'Tiny5', monospace; font-size: 22px; margin: 0; letter-spacing: .03em; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tab { font: inherit; background: var(--panel-2); color: var(--fg); border: 2px solid var(--line); padding: 4px 12px; cursor: pointer; }
+  .tab.on { border-color: var(--accent); color: var(--accent); }
+  .lbl { color: var(--muted); margin-right: 4px; }
+  canvas { width: 100%; max-width: 824px; aspect-ratio: 412 / 344; image-rendering: pixelated; display: block; background: #000; justify-self: center; }
+  .bar { background: var(--panel); border: 2px solid var(--line); padding: 10px 12px; display: grid; gap: 6px; }
+  .how { color: var(--muted); margin: 0; }
+  .msg { min-height: 1.3em; margin: 0; }
+  .msg.good { color: var(--good); } .msg.bad { color: var(--bad); }
+  .btn { font: inherit; background: var(--accent); color: var(--ink); border: 0; padding: 6px 14px; cursor: pointer; }
+  .hold { font: inherit; background: var(--panel-2); color: var(--fg); border: 2px solid var(--line); padding: 8px 14px; cursor: pointer; touch-action: none; user-select: none; }
+  kbd { font: inherit; font-size: 15px; background: var(--ink); border: 1px solid var(--line); padding: 0 5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Килимок: оберіть варіант вправ</h1>
+  <div class="row" id="tabs"></div>
+  <div class="row"><span class="lbl">Біль:</span><span id="pains"></span></div>
+  <canvas id="cv" width="412" height="344"></canvas>
+  <div class="bar">
+    <p class="how" id="how"></p>
+    <div class="row"><button class="btn" id="go">Почати <kbd>Enter</kbd></button><span id="extra"></span></div>
+    <p class="msg" id="msg"></p>
+  </div>
+</main>
+<script src="../painfx.js"></script>
+<script>
+'use strict';
+const W = 412, H = 344, LW = 206, LH = 172;
+const cv = document.getElementById('cv'), g = cv.getContext('2d');
+const low = document.createElement('canvas'); low.width = LW; low.height = LH;
+const lg = low.getContext('2d');
+const R = (x, y, w, h, c) => { lg.fillStyle = c; lg.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+const fx = PainFX.create();
+const now = () => performance.now() / 1000;
+const $ = (id) => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const PAINS = { light: { name: 'легкий', p: 2, spike: 0.15 }, medium: { name: 'помітний', p: 5, spike: 0.35 }, strong: { name: 'сильний', p: 8, spike: 0.55 } };
+let painKey = 'medium';
+
+// ---------- спільне тло: стіна, підлога, килимок ----------
+function room(t) {
+  R(0, 0, LW, 46, '#2f5b57');
+  for (let y = 2; y < 44; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < LW; x += 4) R(x, y, 1, 1, '#356360');
+  R(0, 44, LW, 3, '#5a3a26');
+  R(0, 47, LW, LH - 47, '#6b4a32');
+  for (let k = 0, y = 50; y < LH; k++, y += 4 + k * 1.6) R(0, y, LW, 1, '#5c3f2a');
+  for (let y = 52; y < LH; y++) {
+    const f = (y - 52) / (LH - 52), half = 22 + f * 64;
+    R(103 - half, y, half * 2, 1, y % 7 === 0 ? '#36456f' : '#3d4d7a');
+    R(103 - half, y, 2, 1, '#2c3860'); R(103 + half - 2, y, 2, 1, '#2c3860');
+  }
+  R(150, 60, 4, 8, '#26282e'); R(154, 63, 10, 2, '#4a4d55'); R(164, 60, 4, 8, '#26282e');
+}
+function hands(dy, shake) {
+  for (const [x0, dir] of [[50, 1], [128, -1]]) {
+    const x = x0 + shake;
+    R(x, 128 - dy, 28, LH - 128 + dy, '#2d4763'); R(x + 2, 128 - dy, 24, 3, '#3a5a7c');
+    R(x + 4 + dir * 2, 116 - dy, 20, 14, '#e0ac84'); R(x + 4 + dir * 2, 116 - dy, 20, 2, '#c48b67');
+    for (let k = 0; k < 4; k++) R(x + 6 + dir * 2 + k * 5, 114 - dy, 3, 3, '#e0ac84');
+  }
+}
+function text(s, x, y, col, size) {
+  g.font = (size || 16) + 'px Handjet'; g.fillStyle = col || '#ece3cf'; g.textBaseline = 'top'; g.fillText(s, x, y);
+}
+
+// ---------- варіанти ----------
+// Кожен: how — пояснення, make() → { update(t), draw(t), key(e, down), result() | null, pain(t), glitch }
+const V = {};
+
+// А. Рух до межі: тягнеш, біль наростає хвилями; межа щоразу інша і її не видно.
+V.range = {
+  name: 'А. Рух до межі',
+  how: 'Тримай <kbd>Пробіл</kbd> — нога повільно розгинається. Біль наростає, а межу не видно. Відпусти, коли хвилі вже густі, але ядро ще не почало рости. Рано — мало користі, пізно — перестарався. 5 повторів.',
+  make() {
+    const S = { rep: 0, reps: 5, p: 0, holding: false, limit: 0, good: 0, over: 0, early: 0, glitch: null, last: null, wait: 0 };
+    const newRep = () => { S.p = 0; S.limit = rand(0.55, 0.92); S.glitch = null; S.holding = false; };
+    newRep();
+    const finishRep = (kind) => {
+      S[kind]++; S.rep++; S.last = kind; S.wait = now() + 0.9; S.holding = false;
+      msg({ good: 'Саме до межі. Повтор корисний.', early: 'Зарано відпустив: майже без користі.', over: 'Перетягнув — перестарався.' }[kind], kind === 'good' ? 'good' : kind === 'over' ? 'bad' : '');
+    };
+    return {
+      update(t, dt) {
+        if (S.rep >= S.reps) return;
+        if (S.wait) { if (t > S.wait) { S.wait = 0; newRep(); } return; }
+        if (S.holding) {
+          S.p = Math.min(1, S.p + dt * 0.32);
+          if (S.p > S.limit && !S.glitch) S.glitch = { start: t + 0.05, end: t + 0.9 };
+          if (S.p > S.limit + 0.08) finishRep('over');
+        }
+      },
+      draw(t) {
+        room(t);
+        // Нога: від нижнього краю до межі ступні, кут залежить від розгину.
+        const ang = -Math.PI / 2 + (1 - S.p) * 0.9, len = 60 + S.p * 50;
+        const x0 = 103, y0 = LH + 6;
+        for (let i = 0; i < len; i += 2) {
+          const x = x0 + Math.cos(ang) * i, y = y0 + Math.sin(ang) * i, w = 18 - i * 0.08;
+          R(x - w / 2, y, w, 3, '#3a3d4a');
+        }
+        const fx2 = x0 + Math.cos(ang) * len, fy2 = y0 + Math.sin(ang) * len;
+        R(fx2 - 7, fy2 - 6, 14, 8, '#e0ac84'); R(fx2 - 7, fy2 - 6, 14, 2, '#c48b67');
+        hands(0, 0);
+      },
+      // Біль — єдиний сигнал межі: наростає за 0,3 до неї.
+      pain(t) { const base = PAINS[painKey].p; return clamp(base + 7 * clamp((S.p - (S.limit - 0.3)) / 0.3, 0, 1), 0, 10); },
+      get glitch() { return S.glitch; },
+      key(e, down) {
+        if (e.code !== 'Space' || S.wait || S.rep >= S.reps) return;
+        if (down && !S.holding && !e.repeat) S.holding = true;
+        if (!down && S.holding) finishRep(S.p >= S.limit - 0.15 ? (S.p > S.limit ? 'over' : 'good') : 'early');
+      },
+      hold(down) { this.key({ code: 'Space' }, down); },
+      status() { return S.rep < S.reps ? 'повтор ' + (S.rep + 1) + ' з ' + S.reps : ''; },
+      result() { return S.rep < S.reps ? null : 'Корисних ' + S.good + ', зарано ' + S.early + ', перестарався ' + S.over + '.'; },
+    };
+  },
+};
+
+// Б. Дихання в ритмі: коло росте на вдиху, тримай; на видиху — відпускай. Біль збиває ритм.
+V.breath = {
+  name: 'Б. Дихання',
+  how: 'Коло розширюється — вдих, тримай <kbd>Пробіл</kbd>. Звужується — видих, відпусти. Біль змушує коло тремтіти й збиває ритм. 5 вдихів, рахується точність.',
+  make() {
+    const S = { t0: now() + 1, cycles: 5, period: 4.2, holding: false, match: 0, total: 0, kicks: [], done: false };
+    // Поштовхи болю: короткі збої ритму.
+    for (let c = 0; c < S.cycles; c++) if (Math.random() < PAINS[painKey].spike + 0.1) S.kicks.push(S.t0 + c * S.period + rand(0.5, 3.5));
+    let phase = 0;
+    const kickAt = (t) => S.kicks.find((k) => t > k && t < k + 1.2);
+    return {
+      update(t, dt) {
+        if (S.done || t < S.t0) return;
+        const k = kickAt(t);
+        phase += dt / S.period * (k ? 0.45 : 1);       // поштовх сповільнює коло — легко збитись
+        if (phase >= S.cycles) { S.done = true; return; }
+        const inhale = (phase % 1) < 0.5;
+        S.total += dt; if (inhale === S.holding) S.match += dt;
+      },
+      draw(t) {
+        room(t);
+        const f = phase % 1, r = 14 + 34 * (f < 0.5 ? f * 2 : 2 - f * 2);
+        const k = kickAt(t), j = k ? Math.sin(t * 50) * 3 : 0;
+        lg.strokeStyle = S.holding ? '#8fd16a' : '#ece3cf'; lg.lineWidth = 2;
+        lg.beginPath(); lg.arc(103 + j, 80, r, 0, Math.PI * 2); lg.stroke();
+        lg.fillStyle = 'rgba(236,227,207,0.12)'; lg.beginPath(); lg.arc(103 + j, 80, r, 0, Math.PI * 2); lg.fill();
+        hands(S.holding ? 2 : 0, 0);
+      },
+      pain(t) { return PAINS[painKey].p + (kickAt(t) ? 3 : 0); },
+      get glitch() { return null; },
+      key(e, down) { if (e.code === 'Space') S.holding = down; },
+      hold(down) { S.holding = down; },
+      status() { return S.done ? '' : now() < S.t0 ? 'приготуйся…' : ((phase % 1) < 0.5 ? 'вдих' : 'видих') + ' · ' + (Math.floor(phase) + 1) + ' з ' + S.cycles; },
+      result() { return S.done ? 'Точність дихання ' + Math.round(S.match / Math.max(0.01, S.total) * 100) + '%.' : null; },
+    };
+  },
+};
+
+// В. Повтор за тренером: телефон показує стрілки, біль накриває частину показу.
+V.coach = {
+  name: 'В. Повтор за тренером',
+  how: 'Тренер у телефоні показує рухи стрілками. Повтори їх клавішами <kbd>← ↑ → ↓</kbd>. Біль може накрити частину показу — тоді вгадуй. 3 серії: 3, 4 і 5 рухів.',
+  make() {
+    const ARR = ['←', '↑', '→', '↓'], CODES = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
+    const S = { round: 0, lens: [3, 4, 5], seq: [], showFrom: 0, input: [], mode: 'show', right: 0, all: 0, glitch: null, wait: 0 };
+    const STEP = 0.75;
+    const newRound = () => {
+      S.seq = Array.from({ length: S.lens[S.round] }, () => Math.floor(Math.random() * 4));
+      S.showFrom = now() + 1.2; S.input = []; S.mode = 'show'; S.glitch = null;
+      if (Math.random() < PAINS[painKey].spike + 0.15) {
+        const k = Math.floor(Math.random() * S.seq.length);
+        S.glitch = { start: S.showFrom + k * STEP, end: S.showFrom + (k + 1.3) * STEP };
+      }
+    };
+    newRound();
+    return {
+      update(t) {
+        if (S.mode === 'show' && t > S.showFrom + S.seq.length * STEP + 0.3) S.mode = 'input';
+        if (S.mode === 'wait' && t > S.wait) { S.round++; if (S.round < S.lens.length) newRound(); else S.mode = 'done'; }
+      },
+      draw(t) {
+        room(t);
+        // Телефон стоїть низько на килимку — біль знизу може його накрити.
+        R(78, 66, 50, 74, '#15161b'); R(81, 70, 44, 64, '#cfe0dc');
+        hands(0, 0);
+      },
+      overlay(t) {
+        const k = 2, px = 81 * k, py = 70 * k;
+        if (S.mode === 'show' && t > S.showFrom) {
+          const i = Math.floor((t - S.showFrom) / STEP);
+          if (i < S.seq.length && (t - S.showFrom) % STEP < STEP * 0.75) text(ARR[S.seq[i]], px + 26, py + 30, '#15161b', 56);
+          text((Math.min(i, S.seq.length - 1) + 1) + '/' + S.seq.length, px + 6, py + 4, '#3a4048', 16);
+        } else if (S.mode === 'input') {
+          text('твоя черга', px + 10, py + 6, '#3a4048', 16);
+          text(S.input.map((a) => ARR[a]).join(' '), px + 8, py + 50, '#15161b', 22);
+        }
+      },
+      pain() { return PAINS[painKey].p; },
+      get glitch() { return S.glitch; },
+      key(e, down) {
+        if (!down || S.mode !== 'input') return;
+        const a = CODES.indexOf(e.code); if (a < 0) return;
+        S.input.push(a);
+        if (S.input.length === S.seq.length) {
+          const ok = S.input.filter((v, i) => v === S.seq[i]).length;
+          S.right += ok; S.all += S.seq.length; S.mode = 'wait'; S.wait = now() + 1.2;
+          msg('Серія ' + (S.round + 1) + ': ' + ok + ' з ' + S.seq.length + ' рухів правильно.', ok === S.seq.length ? 'good' : ok < S.seq.length / 2 ? 'bad' : '');
+        }
+      },
+      hold() {},
+      status() { return S.mode === 'done' ? '' : 'серія ' + (S.round + 1) + ' з ' + S.lens.length + (S.mode === 'input' ? ' · повтори' : ' · дивись'); },
+      result() { return S.mode === 'done' ? 'Правильних рухів ' + S.right + ' з ' + S.all + '.' : null; },
+    };
+  },
+};
+
+// Г. Рівновага: тримай позначку в центрі, біль штовхає вбік.
+V.balance = {
+  name: 'Г. Рівновага',
+  how: 'Тримай позначку в зеленій смузі клавішами <kbd>←</kbd> <kbd>→</kbd>. Тіло хитається само, а біль штовхає різко вбік. 15 секунд, рахується час у смузі.',
+  make() {
+    const S = { t0: now() + 1, dur: 15, x: 0, v: 0, left: false, right: false, inZone: 0, total: 0, kicks: [], done: false, kickNow: 0 };
+    const n = Math.round(3 + PAINS[painKey].spike * 10);
+    for (let i = 0; i < n; i++) S.kicks.push({ t: S.t0 + rand(1, S.dur - 1), dir: Math.random() < 0.5 ? -1 : 1, used: false });
+    return {
+      update(t, dt) {
+        if (S.done || t < S.t0) return;
+        if (t > S.t0 + S.dur) { S.done = true; return; }
+        S.v += (Math.random() - 0.5) * 2.2 * dt + S.x * 0.6 * dt;          // нестійкість: що далі, то сильніше тягне
+        for (const k of S.kicks) if (!k.used && t > k.t) { k.used = true; S.v += k.dir * 0.9; S.kickNow = t; }
+        S.v += ((S.right ? 1 : 0) - (S.left ? 1 : 0)) * 2.4 * dt;
+        S.v *= Math.pow(0.35, dt);
+        S.x = clamp(S.x + S.v * dt, -1, 1);
+        S.total += dt; if (Math.abs(S.x) < 0.25) S.inZone += dt;
+      },
+      draw(t) {
+        room(t);
+        const tilt = S.x * 10;
+        hands(0, Math.round(tilt));
+        R(33, 30, 140, 8, '#15161b'); R(103 - 17, 30, 35, 8, '#3f7a4a');
+        R(103 + S.x * 66 - 2, 26, 5, 16, t - S.kickNow < 0.3 ? '#e2584a' : '#ece3cf');
+      },
+      pain(t) { return PAINS[painKey].p + (t - S.kickNow < 0.8 ? 3 : 0); },
+      get glitch() { return null; },
+      key(e, down) { if (e.code === 'ArrowLeft') S.left = down; if (e.code === 'ArrowRight') S.right = down; },
+      hold() {},
+      status() { return S.done ? '' : now() < S.t0 ? 'приготуйся…' : 'залишилось ' + Math.max(0, Math.ceil(S.t0 + S.dur - now())) + ' с'; },
+      result() { return S.done ? 'У смузі ' + Math.round(S.inZone / Math.max(0.01, S.total) * 100) + '% часу.' : null; },
+    };
+  },
+};
+
+// ---------- оболонка ----------
+let cur = 'range', game = null, lastT = now(), shown = false;
+function msg(t, cls) { const m = $('msg'); m.textContent = t; m.className = 'msg ' + (cls || ''); }
+function renderTabs() {
+  $('tabs').innerHTML = Object.entries(V).map(([k, v]) => `<button class="tab ${k === cur ? 'on' : ''}" data-k="${k}">${v.name}</button>`).join('');
+  $('pains').innerHTML = Object.entries(PAINS).map(([k, v]) => `<button class="tab ${k === painKey ? 'on' : ''}" data-p="${k}">${v.name}</button>`).join(' ');
+  document.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { cur = b.dataset.k; game = null; msg(''); renderTabs(); });
+  document.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { painKey = b.dataset.p; game = null; msg(''); renderTabs(); });
+  $('how').innerHTML = V[cur].how;
+  $('extra').innerHTML = cur === 'range' || cur === 'breath' ? '<button class="hold" id="hold">Тримати (для миші й пальця)</button>' : '';
+  const hb = $('hold');
+  if (hb) { hb.onpointerdown = (e) => { e.preventDefault(); game && game.hold(true); }; hb.onpointerup = hb.onpointerleave = () => game && game.hold(false); }
+}
+function start() { game = V[cur].make(); shown = false; msg(''); cv.focus(); }
+$('go').onclick = start;
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') { start(); e.preventDefault(); return; }
+  if (game && ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) { e.preventDefault(); game.key(e, true); }
+});
+window.addEventListener('keyup', (e) => { if (game && ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) { e.preventDefault(); game.key(e, false); } });
+
+function frame() {
+  const t = now(), dt = Math.min(0.05, t - lastT); lastT = t;
+  lg.clearRect(0, 0, LW, LH);
+  if (game) { game.update(t, dt); game.draw(t); } else { room(t); hands(0, 0); }
+  g.imageSmoothingEnabled = false;
+  g.drawImage(low, 0, 0, W, H);
+  if (game && game.overlay) game.overlay(t);
+  fx.draw(g, W, H, t, game ? game.pain(t) : PAINS[painKey].p, game ? game.glitch : null, false);
+  if (game) {
+    text(game.status(), 10, 8, '#ece3cf', 18);
+    const r = game.result();
+    if (r && !shown) { shown = true; msg(r + ' Натисни Enter, щоб ще раз.', 'good'); }
+  } else text('Натисни «Почати» або Enter', 10, 8, '#ece3cf', 18);
+  requestAnimationFrame(frame);
+}
+renderTabs();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
