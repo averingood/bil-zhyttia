@@ -109,7 +109,8 @@
     const fx = root.PainFX.create();
     const el = document.createElement('div');
     el.className = 'scene';
-    el.innerHTML = `<canvas width="${W}" height="${H}"></canvas>`;
+    // Кнопка звуку — у самому кадрі, вгорі ліворуч.
+    el.innerHTML = `<canvas width="${W}" height="${H}"></canvas><button class="synth-mute" type="button" id="synthMute"></button>`;
     o.wrap.appendChild(el);
     const view = el.querySelector('canvas'), g = view.getContext('2d');
     g.imageSmoothingEnabled = false;
@@ -125,7 +126,7 @@
     o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Синтезатор</span><span class="ab-meta" id="scCount"></span></div>
       <div class="sc-bar"><span class="mat-input"></span><span class="sc-repeat"></span></div>
       <div class="sc-answers"><p class="mat-input" style="font-size:20px;color:var(--muted)">Зіграй три ноти: клікни по клавішах або натискай літери на клавіатурі.</p>
-        <button class="btn ghost" type="button" id="synthMute"></button></div>
+</div>
       <p class="sc-msg"></p>`;
     fit();
     const $q = (sel) => o.bar.querySelector(sel);
@@ -134,7 +135,7 @@
     // Біль не вгадаєш: кожне натискання може відгукнутися спалахом. Що сильніший біль, то частіше.
     const chance = { light: 0.2, medium: 0.35, strong: 0.55 }[o.state] || 0.35;
     let glitch = null;
-    const muteBtn = $q('#synthMute');
+    const muteBtn = el.querySelector('#synthMute');
     const paintMute = () => { muteBtn.textContent = soundOn() ? '🔊 Звук: увімк.' : '🔈 Звук: вимк.'; };
     muteBtn.onclick = () => { try { localStorage.setItem('zapas.synthSound', soundOn() ? '0' : '1'); } catch (e) { /* не страшно */ } paintMute(); };
     paintMute();
