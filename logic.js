@@ -938,7 +938,7 @@
       }
     }
     if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
-    if (id === 'doctor') fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base + ' назавжди', kind: 'pain' });
+    if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base + ' назавжди', kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
     else if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
