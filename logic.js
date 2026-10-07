@@ -14,11 +14,13 @@
     kitchen: { name: 'Кухня' },
     shelf:   { name: 'Аптечка' },
     books:   { name: 'Книжки' },
+    synth:   { name: 'Синтезатор' },
   };
 
   const ACTIONS = {
     work:     { zone: 'desk',    label: 'Робота' },
-    create:   { zone: 'desk',    label: 'Творчість' },
+    create:   { zone: 'synth',   label: 'Писати пісню' },
+    doctor:   { zone: 'desk',    label: 'Дзвінок лікарю' },
     friends:  { zone: 'sofa',    label: 'Покликати друзів' },
     exercise: { zone: 'mat',     label: 'Вправи' },
     stretch:  { zone: 'mat',     label: 'Розтяжка' },
@@ -114,7 +116,7 @@
       energy: 0, energyMorning: 0, borrowed: 0,
       money: C.start.money, joy: C.start.joy,
       trainings: 0, trainBase: null, courseStreak: 0, courseToday: 0, courseOn: false, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
-      book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess,
+      book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess, song: { n: 1, done: 0 }, doctorDrops: 0, lastDoctor: -99,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
       fed: false, foodType: null, hungerPenalty: 0,
       restedToday: 0, medsToday: 0, exerciseToday: 0, friendsToday: 0,
@@ -297,6 +299,12 @@
         break;
       case 'coffee':
         if ((s.coffeeToday || 0) >= a.perDay) return no('Більше кави серце не прийме');
+        if (a.money && s.money < a.money) return no('Не вистачає грошей на каву');
+        break;
+      case 'doctor':
+        if (s.money < a.money) return no('Прийом коштує ' + a.money + ' ₴ — не вистачає');
+        if (s.day - (s.lastDoctor || -99) < a.cooldown) return no('Лікар чекає на тебе з дня ' + ((s.lastDoctor || 0) + a.cooldown) + ': спершу хай подіє призначення');
+        if (s.base <= C.night.minBasePain) return no('Базовий біль і так на мінімумі');
         break;
       case 'course':
         if ((s.courseToday || 0) >= a.perDay) return no('Курсову пігулку сьогодні вже випив');
@@ -412,6 +420,16 @@
         const gain = Math.round((a.joy + bonus) * mult * again);
         addJoy(s, gain);
         note = 'радість +' + gain + (s.createStreak > 1 ? ', серія ' + s.createStreak + ' дн.' : '');
+        // Пісня пишеться за кілька сесій; дописана — окрема радість.
+        s.song = s.song || { n: 1, done: 0 };
+        s.song.done++;
+        note += ', пісня №' + s.song.n + ': ' + s.song.done + '/' + a.songSessions;
+        if (s.song.done >= a.songSessions) {
+          addJoy(s, a.songJoy);
+          s.stats.songs = (s.stats.songs || 0) + 1;
+          note += '; дописав! радість +' + a.songJoy;
+          s.song = { n: s.song.n + 1, done: 0 };
+        }
         break;
       }
       case 'friends': {
@@ -509,6 +527,17 @@
         }
         break;
       }
+      case 'doctor': {
+        // Різко й назавжди: базовий біль знижується одразу, а не вночі.
+        const was = s.base;
+        s.money -= a.money;
+        s.lastDoctor = s.day;
+        s.doctorDrops = (s.doctorDrops || 0) + 1;
+        s.base = Math.max(C.night.minBasePain, s.base - a.baseDrop);
+        s.stats.doctor = (s.stats.doctor || 0) + 1;
+        note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base + ' назавжди';
+        break;
+      }
       case 'course':
         s.money -= a.money;
         s.courseToday = 1;
@@ -523,6 +552,7 @@
         break;
       }
       case 'coffee':
+        if (a.money) s.money -= a.money;
         s.energy += a.gain;
         s.coffeeToday = (s.coffeeToday || 0) + 1;
         s.stats.coffee = (s.stats.coffee || 0) + 1;
@@ -678,7 +708,7 @@
     const trainBase = Math.max(N.minBasePain, s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
     if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився назавжди' });
     s.trainBase = trainBase;
-    s.base = Math.max(N.minBasePain, trainBase - (s.courseOn ? CC.baseDrop : 0));
+    s.base = Math.max(N.minBasePain, trainBase - (s.courseOn ? CC.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop);
 
     // 6. Загострення.
     const roll = rand(s);
@@ -908,7 +938,8 @@
       }
     }
     if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
-    if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
+    if (id === 'doctor') fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base + ' назавжди', kind: 'pain' });
+    else if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
     if (id === 'coffee') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
@@ -1038,6 +1069,8 @@
       if (st.booksRead || (b && s.book.done)) kept.push('Книжки: дочитано ' + (st.booksRead || 0) + (b && s.book.done ? ', недочитана «' + b[0] + '» (' + s.book.done + ' з ' + b[1] + ')' : ''));
     }
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
+    if (st.doctor) kept.push('Дзвінків лікарю: ' + st.doctor + ' (базовий біль −' + st.doctor * C.actions.doctor.baseDrop + ')');
+    if (st.songs || (s.song && s.song.done)) kept.push('Пісні: дописано ' + (st.songs || 0) + (s.song && s.song.done ? ', недописана №' + s.song.n + ' (' + s.song.done + ' з ' + C.actions.create.songSessions + ')' : ''));
     if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed + ' (кожен пропуск — курс з нуля)');
     if (st.borrowedMoney) {
       const left = Object.entries(s.debts || {});

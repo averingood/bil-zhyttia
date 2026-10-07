@@ -21,17 +21,17 @@
       light: {
         name: 'Легкий', min: 0, max: 3,
         energy: 7, slots: 6, cookCost: 1,
-        joyMult: 1.0, joyDaily: -1, hintsVisible: true,
+        joyMult: 1.0, joyDaily: -2, hintsVisible: true,
       },
       medium: {
         name: 'Помітний', min: 4, max: 6,
         energy: 5, slots: 4, cookCost: 2,
-        joyMult: 0.7, joyDaily: -3, hintsVisible: true,
+        joyMult: 0.7, joyDaily: -6, hintsVisible: true,
       },
       strong: {
         name: 'Сильний', min: 7, max: 10,
         energy: 3, slots: 3, cookCost: null, // null = готувати недоступно
-        joyMult: 0.4, joyDaily: -6, hintsVisible: false,
+        joyMult: 0.4, joyDaily: -12, hintsVisible: false,
       },
     },
 
@@ -40,12 +40,15 @@
     difficulty: {
       easy:   { name: 'Легше',    basePain: 3, flareChance: 0.12 },
       normal: { name: 'Середньо', basePain: 5, flareChance: 0.15 },
-      hard:   { name: 'Тяжко',    basePain: 7, flareChance: 0.19 },
+      hard:   { name: 'Тяжко',    basePain: 6, flareChance: 0.19 },
     },
 
     actions: {
       work:     { energy: 2, payDelay: 3 },
-      create:   { energy: 1, joy: 6, streakBonus: 1, streakMax: 4 },
+      // Творчість — писати пісню за синтезатором: кожна сесія дає радість, дописана пісня — більше.
+      create:   { energy: 1, joy: 6, streakBonus: 1, streakMax: 4, songSessions: 3, songJoy: 10 },
+      // Дзвінок лікарю: дорого, зате базовий біль одразу й назавжди −1. Не частіше ніж раз на тиждень.
+      doctor:   { energy: 1, money: 70, baseDrop: 1, cooldown: 7 },
       // Прийняти тих, хто сам просився, — радісніше: тебе згадали, кликати не довелося.
       friends:  { energy: 2, inviteEnergy: 2, joy: 7, inviteJoy: 4 },   // будь-який візит — 2 ресурси; радість була 10: з розмовою виходило +13, більше за все інше
       // Вправи окупаються завтра, розтяжка допомагає одразу.
@@ -76,7 +79,9 @@
       // Прибирання: скидає безлад, трохи радості від порядку.
       clean:    { energy: 2, joy: 3 },
       // Кава: сила зараз, розплата вночі — шанс загострення росте з кожною чашкою. Слота не займає.
-      coffee:   { energy: 0, gain: 2, perDay: 2, flareAdd: 0.16, freeSlot: true },   // +2 ресурси, але й удвічі більший ризик уночі
+      // Кава: +2 ресурси без слота, але 6 ₴, одна чашка на день і вдвічі більший ризик загострення вночі.
+      // Безкоштовна й без ліміту вона була кращою за все: «кава замість відпочинку» вигравала 83%.
+      coffee:   { energy: 0, gain: 2, money: 6, perDay: 1, flareAdd: 0.16, freeSlot: true },
     },
 
     night: {
@@ -120,9 +125,9 @@
       meeting: {
         questions: 2,
         answerSeconds: 7,
-        payRight: 20,          // правильна відповідь (було 17 — на 30 днях гроші закінчувались до 20-го дня)
+        payRight: 27,          // правильна відповідь (баланс: гроші й радість — обидві реальні причини програшу)
         payWrong: -5,          // хибна відповідь або мовчання — штраф одразу
-        payRepeat: 9,          // правильно після «повтори, будь ласка»
+        payRepeat: 12,         // правильно після «повтори, будь ласка»
       },
       deadlineEvery: 7,
       unitsPerDeadline: 5,   // звичайний графік 5/7
@@ -130,7 +135,7 @@
       partTimeMult: 0.6,
     },
 
-    rent: { every: 7, amount: 85 },   // було 100: на 30 днях оренда з їжею з'їдала весь заробіток
+    rent: { every: 7, amount: 75 },
 
     // Біль 10 — не кінець гри, а швидка і лікарня.
     hospital: { days: 2, cost: 60, joy: -10, extraAfter: 1 },

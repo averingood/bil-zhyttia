@@ -90,6 +90,19 @@ const STRATS = {
 
   // Курс щодня, поки є гроші: пігулка не займає слота.
   '+курс ліків': (s) => (ok(s, 'course') && s.money > 40 ? 'course' : careful(s)),
+  // Лікар, щойно доступний і є запас на оренду.
+  '+лікар': (s) => (ok(s, 'doctor') && s.money > 160 ? 'doctor' : careful(s)),
+  // Працює насамперед, радістю займається лише коли зовсім погано.
+  'працьоголік': (s) => {
+    if (!s.fed && can(s, 'cook')) return 'cook';
+    if (L.inviteToday(s) && can(s, 'friends') && s.joy < 45) return 'friends';
+    if (can(s, 'work') && deadlinePressure(s) > 0) return 'work';
+    if (s.joy < 25 && can(s, 'create')) return 'create';
+    if (s.joy < 25 && can(s, 'friends')) return 'friends';
+    if (can(s, 'work')) return 'work';
+    if (ok(s, 'rest') && s.energy === 0) return 'rest';
+    return null;
+  },
   'жадібна': greedy,
   'випадкова': random,
 };

@@ -253,7 +253,7 @@
     return {
       money: game.money, joy: game.joy, energy: game.energy, borrowed: game.borrowed, pain: G.pain(game),
       pending: game.pending.reduce((a, x) => a + x.amount, 0), warmth: game.warmth || 0, trainings: game.trainings,
-      fed: game.fed, workWeek: game.workWeek, exQ: game.exerciseQuality, bookI: game.book ? game.book.i : 0, mess: game.mess,
+      fed: game.fed, workWeek: game.workWeek, exQ: game.exerciseQuality, bookI: game.book ? game.book.i : 0, songN: game.song ? game.song.n : 1, mess: game.mess,
     };
   }
   function showDelta(b, extra) {
@@ -273,6 +273,7 @@
     }
     if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
+    if (a.songN > b.songN) parts.push({ t: 'дописав пісню №' + b.songN + '!', k: 'good' });
     if (a.mess < b.mess) parts.push({ t: 'вдома чисто', k: 'good' });
     if (a.workWeek > b.workWeek) parts.push({ t: 'робота ' + a.workWeek + '/' + C.work.unitsPerDeadline, k: '' });
     if (a.warmth < b.warmth) parts.push({ t: 'друзі кликатимуть рідше', k: 'bad' });
@@ -646,6 +647,7 @@
       <div class="sec">
         <div class="sec-h"><span class="lbl">Дім</span><span class="val" ${(s.mess || 0) >= C.chores.annoyAt ? 'style="color:var(--strong)"' : ''}>${esc(G.messText(s.mess || 0))}</span></div>
         <div class="sub">${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + ' сесій' : 'Усі книжки прочитані'; })()}</div>
+        <div class="sub">Пісня №${(s.song || { n: 1 }).n}: ${(s.song || { done: 0 }).done} з ${C.actions.create.songSessions} сесій за синтезатором</div>
       </div>
 
       <div class="sec">
