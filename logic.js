@@ -781,16 +781,18 @@
     // Нові пропозиції від друзів: що рідше бачилися, то рідше кличуть.
     // Друзі помічають, що ти зник: напрошуються на завтра, щоб самотність не стала пасткою.
     const Wr = C.friends.worry, tomorrow = s.day + 1;
+    // Менше друзів — менше шансів, що хтось напише: двоє — 2/3, один — 1/3, жодного — нікому.
+    const share = freeFriends(s).length / C.friends.names.length;
     if (tomorrow <= s.days && !s.invites[tomorrow] && (s.joy <= 0 || (s.daysAlone >= Wr.afterDays && s.joy < Wr.lowJoy))) {
       const chance = s.joy <= 0 ? Wr.numb : Math.min(Wr.max, Wr.base + Wr.perDay * Math.max(0, s.daysAlone - Wr.afterDays));
-      if (rand(s) < chance) {
+      if (rand(s) < chance * share) {
         addInvite(s, tomorrow);
         const inv = s.invites[tomorrow];
         if (inv) { inv.worry = Math.floor(rand(s) * Wr.lines.length); ev.push({ kind: 'friends', text: inv.name + ': «' + Wr.lines[inv.worry] + '»' }); }
       }
     }
     const target2 = s.day + C.friends.leadDays;
-    if (target2 <= s.days && rand(s) < inviteChance(meetingsRecent(s), s.warmth)) {
+    if (target2 <= s.days && rand(s) < inviteChance(meetingsRecent(s), s.warmth) * share) {
       if (!s.invites[target2]) {
         addInvite(s, target2);
         // Кликати може лише той, кому ми не винні й кого не втратили — таких може й не бути.
