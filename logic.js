@@ -534,14 +534,14 @@
         break;
       }
       case 'doctor': {
-        // Різко й назавжди: базовий біль знижується одразу, а не вночі.
+        // Різко: базовий біль знижується одразу, а не вночі. Повернути його може хронізація.
         const was = s.base;
         s.money -= a.money;
         s.lastDoctor = s.day;
         s.doctorDrops = (s.doctorDrops || 0) + 1;
         s.base = Math.max(C.night.minBasePain, s.base - a.baseDrop);
         s.stats.doctor = (s.stats.doctor || 0) + 1;
-        note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base + ' назавжди';
+        note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base;
         break;
       }
       case 'course':
@@ -571,6 +571,22 @@
     if (!a.freeSlot) s.slot++;
     checkLose(s, s.day);
     return { ok: true, note, borrowed: borrowedNow, guests: id === 'friends' ? s.lastGuests : null };
+  }
+
+  // Базовий біль: старт − вправи − курс − лікар + хронізація, у межах [мінімум; старт + cap].
+  function recalcBase(s) {
+    const N = C.night, tb = s.trainBase != null ? s.trainBase : s.baseStart;
+    const raw = tb - (s.courseOn ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0);
+    s.base = Math.max(N.minBasePain, Math.min(s.baseStart + N.chronic.cap, raw));
+  }
+  // Хронізація: +1 до базового, якщо ще не на межі. Повертає, чи справді піднявся.
+  function chronify(s) {
+    const before = s.base;
+    s.chronic = (s.chronic || 0) + 1;
+    recalcBase(s);
+    if (s.base === before) { s.chronic--; return false; }
+    s.stats.chronic = (s.stats.chronic || 0) + 1;
+    return true;
   }
 
   // Книжка, яку зараз читаємо: [назва, сесій] або null, якщо полиця прочитана.
@@ -700,7 +716,7 @@
       else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано, але й гірше не стало' });
     }
 
-    // 5. База = старт − вправи − курс. Вправи знижують назавжди, курс — поки п'єш.
+    // 5. Базовий = старт − вправи − курс − лікар + хронізація (тиждень без вправ, часті загострення).
     const CC = C.actions.course;
     if (s.courseToday) {
       s.courseStreak = (s.courseStreak || 0) + 1;
@@ -712,9 +728,9 @@
       s.courseStreak = 0; s.courseOn = false;
     }
     const trainBase = Math.max(N.minBasePain, s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
-    if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився назавжди' });
+    if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився' });
     s.trainBase = trainBase;
-    s.base = Math.max(N.minBasePain, trainBase - (s.courseOn ? CC.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop);
+    recalcBase(s);
 
     // 6. Загострення.
     const roll = rand(s);
@@ -723,6 +739,13 @@
       s.extra += N.flarePain;
       s.stats.flares++;
       ev.push({ kind: 'flare', text: 'Загострення вночі: тимчасовий біль +' + N.flarePain });
+      // Три загострення за тиждень — біль хронізується.
+      const CH = N.chronic;
+      s.flareDays = (s.flareDays || []).filter((d) => s.day - d < CH.flareWindow).concat(s.day);
+      if (s.flareDays.length >= CH.flares) {
+        s.flareDays = [];
+        if (chronify(s)) ev.push({ kind: 'pain', text: CH.flares + ' загострення за тиждень: біль хронізується, базовий +1 (тепер ' + s.base + ')' });
+      }
     }
 
     // 6а. Пропущені вправи: м'язи дубіють, прогрес до бази тане.
@@ -735,10 +758,9 @@
         s.extra += D.pain;
         ev.push({ kind: 'pain', text: s.daysNoExercise + ' дн. без вправ: м’язи дубіють, тимчасовий біль +' + D.pain });
       }
-      if (s.daysNoExercise % D.rollbackEvery === 0 && s.trainings % N.trainingsPerBaseDrop > 0) {
-        s.trainings--;
-        ev.push({ kind: 'pain', text: 'Тиждень без вправ: до зниження базового болю знову на день більше' });
-      }
+      // Кожен тиждень без вправ — базовий біль +1: тіло втрачає те, що дали вправи.
+      if (s.daysNoExercise % N.chronic.weekNoExercise === 0 && chronify(s))
+        ev.push({ kind: 'pain', text: 'Тиждень без вправ: базовий біль +1 (тепер ' + s.base + ')' });
     }
 
     // 6б. Погана ніч: з сильним болем важко заснути. Прогноз її не вгадує — це випадковість.
@@ -956,7 +978,7 @@
       }
     }
     if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
-    if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base + ' назавжди', kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
+    if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base, kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
     else if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
@@ -1026,7 +1048,9 @@
       out.push({ kind: 'money', t: 'Оренда ' + rentOf(s) + ' ₴ у день ' + d + '. До того надійде ' + incoming + ' ₴.' });
       break;
     }
-    if (s.exerciseToday === 0 && stiffTonight(s))
+    if (s.exerciseToday === 0 && ((s.daysNoExercise || 0) + 1) % C.night.chronic.weekNoExercise === 0 && s.base < s.baseStart + C.night.chronic.cap)
+      out.push({ kind: 'pain', t: 'Без вправ уже ' + s.daysNoExercise + ' дн. Якщо й сьогодні без них — уночі базовий біль +1.' });
+    else if (s.exerciseToday === 0 && stiffTonight(s))
       out.push({ kind: 'pain', t: 'Без вправ уже ' + s.daysNoExercise + ' дн. Якщо й сьогодні без них — уночі тимчасовий біль +' + C.night.detrain.pain + '.' });
     if (s.friendsToday === 0 && (s.daysAlone || 0) + 1 >= C.lonely.afterDays)
       out.push({ kind: 'joy', t: 'Без зустрічей уже ' + s.daysAlone + ' дн. ' + (s.daysAlone >= C.lonely.afterDays
@@ -1081,6 +1105,7 @@
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
+    if (st.chronic) lost.push('Біль хронізувався: базовий +' + st.chronic + ' (тиждень без вправ або часті загострення)');
     if (st.friendsLost) lost.push('Втрачено друзів через борги: ' + st.friendsLost);
     {
       const b = bookNow(s);
