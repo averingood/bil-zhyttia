@@ -182,7 +182,7 @@
     if (phase !== 'play') return;
     const p = G.preview(game, id);
     if (!p.available) {
-      G.doAction(game, id); // журнал запам'ятовує спробу
+      G.doAction(game, id); // щоденник запам'ятовує спробу
       toast(p.reason);
       renderAll();
       return;
@@ -681,7 +681,7 @@
 
       <div class="btns">
         <button class="btn primary ${allUsed ? 'pulse' : ''}" id="endBtn">${allUsed ? 'Завершити день' : 'Лягти раніше'} <kbd>E</kbd></button>
-        <button class="btn" id="journalBtn">Журнал</button>
+        <button class="btn" id="journalBtn">Щоденник</button>
       </div>
       ${!allUsed ? `<div class="sub">Слоти ще лишилися: якщо лягти зараз — ${esc(G.sleepGainText(s))}.</div>` : ''}
       <button class="btn ghost" id="restartBtn">Почати заново</button>
@@ -746,7 +746,7 @@
       Розподіляй їх між роботою, радістю і тим, що знижує біль. Ресурс можна позичати, але завтра він повернеться болем.</p>
       <p class="sub">Треба прожити ${C.days} днів. Оренда кожні ${C.rent.every} днів, дедлайн щотижня. Гроші на нулі — кінець; радість на нулі — заціпеніння. Біль 10 — це лікарня.</p>
       <div class="opts"><span class="lbl">Тяжкість</span>${diffs}</div>
-      <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J відкриває журнал, M вмикає чи вимикає міні-ігри (планерки й розмови).</p>
+      <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J відкриває щоденник, M вмикає чи вимикає міні-ігри (планерки й розмови).</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
     $('startBtn').focus();
@@ -787,7 +787,7 @@
   function showJournal() {
     if (!game) return;
     const back = phase === 'end' ? showEnd : closeModal;
-    openModal(`<h2>Журнал</h2>${journalHTML()}<div class="row"><button class="btn primary" id="jClose">${phase === 'end' ? 'До підсумку' : 'Закрити'}</button></div>`, phase !== 'end');
+    openModal(`<h2>Щоденник</h2>${journalHTML()}<div class="row"><button class="btn primary" id="jClose">${phase === 'end' ? 'До підсумку' : 'Закрити'}</button></div>`, phase !== 'end');
     $('jClose').onclick = back;
     $('jClose').focus();
   }
@@ -816,7 +816,7 @@
         <div><h3>Втрачено</h3><ul>${sm.lostItems.length ? sm.lostItems.map((x) => `<li>${esc(x)}</li>`).join('') : '<li>Нічого помітного</li>'}</ul></div>
       </div>
       <div class="row">
-        <button class="btn" id="eJournal">Журнал</button>
+        <button class="btn" id="eJournal">Щоденник</button>
         <button class="btn primary" id="eNew">Нова гра</button>
       </div>
     `, false);

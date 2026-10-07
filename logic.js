@@ -236,7 +236,7 @@
     for (const [n, d] of Object.entries(s.debts || {})) if (d.askDay <= s.day && (!s.loanAsk || d.since < s.debts[s.loanAsk].since)) s.loanAsk = n;
     s.relief = 0;
     s.borrowed = 0;
-    s.restedToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0;
+    s.restedToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0; s.stretchToday = 0;
     s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null; s.readToday = 0; s.courseToday = 0;
     s.fed = false; s.foodType = null;
     const st = stateKey(s);
@@ -296,7 +296,7 @@
         if (s.exerciseToday >= a.perDay) return no('Вправи сьогодні вже були, більше тіло не витримає');
         break;
       case 'stretch':
-        if (pain(s) <= 0) return no('Зараз нічого не болить');
+        if ((s.stretchToday || 0) >= a.perDay) return no('Розтяжка сьогодні вже була');
         break;
       case 'coffee':
         if ((s.coffeeToday || 0) >= a.perDay) return no('Більше кави серце не прийме');
@@ -463,6 +463,7 @@
       case 'stretch': {
         const before = pain(s);
         s.relief = Math.min(s.relief + a.reliefToday, s.base + s.extra);
+        s.stretchToday = (s.stretchToday || 0) + 1;
         addJoy(s, a.joy);
         note = 'біль ' + before + ' → ' + pain(s) + ', радість +' + a.joy;
         break;
