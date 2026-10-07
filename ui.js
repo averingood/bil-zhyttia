@@ -22,7 +22,7 @@
   // scenes — планерка й розмови з друзями від першої особи; вимкнено — результат рахується сам.
   // Перемикається в самій грі (біля столу й дивана, клавіша M), тож пам'ятаємо між сесіями.
   let numbIdle = 0;          // скільки герой стоїть без діла з радістю 0   // панель перемальовується часто — довідка не має згортатися сама
-  let setupChoice = { difficulty: 'normal', days: C.days, scenes: loadScenes() };
+  let setupChoice = { money: C.setup.money.def, friends: C.setup.friends.def, minBase: C.setup.minBase.def, days: C.days, scenes: loadScenes() };
   function loadScenes() { try { return localStorage.getItem('zapas.scenes') !== '0'; } catch (e) { return true; } }
   function toggleScenes() {
     setupChoice.scenes = !setupChoice.scenes;
@@ -627,7 +627,7 @@
     el.innerHTML = `
       <div class="p-head">
         <div class="p-day">День ${s.day} <small>з ${s.days}</small></div>
-        <span class="sub">${esc(C.difficulty[s.difficulty].name)}</span>
+        <span class="sub">мін. біль ${s.setup.minBase} · друзів ${s.setup.friends}</span>
       </div>
       <div class="slots" style="grid-template-columns: repeat(${G.slotsOf(s) > 4 ? 3 : G.slotsOf(s)}, 1fr)">${slots}</div>
 
@@ -800,22 +800,30 @@
 
   function showSetup() {
     phase = 'setup';
-    const diffs = Object.entries(C.difficulty).map(([k, d]) => `
-      <label class="opt"><input type="radio" name="diff" id="diff-${k}" value="${k}" ${k === setupChoice.difficulty ? 'checked' : ''}>
-        <span>${d.name}</span><small>Базовий біль ${d.basePain}${d.note ? ', ' + d.note : ''}</small></label>`).join('');
+    const SU = C.setup;
+    const slider = (key, label, r, unit, note) => `
+      <label class="opt setup-row"><span>${label}</span>
+        <input type="range" id="su-${key}" min="${r.min}" max="${r.max}" step="${r.step || 1}" value="${setupChoice[key]}">
+        <b id="su-${key}-v">${setupChoice[key]}${unit}</b><small>${note}</small></label>`;
+    const diffs = slider('money', 'Гроші на старті', SU.money, ' ₴', 'оренда ' + C.rent.amount + ' ₴ щотижня') +
+      slider('friends', 'Друзі', SU.friends, '', 'що більше, то частіше кличуть і є в кого позичити') +
+      slider('minBase', 'Мінімальний базовий біль', SU.minBase, '', 'нижче лікування не опустить; на старті базовий ще +' + SU.startExtra);
     openModal(`
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і ресурсу, скільки дозволяє ранковий біль.
       Розподіляй їх між роботою, радістю і тим, що знижує біль. Ресурс можна позичати, але завтра він повернеться болем.</p>
       <p class="sub">Треба прожити ${C.days} днів. Оренда кожні ${C.rent.every} днів, дедлайн щотижня. Гроші на нулі — кінець; радість на нулі — заціпеніння. Біль 10 — це лікарня.</p>
-      <div class="opts"><span class="lbl">Тяжкість</span>${diffs}</div>
+      <div class="opts"><span class="lbl">Твоє життя</span>${diffs}</div>
       <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J відкриває щоденник, M вмикає чи вимикає міні-ігри (планерки й розмови).</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
+    for (const k of ['money', 'friends', 'minBase']) {
+      const inp = $('su-' + k);
+      inp.oninput = () => { $('su-' + k + '-v').textContent = inp.value + (k === 'money' ? ' ₴' : ''); };
+    }
     $('startBtn').focus();
     $('startBtn').onclick = () => {
-      const d = document.querySelector('input[name=diff]:checked');
-      setupChoice = { difficulty: d ? d.value : 'normal', days: C.days, scenes: setupChoice.scenes };
+      setupChoice = { money: +$('su-money').value, friends: +$('su-friends').value, minBase: +$('su-minBase').value, days: C.days, scenes: setupChoice.scenes };
       newGame(setupChoice);
     };
   }

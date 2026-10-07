@@ -106,19 +106,20 @@
 
   function createGame(opts) {
     opts = opts || {};
-    const diffKey = opts.difficulty || 'normal';
-    const diff = C.difficulty[diffKey];
+    const SU = C.setup, clampN = (v, r) => Math.max(r.min, Math.min(r.max, Math.round(v != null ? v : r.def)));
+    const minB = clampN(opts.minBase, SU.minBase), friendsN = clampN(opts.friends, SU.friends), money = clampN(opts.money, SU.money);
     const seed = opts.seed != null ? opts.seed : Math.floor(Math.random() * 2 ** 31);
     const s = {
       seed, rng: seed | 0,
-      difficulty: diffKey, days: opts.days || C.days, flareChance: diff.flareChance,
+      setup: { money, friends: friendsN, minBase: minB },
+      days: opts.days || C.days, flareChance: SU.flareChance,
       day: 1, slot: 0,
-      baseStart: diff.basePain, base: diff.basePain, extra: diff.extraPain != null ? diff.extraPain : C.start.extraPain, relief: 0,
+      // Старт — мінімум + startExtra: лікуванням можна спуститися до мінімуму, нижче — ні.
+      baseStart: minB + SU.startExtra, base: minB + SU.startExtra, extra: C.start.extraPain, relief: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
-      // Рівень складності — це обставини життя: гроші, оренда, скільки друзів, як платить робота.
-      money: diff.money != null ? diff.money : C.start.money, joy: C.start.joy,
-      friendNames: C.friends.names.slice(0, diff.friends || C.friends.names.length),
-      rentAmount: diff.rent != null ? diff.rent : C.rent.amount, payMult: diff.payMult || 1,
+      money, joy: C.start.joy,
+      friendNames: C.friends.names.slice(0, friendsN),
+      rentAmount: C.rent.amount, payMult: 1,
       trainings: 0, trainBase: null, courseStreak: 0, courseToday: 0, courseOn: false, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
       book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess, song: { n: 1, done: 0 }, doctorDrops: 0, lastDoctor: -99,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
@@ -660,10 +661,9 @@
   }
 
   // Кава підкручує нічне загострення.
-  // Нижче за стартовий мінус maxRelief базовий біль не опускається: лікування тримає на плаву, але не виліковує.
+  // Нижче за обраний на старті мінімум базовий біль не опускається: лікування тримає на плаву, але не виліковує.
   function minBase(s) {
-    const d = C.difficulty[s.difficulty] || {};
-    return Math.max(C.night.minBasePain, s.baseStart - (d.maxRelief != null ? d.maxRelief : C.night.maxRelief));
+    return Math.max(C.night.minBasePain, s.setup ? s.setup.minBase : s.baseStart);
   }
 
   function flareChanceTonight(s) {
@@ -891,8 +891,8 @@
     // Нові пропозиції від друзів: що рідше бачилися, то рідше кличуть.
     // Друзі помічають, що ти зник: напрошуються на завтра, щоб самотність не стала пасткою.
     const Wr = C.friends.worry, tomorrow = s.day + 1;
-    // Менше друзів — менше шансів, що хтось напише: двоє — 2/3, один — 1/3, жодного — нікому.
-    const share = freeFriends(s).length / (s.friendNames || C.friends.names).length;
+    // Що більше друзів (без боргів), то частіше хтось пише: троє — звичайно, шестеро — вдвічі, один — третина.
+    const share = freeFriends(s).length / C.friends.baseCount;
     if (tomorrow <= s.days && !s.invites[tomorrow] && (s.joy <= 0 || (s.daysAlone >= Wr.afterDays && s.joy < Wr.lowJoy))) {
       const chance = s.joy <= 0 ? Wr.numb : Math.min(Wr.max, Wr.base + Wr.perDay * Math.max(0, s.daysAlone - Wr.afterDays));
       if (rand(s) < chance * share) {

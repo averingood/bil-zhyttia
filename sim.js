@@ -121,8 +121,8 @@ function loans(s) {
   if (s.money < 30) { const n = (s.friendNames || C.friends.names).find((x) => L.canBorrow(s, x)); if (n) L.borrow(s, n); }
 }
 
-function play(strat, diff, seed, days) {
-  const s = L.createGame({ difficulty: diff, seed, days: days || DAYS });
+function play(strat, setup, seed, days) {
+  const s = L.createGame(Object.assign({ seed, days: days || DAYS }, typeof setup === 'object' ? setup : SETUPS[setup] || {}));
   while (!s.lost && !s.finished) {
     loans(s);
     if (s.lost) break;
@@ -139,12 +139,19 @@ function play(strat, diff, seed, days) {
   return s;
 }
 
+// Типові набори обставин замість старих рівнів складності.
+const SETUPS = {
+  'як «Легше»': { money: 200, friends: 3, minBase: 2 },
+  'за замовчуванням': {},
+  'як «Тяжко»': { money: 150, friends: 2, minBase: 5 },
+};
+
 const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0) + '%';
 const avg = (arr) => (arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—');
 
 module.exports = { STRATS, play, setLoans: (v) => { LOANS = v; } };
-if (require.main === module) for (const diff of Object.keys(C.difficulty)) {
-  console.log(`\n=== ${C.difficulty[diff].name} (база ${C.difficulty[diff].basePain}), ${DAYS} днів, ${N} ігор ===`);
+if (require.main === module) for (const diff of Object.keys(SETUPS)) {
+  console.log(`\n=== ${diff}: ${JSON.stringify(SETUPS[diff])}, ${DAYS} днів, ${N} ігор ===`);
   console.log('стратегія'.padEnd(18), 'дожили'.padEnd(7), 'радість/гроші/лікарня'.padEnd(19),
     'день пр.'.padEnd(9), 'гроші', ' радість', ' сильн.дні', ' позич.', ' відмов', ' дедл.проп');
   for (const [name, strat] of Object.entries(STRATS)) {

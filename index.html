@@ -309,6 +309,10 @@
   @media (prefers-reduced-motion: reduce) {
     .shake, .btn.primary.pulse, .delta { animation: none; }
   }
+  .setup-row { display: grid; grid-template-columns: 1fr 160px 64px; align-items: center; gap: 4px 12px; }
+  .setup-row small { grid-column: 1 / -1; }
+  .setup-row input[type=range] { width: 100%; accent-color: var(--joy, #e8c25a); }
+  .setup-row b { text-align: right; }
 </style>
 </head>
 <body>
@@ -328,18 +332,18 @@
 </div>
 <div id="modal" hidden></div>
 
-<script src="config.js?v=202610080031"></script>
-<script src="logic.js?v=202610080031"></script>
-<script src="room.js?v=202610080031"></script>
-<script src="painfx.js?v=202610080031"></script>
-<script src="meeting.js?v=202610080031"></script>
-<script src="friendtalk.js?v=202610080031"></script>
-<script src="matgame.js?v=202610080031"></script>
-<script src="readgame.js?v=202610080031"></script>
-<script src="cookgame.js?v=202610080031"></script>
-<script src="synthgame.js?v=202610080031"></script>
-<script src="rungame.js?v=202610080031"></script>
-<script src="ui.js?v=202610080031"></script>
+<script src="config.js?v=20261008003751"></script>
+<script src="logic.js?v=20261008003751"></script>
+<script src="room.js?v=20261008003751"></script>
+<script src="painfx.js?v=20261008003751"></script>
+<script src="meeting.js?v=20261008003751"></script>
+<script src="friendtalk.js?v=20261008003751"></script>
+<script src="matgame.js?v=20261008003751"></script>
+<script src="readgame.js?v=20261008003751"></script>
+<script src="cookgame.js?v=20261008003751"></script>
+<script src="synthgame.js?v=20261008003751"></script>
+<script src="rungame.js?v=20261008003751"></script>
+<script src="ui.js?v=20261008003751"></script>
 <div id="tipBox" hidden></div>
 </body>
 </html>
