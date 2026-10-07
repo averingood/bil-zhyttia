@@ -646,8 +646,8 @@
         <div class="painbar">${cells}</div>
         <div class="tip">
           <p>Базовий ${s.base} · тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ' · знято сьогодні −' + s.relief : ''}.</p>
-          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня), дзвінок лікарю (−${C.actions.doctor.baseDrop}, лише з болем ${C.actions.doctor.minPain}+). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}. Лікуванням — не нижче ${G.minBase(game)}: тримає на плаву, але не виліковує.</p>
-          <p class="why"><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flarePain}, кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
+          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня і рухаєшся хоча б раз на ${C.actions.course.moveEvery} дні), дзвінок лікарю (−${C.actions.doctor.baseDrop}, лише з болем ${C.actions.doctor.minPain}+). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}. Лікуванням — не нижче ${G.minBase(game)}: тримає на плаву, але не виліковує.</p>
+          <p class="why"><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flareSizes[0][0]}…+${C.night.flareSizes[C.night.flareSizes.length - 1][0]} (буває легке, буває жорстке), кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
           <p class="why"><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
         </div>
       </div>
@@ -688,7 +688,7 @@
         <div class="tip">
           <p>${bp.atMin ? 'Базовий біль на мінімумі.' : bp.dropTonight ? 'Уночі базовий біль ' + s.base + ' → ' + (s.base - 1) + '.'
             : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і базовий біль ' + s.base + ' → ' + (s.base - 1) + '.'}</p>
-          ${s.courseStreak || s.courseToday ? `<p>${s.courseOn ? 'Курс ліків діє: базовий біль −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}.</p>` : ''}
+          ${s.courseStreak || s.courseToday ? `<p>${s.courseOn ? (G.courseWorks(s) ? 'Курс ліків діє: базовий біль −' + C.actions.course.baseDrop + ', не пропускай і рухайся' : 'Курс не діє без руху: зроби вправи чи розтяжку') : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}.</p>` : ''}
           ${s.daysNoExercise && !(s.exerciseToday && s.exerciseQuality !== 'short') ? `<p ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'class="warn"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}.</p>` : ''}
           <p class="why">Кожні ${C.night.trainingsPerBaseDrop} днів вправ — базовий біль −1. Без вправ: на ${C.night.detrain.afterDays}-тю ніч тимчасовий +${C.night.detrain.pain}, за тиждень — базовий +1.</p>
         </div>

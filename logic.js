@@ -485,6 +485,7 @@
         const m = opts.mat, M = a.mat, share = m && m.total ? m.right / m.total : 1;
         s.exerciseQuality = share >= M.reliefShare ? 'good' : share >= M.baseShare ? 'partial' : 'short';
         s.exerciseToday++;
+        s.lastMoveDay = s.day;
         if (s.exerciseQuality !== 'short') s.trainings++;
         note = (m ? 'рухів ' + m.right + ' з ' + m.total + ', ' : '') + (s.exerciseQuality === 'short' ? 'не зараховано'
           : s.exerciseQuality === 'partial' ? 'частково, днів вправ ' + s.trainings : 'днів вправ ' + s.trainings);
@@ -494,6 +495,7 @@
         const before = pain(s);
         s.relief = Math.min(s.relief + a.reliefToday, s.base + s.extra);
         s.stretchToday = (s.stretchToday || 0) + 1;
+        s.lastMoveDay = s.day;
         addJoy(s, a.joy);
         note = 'біль ' + before + ' → ' + pain(s) + ', радість +' + a.joy;
         break;
@@ -576,7 +578,7 @@
         s.money -= a.money;
         s.courseToday = 1;
         s.stats.course = (s.stats.course || 0) + 1;
-        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? ', діє' : '') + ', −' + a.money + ' ₴';
+        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? (courseWorks(s) ? ', діє' : ', не діє без руху') : '') + ', −' + a.money + ' ₴';
         break;
       case 'clean': {
         const was = s.mess;
@@ -604,8 +606,17 @@
   // Базовий біль: старт − вправи − курс − лікар + хронізація, у межах [мінімум; старт + cap].
   function recalcBase(s) {
     const N = C.night, tb = s.trainBase != null ? s.trainBase : s.baseStart;
-    const raw = tb - (s.courseOn ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0);
+    const raw = tb - (courseWorks(s) ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0);
     s.base = Math.max(minBase(s), Math.min(s.baseStart + N.chronic.cap, raw));
+  }
+  // Курс діє лише з рухом: вправи чи хоча б розтяжка сьогодні або вчора.
+  function courseWorks(s) { return s.courseOn && s.day - (s.lastMoveDay != null ? s.lastMoveDay : -99) <= C.actions.course.moveEvery - 1; }
+  // Сила загострення: випадкова з таблиці [біль, вага].
+  function flareSize(s) {
+    const t = C.night.flareSizes, sum = t.reduce((a, x) => a + x[1], 0);
+    let r = rand(s) * sum;
+    for (const [p, w] of t) { if ((r -= w) < 0) return p; }
+    return t[t.length - 1][0];
   }
   // Хронізація: +1 до базового, якщо ще не на межі. Повертає, чи справді піднявся.
   function chronify(s) {
@@ -771,6 +782,13 @@
       else ev.push({ kind: 'info', text: 'Пропущено пігулку: курс доведеться почати спочатку' });
       s.courseStreak = 0; s.courseOn = false;
     }
+    if (s.courseOn) {
+      const works = courseWorks(s);
+      if (works !== (s.courseWorked !== false)) ev.push(works
+        ? { kind: 'good', text: 'Рух повернувся — курс знову діє, базовий біль −' + CC.baseDrop }
+        : { kind: 'pain', text: 'Пігулки без руху не діють: ' + CC.moveEvery + ' дні ні вправ, ні розтяжки — базовий біль вищий' });
+      s.courseWorked = works;
+    } else s.courseWorked = true;
     const trainBase = Math.max(minBase(s), s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
     if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився' });
     s.trainBase = trainBase;
@@ -780,9 +798,11 @@
     const roll = rand(s);
     const flare = opts.forceFlare != null ? opts.forceFlare : roll < flareChanceTonight(s);
     if (flare) {
-      s.extra += N.flarePain;
+      const size = flareSize(s);
+      s.extra += size;
       s.stats.flares++;
-      ev.push({ kind: 'flare', text: 'Загострення вночі: тимчасовий біль +' + N.flarePain });
+      s.lastFlareSize = size;
+      ev.push({ kind: 'flare', text: (C.night.flareNames[size] || 'Загострення') + ' вночі: тимчасовий біль +' + size });
       // Три загострення за тиждень — біль хронізується.
       const CH = N.chronic;
       s.flareDays = (s.flareDays || []).filter((d) => s.day - d < CH.flareWindow).concat(s.day);
@@ -1188,7 +1208,7 @@
     createGame, doAction, endDay, songTitle, rentOf, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (inv.worry != null ? C.friends.worry.lines[inv.worry] : (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text),
-    slotsOf, slotName, dayPhase, minBase,
+    slotsOf, slotName, dayPhase, minBase, courseWorks,
     pain, rawPain, stateKey, stateOfPain, stateCfg, meetingsRecent, inviteToday, energyCost,
     clone,
     setConfig(cfg) { C = cfg; },
