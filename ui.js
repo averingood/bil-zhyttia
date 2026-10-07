@@ -198,7 +198,7 @@
       phase = 'scene';
       held.clear(); applyKeys();
       window.SynthGame.start({
-        wrap: $('canvasWrap'), bar: $('actionBar'),
+        wrap: $('canvasWrap'), bar: $('actionBar'), title: G.songTitle(game),
         pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
         onDone: (res) => { phase = 'play'; finishAction(id, p, { synth: res }); },
       });
@@ -284,7 +284,7 @@
     }
     if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
-    if (a.songN > b.songN) parts.push({ t: 'дописав пісню №' + b.songN + '!', k: 'good' });
+    if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '»!', k: 'good' });
     if (a.mess < b.mess) parts.push({ t: 'вдома чисто', k: 'good' });
     if (a.workWeek > b.workWeek) parts.push({ t: 'робота ' + a.workWeek + '/' + C.work.unitsPerDeadline, k: '' });
     if (a.warmth < b.warmth) parts.push({ t: 'друзі кликатимуть рідше', k: 'bad' });
@@ -665,7 +665,7 @@
         <div class="sec-h"><span class="lbl">Дім</span><span class="val" ${(s.mess || 0) >= C.chores.annoyAt ? 'style="color:var(--strong)"' : ''}>${esc(G.messText(s.mess || 0))}</span></div>
         <div class="tip">
           <p>${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + ' сесій.' : 'Усі книжки прочитані.'; })()}</p>
-          <p>Пісня №${(s.song || { n: 1 }).n}: ${(s.song || { done: 0 }).done} з ${C.actions.create.songSessions} сесій за синтезатором.</p>
+          <p>${s.song && s.song.title ? 'Пісня «' + esc(s.song.title) + '»: ' + s.song.done + ' з ' + C.actions.create.songSessions + ' сесій за синтезатором.' : 'Нова пісня ще не розпочата.'}</p>
           <p class="why">Безлад росте щодня, після гостей — більше. Понад ${C.chores.freeUpTo} — щоночі забирає радість, і що гірше, то більше. Прибрати можна на кухні.</p>
         </div>
       </div>

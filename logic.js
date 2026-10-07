@@ -428,11 +428,14 @@
         note = 'радість +' + gain + (fake ? ', фальшивих нот ' + fake : '') + (s.createStreak > 1 ? ', серія ' + s.createStreak + ' дн.' : '');
         // Пісня пишеться за кілька сесій; дописана — окрема радість.
         s.song = s.song || { n: 1, done: 0 };
+        songTitle(s);
         s.song.done++;
-        note += ', пісня №' + s.song.n + ': ' + s.song.done + '/' + a.songSessions;
+        note += ', «' + s.song.title + '» ' + s.song.done + '/' + a.songSessions;
         if (s.song.done >= a.songSessions) {
           addJoy(s, a.songJoy);
           s.stats.songs = (s.stats.songs || 0) + 1;
+          (s.stats.songTitles = s.stats.songTitles || []).push(s.song.title);
+          s.lastSongDone = s.song.title;
           note += '; дописав! радість +' + a.songJoy;
           s.song = { n: s.song.n + 1, done: 0 };
         }
@@ -587,6 +590,16 @@
     if (s.base === before) { s.chronic--; return false; }
     s.stats.chronic = (s.stats.chronic || 0) + 1;
     return true;
+  }
+
+  // Назва пісні: обирається, коли сідаєш за нову, без повторів у межах гри.
+  function songTitle(s) {
+    if (!s.song.title) {
+      const used = new Set(s.stats.songTitles || []);
+      const free = C.songTitles.filter((t) => !used.has(t));
+      s.song.title = (free.length ? free : C.songTitles)[Math.floor(rand(s) * (free.length || C.songTitles.length))];
+    }
+    return s.song.title;
   }
 
   // Книжка, яку зараз читаємо: [назва, сесій] або null, якщо полиця прочитана.
@@ -1113,7 +1126,7 @@
     }
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
     if (st.doctor) kept.push('Дзвінків лікарю: ' + st.doctor + ' (базовий біль −' + st.doctor * C.actions.doctor.baseDrop + ')');
-    if (st.songs || (s.song && s.song.done)) kept.push('Пісні: дописано ' + (st.songs || 0) + (s.song && s.song.done ? ', недописана №' + s.song.n + ' (' + s.song.done + ' з ' + C.actions.create.songSessions + ')' : ''));
+    if (st.songs || (s.song && s.song.done)) kept.push('Пісні: ' + ((st.songTitles || []).map((t) => '«' + t + '»').join(', ') || 'жодної дописаної') + (s.song && s.song.done ? '; недописана «' + s.song.title + '» (' + s.song.done + ' з ' + C.actions.create.songSessions + ')' : ''));
     if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed + ' (кожен пропуск — курс з нуля)');
     if (st.borrowedMoney) {
       const left = Object.entries(s.debts || {});
@@ -1139,7 +1152,7 @@
 
   const api = {
     ZONES, ACTIONS, ACTION_IDS, CAUSES,
-    createGame, doAction, endDay, rentOf, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
+    createGame, doAction, endDay, songTitle, rentOf, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (inv.worry != null ? C.friends.worry.lines[inv.worry] : (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text),
     slotsOf, slotName, dayPhase,

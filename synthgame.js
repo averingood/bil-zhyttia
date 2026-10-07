@@ -54,7 +54,7 @@
     lg.fillStyle = gl; lg.fillRect(0, 0, LW, LH);
     // Пюпітр із нотним аркушем: кожна чиста нота з'являється на станах, фальшива — перекреслена.
     R(118, 26, 66, 46, '#2a2c33'); R(121, 29, 60, 40, '#efe6d2');
-    for (let l = 0; l < 5; l++) R(124, 36 + l * 5, 54, 1, '#b5a98f');
+    for (let l = 0; l < 5; l++) R(124, 40 + l * 5, 54, 1, '#b5a98f');   // стани нижче — над ними назва пісні
     pressed.forEach((p, k) => {
       const nx = 130 + k * 16, ny = 54 - (p.i % 7) * 2.5;
       R(nx, ny, 4, 3, p.fake ? '#c0392b' : '#3a2f22'); R(nx + 3, ny - 9, 1, 10, p.fake ? '#c0392b' : '#3a2f22');
@@ -201,6 +201,13 @@
       drawScene(t, pressed, shake, t < fakeUntil, handX, dip);
       g.imageSmoothingEnabled = false;
       g.drawImage(low, 0, 0, W, H);
+      // Назва пісні вгорі нотного аркуша; задовга — обрізається трикрапкою.
+      if (o.title) {
+        g.font = '15px Handjet'; g.fillStyle = '#3a2f22'; g.textBaseline = 'top';
+        let tt = '«' + o.title + '»';
+        while (g.measureText(tt).width > 112 && tt.length > 4) tt = tt.slice(0, -2) + '…';
+        g.fillText(tt, 248, 60);
+      }
       root.PainFX.gloom(g, W, H, o.joy != null ? o.joy : 60);
       fx.draw(g, W, H, t, Math.max(2, o.pain), glitch, o.painkiller);
       raf = requestAnimationFrame(frame);

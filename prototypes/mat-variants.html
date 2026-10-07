@@ -180,17 +180,18 @@ V.breath = {
 // В. Повтор за тренером: телефон показує стрілки, біль накриває частину показу.
 V.coach = {
   name: 'В. Повтор за тренером',
-  how: 'Тренер у телефоні показує рухи стрілками. Повтори їх клавішами <kbd>← ↑ → ↓</kbd>. Біль може накрити частину показу — тоді вгадуй. 3 серії: 3, 4 і 5 рухів.',
+  how: 'Тренер у телефоні показує рухи стрілками. Повтори їх клавішами <kbd>← ↑ → ↓</kbd>. Кожен правильний рух зараховується, помилки не караються. Біль може ненадовго накрити одну стрілку в серії — тоді вгадуй. 2 серії: 3 і 4 рухи.',
   make() {
     const ARR = ['←', '↑', '→', '↓'], CODES = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
-    const S = { round: 0, lens: [3, 4, 5], seq: [], showFrom: 0, input: [], mode: 'show', right: 0, all: 0, glitch: null, wait: 0 };
+    const S = { round: 0, lens: [3, 4], seq: [], showFrom: 0, input: [], mode: 'show', right: 0, all: 0, glitch: null, wait: 0 };
     const STEP = 0.75;
     const newRound = () => {
       S.seq = Array.from({ length: S.lens[S.round] }, () => Math.floor(Math.random() * 4));
       S.showFrom = now() + 1.2; S.input = []; S.mode = 'show'; S.glitch = null;
+      // Щонайбільше одна стрілка в серії: короткий спалах рівно на її показ.
       if (Math.random() < PAINS[painKey].spike + 0.15) {
         const k = Math.floor(Math.random() * S.seq.length);
-        S.glitch = { start: S.showFrom + k * STEP, end: S.showFrom + (k + 1.3) * STEP };
+        S.glitch = { start: S.showFrom + k * STEP, end: S.showFrom + k * STEP + STEP * 0.75, grow: 0.25 };
       }
     };
     newRound();
@@ -201,12 +202,12 @@ V.coach = {
       },
       draw(t) {
         room(t);
-        // Телефон стоїть низько на килимку — біль знизу може його накрити.
-        R(78, 66, 50, 74, '#15161b'); R(81, 70, 44, 64, '#cfe0dc');
+        // Телефон стоїть низько на килимку, між руками: показ — саме там, куди дістає ядро болю.
+        R(78, 92, 50, 72, '#15161b'); R(81, 96, 44, 64, '#cfe0dc');
         hands(0, 0);
       },
       overlay(t) {
-        const k = 2, px = 81 * k, py = 70 * k;
+        const k = 2, px = 81 * k, py = 96 * k;
         if (S.mode === 'show' && t > S.showFrom) {
           const i = Math.floor((t - S.showFrom) / STEP);
           if (i < S.seq.length && (t - S.showFrom) % STEP < STEP * 0.75) text(ARR[S.seq[i]], px + 26, py + 30, '#15161b', 56);
@@ -225,12 +226,12 @@ V.coach = {
         if (S.input.length === S.seq.length) {
           const ok = S.input.filter((v, i) => v === S.seq[i]).length;
           S.right += ok; S.all += S.seq.length; S.mode = 'wait'; S.wait = now() + 1.2;
-          msg('Серія ' + (S.round + 1) + ': ' + ok + ' з ' + S.seq.length + ' рухів правильно.', ok === S.seq.length ? 'good' : ok < S.seq.length / 2 ? 'bad' : '');
+          msg('Серія ' + (S.round + 1) + ': зараховано ' + ok + ' з ' + S.seq.length + (ok === S.seq.length ? '. Чисто!' : ok ? '. Кожен рух іде в залік.' : '. Нічого, наступна серія.'), ok ? 'good' : '');
         }
       },
       hold() {},
       status() { return S.mode === 'done' ? '' : 'серія ' + (S.round + 1) + ' з ' + S.lens.length + (S.mode === 'input' ? ' · повтори' : ' · дивись'); },
-      result() { return S.mode === 'done' ? 'Правильних рухів ' + S.right + ' з ' + S.all + '.' : null; },
+      result() { return S.mode === 'done' ? 'Зараховано рухів ' + S.right + ' з ' + S.all + '.' : null; },
     };
   },
 };
