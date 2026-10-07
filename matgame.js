@@ -50,16 +50,17 @@
     R(14, 92, 30, 10, '#c4842f'); R(14, 92, 30, 2, '#dfa457'); for (let x = 16; x < 44; x += 4) R(x, 101, 2, 2, '#a86a22');
     R(150, 66, 4, 9, '#26282e'); R(154, 69, 10, 3, '#4a4d55'); R(164, 66, 4, 9, '#26282e');
     // Тінь під телефоном і руками.
-    for (let y = 160; y < 166; y++) for (let x = 74; x < 132; x++) if (dith(x, y)) R(x, y, 1, 1, 'rgba(15,17,30,0.55)');
+    for (let y = 158; y < 164; y++) for (let x = 60; x < 146; x++) if (dith(x, y)) R(x, y, 1, 1, 'rgba(15,17,30,0.55)');
     // Телефон на підставці, з тренером угорі екрана.
-    R(84, 156, 38, 6, '#2a2c33');
-    R(78, 90, 50, 72, '#15161b'); R(80, 92, 46, 68, '#22242b');
-    R(81, 96, 44, 64, '#cfe0dc'); R(101, 93, 4, 1, '#3a3d45');
+    // Телефон лежить боком: широкий екран, щоб уся серія стрілок уміщалась.
+    R(70, 152, 66, 6, '#2a2c33');
+    R(60, 102, 86, 54, '#15161b'); R(62, 104, 82, 50, '#22242b');
+    R(65, 106, 76, 44, '#cfe0dc'); R(61, 127, 1, 4, '#3a3d45');
     const bob = Math.round(Math.sin(t * 3) * 1);
-    if (coach) R(108, 99 + bob, 4, 4, '#c48b67'); if (coach) { R(107, 103 + bob, 6, 6, '#2f8f9a'); R(107, 109, 2, 4, '#26282e'); R(111, 109, 2, 4, '#26282e'); }
+    if (coach) R(130, 109 + bob, 4, 4, '#c48b67'); if (coach) { R(129, 113 + bob, 6, 6, '#2f8f9a'); R(129, 119, 2, 4, '#26282e'); R(133, 119, 2, 4, '#26282e'); }
     // Руки: передпліччя в рукавах із тінню, кисті з пальцями. Ледь «дихають».
     const br = Math.round(Math.sin(t * 1.6) * 0.8);
-    for (const [x0, dir] of [[46, 1], [130, -1]]) {
+    for (const [x0, dir] of [[26, 1], [152, -1]]) {   // руки ширше, щоб не закривати екран
       R(x0, 132 + br, 30, LH - 132, '#2d4763'); R(x0 + (dir > 0 ? 24 : 0), 132 + br, 6, LH - 132, '#243a52');
       R(x0 + 2, 132 + br, 26, 3, '#3a5a7c'); R(x0, 128 + br, 30, 5, '#3a5a7c');
       const hx = x0 + 3 + dir * 2;
@@ -180,17 +181,17 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(low, 0, 0, W, H);
       // Екран телефона: стрілки тренера або те, що вже повторив.
-      const px = 81 * 2, py = 96 * 2;
+      const px = 65 * 2, py = 106 * 2;
       g.textBaseline = 'top';
       if (mode === 'show' && t > showFrom) {
         const i = Math.floor((t - showFrom) / STEP);
         if (i < seq.length && (t - showFrom) % STEP < STEP * 0.75) {
-          g.font = '56px Handjet'; g.fillStyle = '#15161b'; g.fillText(ARR[seq[i]], px + 24, py + 40);
+          g.font = '56px Handjet'; g.fillStyle = '#15161b'; g.fillText(ARR[seq[i]], px + 58, py + 18);
         }
         g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText((Math.min(i, seq.length - 1) + 1) + '/' + seq.length, px + 6, py + 4);
       } else if (mode === 'input' || mode === 'wait') {
-        g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText('твоя черга', px + 10, py + 6);
-        g.font = '22px Handjet'; g.fillStyle = '#15161b'; g.fillText(input.map((v) => (v < 0 ? '×' : ARR[v])).join(' '), px + 8, py + 50);
+        g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText('твоя черга', px + 8, py + 4);
+        g.font = '22px Handjet'; g.fillStyle = '#15161b'; g.fillText(input.map((v) => (v < 0 ? '×' : ARR[v])).join(' '), px + 10, py + 34);
       }
       root.PainFX.gloom(g, W, H, o.joy != null ? o.joy : 60);
       fx.draw(g, W, H, t, o.pain, glitch, o.painkiller);
