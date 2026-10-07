@@ -52,8 +52,8 @@
       if (glitch && t > glitch.start - GROW_IN && t < glitch.end + GROW_OUT) {
         grow = t < glitch.start ? smooth((t - glitch.start + GROW_IN) / GROW_IN) : t > glitch.end ? smooth(1 - (t - glitch.end) / GROW_OUT) : 1;
       }
-      // Кожен напад трохи іншого розміру (±5% діаметра): так не вивчиш, де саме край і що лишиться видно.
-      if (glitch && glitch.scale == null) glitch.scale = 0.95 + Math.random() * 0.1;
+      // Кожен напад трохи іншого розміру (від −5% до +15% діаметра): так не вивчиш, де саме край і що лишиться видно.
+      if (glitch && glitch.scale == null) glitch.scale = 0.95 + Math.random() * 0.2;
       paint(t, pain / 10, grow, glitch ? glitch.scale : 1);
       ctx.putImageData(buf, 0, 0);
       g.imageSmoothingEnabled = false;
