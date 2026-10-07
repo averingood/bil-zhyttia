@@ -534,14 +534,14 @@
         break;
       }
       case 'doctor': {
-        // Різко, але до першого загострення: базовий біль знижується одразу, а не вночі.
+        // Різко й назавжди: базовий біль знижується одразу, а не вночі.
         const was = s.base;
         s.money -= a.money;
         s.lastDoctor = s.day;
         s.doctorDrops = (s.doctorDrops || 0) + 1;
         s.base = Math.max(C.night.minBasePain, s.base - a.baseDrop);
         s.stats.doctor = (s.stats.doctor || 0) + 1;
-        note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base + ' до загострення';
+        note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base + ' назавжди';
         break;
       }
       case 'course':
@@ -700,7 +700,7 @@
       else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано, але й гірше не стало' });
     }
 
-    // 5. База = старт − вправи − курс − лікар. Вправи знижують назавжди, курс — поки п'єш, лікар — до загострення.
+    // 5. База = старт − вправи − курс. Вправи знижують назавжди, курс — поки п'єш.
     const CC = C.actions.course;
     if (s.courseToday) {
       s.courseStreak = (s.courseStreak || 0) + 1;
@@ -723,12 +723,6 @@
       s.extra += N.flarePain;
       s.stats.flares++;
       ev.push({ kind: 'flare', text: 'Загострення вночі: тимчасовий біль +' + N.flarePain });
-      // Загострення зводить нанівець ефект дзвінка лікарю: базовий біль повертається.
-      if (s.doctorDrops > 0) {
-        s.doctorDrops = 0;
-        s.base = Math.max(N.minBasePain, s.trainBase - (s.courseOn ? C.actions.course.baseDrop : 0));
-        ev.push({ kind: 'pain', text: 'Ефект лікаря минув: базовий біль знову ' + s.base });
-      }
     }
 
     // 6а. Пропущені вправи: м'язи дубіють, прогрес до бази тане.
@@ -962,7 +956,7 @@
       }
     }
     if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
-    if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base + ' до загострення', kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
+    if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base + ' назавжди', kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
     else if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
@@ -1093,7 +1087,7 @@
       if (st.booksRead || (b && s.book.done)) kept.push('Книжки: дочитано ' + (st.booksRead || 0) + (b && s.book.done ? ', недочитана «' + b[0] + '» (' + s.book.done + ' з ' + b[1] + ')' : ''));
     }
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
-    if (st.doctor) kept.push('Дзвінків лікарю: ' + st.doctor);
+    if (st.doctor) kept.push('Дзвінків лікарю: ' + st.doctor + ' (базовий біль −' + st.doctor * C.actions.doctor.baseDrop + ')');
     if (st.songs || (s.song && s.song.done)) kept.push('Пісні: дописано ' + (st.songs || 0) + (s.song && s.song.done ? ', недописана №' + s.song.n + ' (' + s.song.done + ' з ' + C.actions.create.songSessions + ')' : ''));
     if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed + ' (кожен пропуск — курс з нуля)');
     if (st.borrowedMoney) {
