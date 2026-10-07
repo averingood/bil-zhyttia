@@ -194,14 +194,14 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
-    // Готування — дошка й ніж від першої особи; біль тут видно завжди.
+    // Готування — рецепт на холодильнику й вибір продуктів; біль може накрити записку.
     if (id === 'cook' && setupChoice.scenes && window.CookGame) {
       phase = 'scene';
       held.clear(); applyKeys();
       window.CookGame.start({
         wrap: $('canvasWrap'), bar: $('actionBar'),
         pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
-        onDone: () => { phase = 'play'; finishAction(id, p); },
+        onDone: (res) => { phase = 'play'; finishAction(id, p, { cook: res }); },
       });
       renderAll();
       return;

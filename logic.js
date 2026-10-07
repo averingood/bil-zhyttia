@@ -467,10 +467,16 @@
         note = 'біль ' + before + ' → ' + pain(s) + ', радість +' + a.joy;
         break;
       }
-      case 'cook':
+      case 'cook': {
         s.money -= a.money; s.fed = true; s.foodType = 'cook';
-        note = '−' + a.money + ' ₴';
+        // opts.cook = { misses } з міні-гри; без неї — чи біль накрив рецепт і чи вгадав.
+        let misses = opts.cook ? opts.cook.misses : 0;
+        if (!opts.cook && rand(s) < Math.max(a.minCover, C.painCover[stateKey(s)])) misses = rand(s) < 0.5 ? 1 : 2;
+        const gain = a.joy[Math.min(misses, a.joy.length - 1)];
+        if (gain) addJoy(s, gain);
+        note = '−' + a.money + ' ₴, ' + (misses === 0 ? 'смачно, радість +' + gain : misses === 1 ? 'нормально, радість +' + gain : 'їстівно, але не те');
         break;
+      }
       case 'delivery':
         s.money -= a.money; s.fed = true; s.foodType = 'delivery';
         note = '−' + a.money + ' ₴';
@@ -885,7 +891,7 @@
     out.borrow = Math.max(0, cost - s.energy);
     const after = clone(s);
     // Візит рахуємо без розмови: її результат випадковий і міг обнулити радість на картці.
-    doAction(after, id, id === 'work' ? { score: maxWorkScore() } : id === 'friends' ? { deferTalk: true } : null);
+    doAction(after, id, id === 'work' ? { score: maxWorkScore() } : id === 'friends' ? { deferTalk: true } : id === 'cook' ? { cook: { misses: 0 } } : null);
     if (after.lost) { out.fatal = after.lost; return out; }
 
     const hidden = !stateCfg(s).hintsVisible;
@@ -903,7 +909,7 @@
         fx.push({ t: 'біль заглушить ~' + Math.round(cover * 100) + '% питань' + (check(s, 'meds').available && after2 < cover ? ' (зі знеболювальним ~' + Math.round(after2 * 100) + '%)' : ''), kind: 'pain' });
       }
     }
-    if (after.joy !== s.joy) fx.push({ t: 'радість ' + signed(after.joy - s.joy), kind: 'joy' });
+    if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
     if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
