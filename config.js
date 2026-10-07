@@ -38,9 +38,9 @@
     start: { money: 170, joy: 60, extraPain: 0 },   // +20 відтоді, як прибирання забирає слоти
 
     difficulty: {
-      easy:   { name: 'Легше',    basePain: 3, flareChance: 0.40 },
+      easy:   { name: 'Легше',    basePain: 3, flareChance: 0.08 },
       normal: { name: 'Середньо', basePain: 5, flareChance: 0.15 },
-      hard:   { name: 'Тяжко',    basePain: 7, flareChance: 0.05 },
+      hard:   { name: 'Тяжко',    basePain: 7, flareChance: 0.22 },
     },
 
     actions: {
