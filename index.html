@@ -212,12 +212,12 @@
   .painlegend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 20px; color: var(--muted); margin-top: 4px; }
   .sec.tipped { position: relative; cursor: help; }
   .sec.tipped .lbl::after { content: ' ⓘ'; opacity: .55; font-size: .85em; }
-  .sec .tip { display: none; position: absolute; right: calc(100% + 12px); top: -6px; width: 360px; z-index: 30;
+  /* Підказка секції — окреме вікно поверх сторінки: панель прокручується й обрізала б її. */
+  .sec .tip { display: none; }
+  #tipBox { position: fixed; z-index: 60; width: 360px; max-width: calc(100vw - 24px); pointer-events: none;
     background: var(--panel); border: 2px solid var(--accent); padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.45); }
-  .sec .tip p { margin: 0 0 6px; line-height: 1.2; }
-  .sec .tip .why { color: var(--muted); font-size: .92em; }
-  .sec.tipped:hover .tip, .sec.tipped:focus-within .tip { display: block; }
-  @media (max-width: 900px) { .sec .tip { right: auto; left: 0; top: 100%; width: 100%; } }
+  #tipBox p { margin: 0 0 6px; line-height: 1.2; }
+  #tipBox .why { color: var(--muted); font-size: .92em; }
   .painhelp { margin-top: 4px; font-size: 19px; color: var(--muted); }
   .painhelp summary { cursor: pointer; }
   .painhelp p { margin: 4px 0; line-height: 1.2; }
@@ -338,5 +338,6 @@
 <script src="cookgame.js"></script>
 <script src="synthgame.js"></script>
 <script src="ui.js"></script>
+<div id="tipBox" hidden></div>
 </body>
 </html>

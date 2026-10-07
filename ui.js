@@ -715,12 +715,37 @@
       ${inv ? `<div class="warn">Якщо завершити день без зустрічі: відмова ${esc(inv.name)}, радість −${Math.abs(C.joy.refuseInvite)}</div>` : ''}
       ${endWarn ? `<div class="warn" style="color:var(--fatal)">${fc.lost ? 'Після ночі гра закінчиться: ' + esc(fc.lost.text.toLowerCase()) : 'Уночі біль дійде до 10: лікарня'}</div>` : ''}
     `;
+    if (tipIndex != null) showTip(tipIndex);   // панель перемалювалась — підказка лишається з новими числами
     $('endBtn').onclick = endDayClick;
     document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. Тепер знову можна в гості.'); renderAll(); }; });
     if ($('borrowBtn')) $('borrowBtn').onclick = showBorrow;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
   }
+
+  // ---------- підказки секцій ----------
+  // Окреме вікно поверх сторінки: панель прокручується й обрізала б підказку всередині себе.
+  let tipIndex = null;
+  function showTip(i) {
+    const secs = [...document.querySelectorAll('#panel .sec.tipped')], sec = secs[i], box = $('tipBox');
+    if (!sec) { hideTip(); return; }
+    tipIndex = i;
+    box.innerHTML = sec.querySelector('.tip').innerHTML;
+    box.hidden = false;
+    const r = sec.getBoundingClientRect(), pr = $('panel').getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+    let left, top;
+    if (pr.left > bw + 24) { left = pr.left - bw - 12; top = r.top; }          // ліворуч від панелі, навпроти секції
+    else { left = Math.max(12, r.left); top = r.bottom + 6; }                 // вузький екран — під секцією
+    top = Math.max(12, Math.min(top, window.innerHeight - bh - 12));
+    box.style.left = left + 'px'; box.style.top = top + 'px';
+  }
+  function hideTip() { tipIndex = null; $('tipBox').hidden = true; }
+  const secIndex = (el) => { const sec = el && el.closest && el.closest('#panel .sec.tipped'); return sec ? [...document.querySelectorAll('#panel .sec.tipped')].indexOf(sec) : -1; };
+  $('panel').addEventListener('pointerover', (e) => { const i = secIndex(e.target); if (i >= 0 && i !== tipIndex) showTip(i); else if (i < 0) hideTip(); });
+  $('panel').addEventListener('pointerleave', hideTip);
+  $('panel').addEventListener('focusin', (e) => { const i = secIndex(e.target); if (i >= 0) showTip(i); });
+  $('panel').addEventListener('focusout', hideTip);
+  $('panel').addEventListener('scroll', () => { if (tipIndex != null) showTip(tipIndex); });
 
   // Нова гра з поточної: спершу підтвердження, щоб не стерти день випадковим кліком.
   function askRestart() {
