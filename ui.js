@@ -635,7 +635,7 @@
           ${s.relief ? `<span>знято сьогодні −${s.relief}</span>` : ''}
         </div>
         <details class="painhelp" ${painHelpOpen ? 'open' : ''}><summary>Що на що впливає</summary>
-          <p><b>Базовий біль</b> — той, до якого все повертається. Знижують його вправи (кожні ${C.night.trainingsPerBaseDrop} днів — −1 назавжди) і курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня).</p>
+          <p><b>Базовий біль</b> — той, до якого все повертається. Знижують його вправи (кожні ${C.night.trainingsPerBaseDrop} днів — −1 назавжди) курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня) і дзвінок лікарю (−${C.actions.doctor.baseDrop} до першого загострення).</p>
           <p><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flarePain}, кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
           <p><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
         </details>
