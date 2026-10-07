@@ -1018,7 +1018,13 @@
       // Вікно над диваном.
       wallL(ctx, 3.75, 6.05, 23, 51, PAL.sheet);
       wallL(ctx, 3.9, 5.9, 25, 49, sky);
+      // Небо малюється лише в межах скла: пікселі хмар і сонця ширші за точку й інакше вилазять на стіну.
+      ctx.save();
+      ctx.beginPath();
+      [P(0, 3.9, 25), P(0, 5.9, 25), P(0, 5.9, 49), P(0, 3.9, 49)].forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])));
+      ctx.closePath(); ctx.clip();
       this.drawSkyLife(ctx, slot, night);
+      ctx.restore();
       wallL(ctx, 3.9, 5.9, 25, 30, dark(0.35));
       wallL(ctx, 4.1, 4.4, 25, 34, dark(0.45));
       wallL(ctx, 5.2, 5.6, 25, 37, dark(0.4));
