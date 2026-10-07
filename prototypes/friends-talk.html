@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Розмова з друзями</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600&family=Tiny5&display=swap">
+<style>
+  /* Сцена від першої особи з крісла-мішка зверху, відповіді під нею; праворуч налаштування й журнал. */
+  :root {
+    --bg: #161924; --panel: #20243a; --line: #3b4263; --fg: #ece3cf; --muted: #9aa0b8;
+    --accent: #d4a03e; --light: #8fcf7e; --medium: #e9ac45; --strong: #df5b4f; --good: #6fcf8a; --bad: #ff7a6b; --joy: #e58fa8;
+    --font: "Handjet", "Arial Narrow", ui-sans-serif, sans-serif;
+    --font-display: "Tiny5", "Handjet", ui-sans-serif, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 19px/1.3 var(--font); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 32px; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
+  h1 { margin: 0; font: 30px/1.1 var(--font-display); color: var(--accent); }
+  .sub { color: var(--muted); font-size: 17px; max-width: 74ch; margin: 0; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+  .stage { background: #1e2230; border: 2px solid var(--line); padding: 12px; display: grid; gap: 10px; min-width: 0; }
+  #view { width: 100%; height: auto; max-height: calc(100vh - 240px); object-fit: contain; image-rendering: pixelated; display: block; }
+  .answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-height: 52px; }
+  .ans { font: inherit; font-size: 18px; text-align: left; color: var(--fg); background: var(--panel); border: 2px solid var(--line); padding: 6px 10px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  .ans:hover, .ans:focus-visible { border-color: var(--accent); }
+  .ans.right { border-color: var(--good); } .ans.wrong { border-color: var(--bad); } .ans.meh { border-color: var(--muted); }
+  kbd { font: inherit; font-size: 15px; background: #0f111a; border: 1px solid var(--line); padding: 0 5px; color: var(--muted); }
+  .bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 34px; }
+  .timer { height: 10px; background: #0f111a; border: 2px solid var(--line); }
+  .timer i { display: block; height: 100%; width: 0; background: var(--joy); }
+  .btn { font: inherit; font-size: 17px; color: var(--fg); background: var(--panel); border: 2px solid var(--line); padding: 4px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #111; border-color: var(--accent); }
+  .msg { margin: 0; min-height: 1.4em; font-size: 19px; }
+  .msg.good { color: var(--good); } .msg.bad { color: var(--bad); } .msg.meh { color: var(--muted); }
+  .side { display: grid; gap: 12px; }
+  .box { background: var(--panel); border: 2px solid var(--line); padding: 10px 12px; display: grid; gap: 8px; }
+  .lbl { font-size: 15px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .big { font: 24px/1 var(--font-display); }
+  .row2 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .state { font: 16px/1 var(--font-display); padding: 3px 7px; color: #111; background: var(--c); white-space: nowrap; }
+  .check { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: start; cursor: pointer; }
+  .check input { margin-top: 5px; accent-color: var(--accent); }
+  .check small { grid-column: 2; color: var(--muted); font-size: 15px; line-height: 1.2; }
+  .log { margin: 0; padding-left: 18px; font-size: 16px; color: var(--muted); display: grid; gap: 2px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .answers { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Розмова з друзями</h1>
+    <p class="sub">Друзі на дивані навпроти, їхні слова — субтитрами, як на планерці. Дві теми на візит: друг розповідає новину, а ти реагуєш, поки він чекає. Біль може накрити саме те слово, з якого зрозуміло, добра це новина чи погана.</p>
+  </header>
+  <div class="layout">
+    <section class="stage">
+      <canvas id="view" width="412" height="344" aria-label="Розмова з друзями від першої особи"></canvas>
+      <div class="bar"><div class="timer" id="timerBox" hidden><i id="timer"></i></div><span id="repeatSlot"></span></div>
+      <div class="answers" id="answers"></div>
+      <p class="msg" id="msg"></p>
+    </section>
+    <aside class="side">
+      <div class="box">
+        <div class="row2"><span class="lbl">Радість за візити</span><span class="big" id="joy">0</span></div>
+        <div class="row2"><span class="lbl">Як часто кличуть</span><span id="warm">як завжди</span></div>
+        <button class="btn primary" id="startBtn" type="button">Друзі прийшли <kbd>Enter</kbd></button>
+      </div>
+      <div class="box">
+        <span class="lbl">Біль</span>
+        <div class="controls">
+          <input type="range" id="pain" min="0" max="10" step="1" value="6" aria-label="Рівень болю">
+          <span class="state" id="state"></span>
+        </div>
+        <label class="check"><input type="checkbox" id="pk"><span>Знеболювальне</span><small>Біль на 3 менше, але все трохи розмите</small></label>
+      </div>
+      <div class="box">
+        <span class="lbl">Хто кого кликав</span>
+        <label class="check"><input type="radio" name="who" value="invite" checked><span>Друзі самі просилися</span><small>1 сила; приходить один друг</small></label>
+        <label class="check"><input type="radio" name="who" value="called"><span>Ти покликав</span><small>2 сили; приходять один-двоє</small></label>
+      </div>
+      <div class="box">
+        <span class="lbl">Журнал візитів</span>
+        <ol class="log" id="log"></ol>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const W = 412, H = 344, LW = 206, LH = 172;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+  const bay = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const smooth = (x) => x * x * (3 - 2 * x);
+  const rnd = (n) => Math.floor(Math.random() * n);
+  const pick = (a) => a[rnd(a.length)];
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---------- друзі ----------
+  const FRIENDS = {
+    'Оля':    { f: true,  H: '#b8502f', S: '#ecc09c', G: '#3fa3c4' },
+    'Марко':  { f: false, H: '#1d1a1f', S: '#d9a47e', G: '#8fd16a' },
+    'Ірина':  { f: true,  H: '#e8c25a', S: '#f0c8a8', G: '#a77fd6' },
+    'Тарас':  { f: false, H: '#6b4a2a', S: '#e0ac84', G: '#d9dde8' },
+    'Соня':   { f: true,  H: '#1d1a1f', S: '#a8754f', G: '#e07a9a' },
+    'Дмитро': { f: false, H: '#e8c25a', S: '#e8b892', G: '#6f8fe0' },
+  };
+  const NAMES = Object.keys(FRIENDS);
+  // Слово за родом друга: g('чекала', 'чекав').
+  const gen = (name) => (fem, masc) => (FRIENDS[name].f ? fem : masc);
+
+  // ---------- теми ----------
+  // Кожна тема має добрий і поганий варіант; різниця — лише в кількох словах (ключ).
+  const TOPICS = [
+    (g) => pick([
+      { good: true, text: 'Мене нарешті взяли на ту роботу, про яку я ' + g('розповідала', 'розповідав') + '!', key: 'нарешті взяли' },
+      { good: false, text: 'Мене все-таки не взяли на ту роботу, про яку я ' + g('розповідала', 'розповідав') + '.', key: 'все-таки не взяли' },
+    ]),
+    (g) => pick([
+      { good: true, text: 'Ми знайшли квартиру біля парку, переїжджаємо вже в суботу!', key: 'знайшли квартиру' },
+      { good: false, text: 'Нас виселяють з квартири до кінця місяця, треба шукати нову.', key: 'виселяють з квартири' },
+    ]),
+    (g) => pick([
+      { good: true, text: 'Кіт нарешті одужав, ветеринар каже, що все позаду.', key: 'нарешті одужав' },
+      { good: false, text: 'Кіт знову захворів, ветеринар каже, що це надовго.', key: 'знову захворів' },
+    ]),
+    (g) => pick([
+      { good: true, text: 'Я ' + g('склала', 'склав') + ' той іспит з першого разу!', key: g('склала', 'склав') },
+      { good: false, text: 'Я ' + g('завалила', 'завалив') + ' той іспит, доведеться перескладати.', key: g('завалила', 'завалив') },
+    ]),
+    (g) => pick([
+      { good: true, text: 'Квитки до моря вже куплені, їдемо через два тижні!', key: 'вже куплені' },
+      { good: false, text: 'Поїздку до моря скасували, гроші повернуть не скоро.', key: 'скасували' },
+    ]),
+  ];
+  // Реакції: влучна (тон), загальна (безпечно, але порожньо), хибна (протилежний тон).
+  function replies(t, g) {
+    const goodR = pick(['Вітаю! Ти ж так цього ' + g('чекала', 'чекав') + '!', 'Оце новина! Дуже за тебе радий.', 'Нарешті! Треба відсвяткувати.']);
+    const badR = pick(['Ох, шкода… Як ти це переносиш?', 'Мені дуже прикро. Можу чимось допомогти?', 'Це неприємно. Тримайся, я поруч.']);
+    const meh = pick(['Ого. І що тепер?', 'Зрозумів. І як ти?', 'Ясно. Розкажи ще.']);
+    return shuffle([
+      { t: t.good ? goodR : badR, kind: 'right' },
+      { t: meh, kind: 'meh' },
+      { t: t.good ? badR : goodR, kind: 'wrong' },
+    ]);
+  }
+  // Запрошення з деталлю: тут ключ — час.
+  function inviteTopic(g) {
+    const day = pick(['суботу', 'неділю', 'п’ятницю']), h = pick(['шосту', 'сьому', 'восьму']);
+    const other = pick(['шосту', 'сьому', 'восьму'].filter((x) => x !== h));
+    const key = 'о ' + h;
+    return {
+      text: 'У ' + day + ' в мене день народження, приходь ' + key + ', буде тільки свої.', key, invite: true,
+      opts: shuffle([
+        { t: 'Буду ' + key + ', обіцяю!', kind: 'right' },
+        { t: 'Подивлюсь, як почуватимусь.', kind: 'meh' },
+        { t: 'Прийду о ' + other + ', гаразд?', kind: 'wrong' },
+      ]),
+    };
+  }
+  // Що кажуть друзі, коли їх не почули.
+  const COMMENTS = {
+    any: ['Ти мене взагалі слухаєш?', 'Ти неуважний сьогодні.', 'Ти мало спиш, мабуть.', 'Робота тебе з’їла зовсім.', 'Тобі треба відпустку.',
+      'Якщо тобі нецікаво, так і скажи.', 'Ну, бачу, ти зайнятий своїми думками.', 'Гаразд, не буду тебе втомлювати.', 'Ти завжди якийсь розсіяний останнім часом.'],
+    called: ['Покликав нас, а сам десь не тут.'],
+    invited: (g) => ['Я, здається, не вчасно прийш' + g('ла', 'ов') + '.'],
+    again: ['Минулого разу було так само.'],
+  };
+
+  // ---------- біль ----------
+  const waveBuf = new ImageData(LW, LH), waveCv = document.createElement('canvas');
+  waveCv.width = LW; waveCv.height = LH;
+  const waveCtx = waveCv.getContext('2d');
+  const RED_IN = hex('#c93b3e'), RED_OUT = hex('#f0aeae'), RED_CORE = hex('#d94a4a');
+  const SX = 103, SY = 184;
+  const TEXT_R = (SY - 99) * 1.15;          // від тіла до верху першого рядка субтитрів посередині
+  // grow — наскільки розрослось ядро; target — радіус, що накриває текст.
+  function waves(t, i, grow, target) {
+    const d = waveBuf.data; d.fill(0);
+    if (i <= 0 && !grow) return;
+    const speed = (45 + 75 * i) * 0.85, period = (1.5 - 0.95 * i) * 1.25, th = 6 + 11 * i, rMax = 40 + 190 * i;
+    const list = [];
+    if (i > 0) for (let k = Math.floor(t / period); k >= 0; k--) { const r = (t - k * period) * speed + 12; if (r > rMax) break; list.push(r); }
+    const baseCore = i > 0 ? 10 + 18 * i + Math.sin(t * (4 + 6 * i)) * (2 + 3 * i) : 0;
+    const core = baseCore + (target + Math.sin(t * 5) * 3 - baseCore) * grow;
+    const fringe = 2 + 6 * grow;
+    for (let y = Math.max(0, Math.floor(SY - Math.max(rMax + th, core + 8))); y < LH; y++) for (let x = 0; x < LW; x++) {
+      const dd = Math.hypot(x + 0.5 - SX, (y + 0.5 - SY) * 1.15);
+      let col = null;
+      if (dd < core) { if (dd < core - fringe || bay(x, y) < (core - dd) / fringe) col = RED_CORE; }
+      else for (const r of list) {
+        const kk = dd - (r - th);
+        if (kk < 0 || kk > th * 2) continue;
+        if (bay(x, y) > (1 - r / rMax) * (0.55 + 0.45 * i) * 1.25) continue;
+        const f = kk / (th * 2);
+        col = [RED_IN[0] + (RED_OUT[0] - RED_IN[0]) * f, RED_IN[1] + (RED_OUT[1] - RED_IN[1]) * f, RED_IN[2] + (RED_OUT[2] - RED_IN[2]) * f];
+        break;
+      }
+      if (col) { const j = (y * LW + x) * 4; d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
+    }
+  }
+
+  // ---------- сцена ----------
+  const view = $('view'), g = view.getContext('2d');
+  g.imageSmoothingEnabled = false;
+
+  // ---------- сцена в низькій роздільності (як кімната), потім ×2 ----------
+  const low = document.createElement('canvas'); low.width = LW; low.height = LH;
+  const lg = low.getContext('2d');
+  let target = lg;     // куди малює R: сцена або окреме полотно для людини
+  const R = (x, y, w, h, c) => { target.fillStyle = c; target.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+  // Людину малюємо окремо й збільшуємо вдвічі — це ж ближчий план.
+  const pc = document.createElement('canvas'); pc.width = 64; pc.height = 80;
+  const pctx = pc.getContext('2d');
+  const shade = (hexc, f) => {
+    const n = parseInt(hexc.slice(1), 16); let r = n >> 16, gg = (n >> 8) & 255, b = n & 255;
+    if (f > 0) { r += (255 - r) * f; gg += (255 - gg) * f; b += (255 - b) * f; } else { r *= 1 + f; gg *= 1 + f; b *= 1 + f; }
+    return '#' + [r, gg, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  };
+  const OL = '#24160f';
+
+  // Фон рахуємо один раз: стіна, вікно з вечірнім містом, штори, диван.
+  function drawBackdrop() {
+    // Стіна: шпалери з тонкими смугами, до стелі темніше.
+    for (let y = 0; y < LH; y++) R(0, y, LW, 1, shade('#2f5f5c', -0.25 * Math.max(0, 1 - y / 40)));
+    for (let x = 4; x < LW; x += 9) for (let y = 0; y < 96; y += 2) R(x, y, 1, 1, '#356a66');
+    // Вікно: небо смугами, місто, рама, підвіконня.
+    const wx = 56, wy = 10, ww = 94, wh = 60;
+    R(wx - 4, wy - 4, ww + 8, wh + 8, OL);
+    R(wx - 3, wy - 3, ww + 6, wh + 6, '#e9e4d6');
+    const sky = ['#f4d79a', '#f1c88e', '#eaa877', '#e2875a', '#c96a5a', '#9a5a63', '#6a4c66'];
+    sky.forEach((c, i) => R(wx, wy + i * (wh / sky.length), ww, wh / sky.length + 1, c));
+    R(wx + 60, wy + 12, 9, 9, '#fff1c8'); R(wx + 61, wy + 11, 7, 11, '#fff1c8'); R(wx + 59, wy + 13, 11, 7, '#fff1c8');   // сонце, що сідає
+    const city = [[0, 20, 14], [13, 28, 10], [22, 16, 12], [33, 34, 8], [40, 22, 16], [55, 30, 9], [63, 18, 13], [75, 26, 11], [85, 14, 9]];
+    for (const [cx, h, w] of city) {
+      R(wx + cx, wy + wh - h, w, h, '#33455a');
+      for (let yy = wy + wh - h + 3; yy < wy + wh - 2; yy += 4) for (let xx = wx + cx + 2; xx < wx + cx + w - 1; xx += 3)
+        if (((xx * 7 + yy * 13) % 5) < 2) R(xx, yy, 1, 2, '#f2d36b');
+    }
+    R(wx + ww / 2 - 1, wy, 3, wh, '#e9e4d6'); R(wx, wy + wh / 2 - 1, ww, 3, '#e9e4d6');                       // рама
+    R(wx - 6, wy + wh + 3, ww + 12, 4, '#e9e4d6'); R(wx - 6, wy + wh + 7, ww + 12, 1, shade('#e9e4d6', -0.35)); // підвіконня
+    R(wx + 6, wy + wh - 2, 6, 5, '#a9603a'); R(wx + 5, wy + wh - 8, 8, 6, '#4f8f4a'); R(wx + 7, wy + wh - 11, 4, 3, '#5c9a55'); // вазон на підвіконні
+    // Штори зі складками і карниз.
+    R(40, 3, 126, 2, OL);
+    for (const [x0, dir] of [[42, 1], [148, -1]]) {
+      for (let i = 0; i < 16; i++) {
+        const fold = i % 4 === 0 ? -0.25 : i % 4 === 2 ? 0.12 : 0;
+        R(x0 + i, 5, 1, 92 + (i % 3), shade('#8a3f36', fold));
+      }
+      R(dir > 0 ? x0 + 15 : x0, 5, 1, 94, OL);
+    }
+    // Диван: спинка з подушками, бильця, сидіння.
+    const top = 78;
+    R(6, top - 1, 194, 52, OL);
+    R(7, top, 192, 50, '#8a4a2a');
+    for (const [x0, w] of [[14, 87], [105, 87]]) {
+      R(x0 - 1, top + 3, w + 2, 42, OL);
+      R(x0, top + 4, w, 40, '#9b5631');
+      R(x0, top + 4, w, 3, '#b8703f');                                 // світло з вікна по верху
+      R(x0 + 2, top + 7, 1, 35, '#b8703f');
+      R(x0 + w - 3, top + 7, 2, 36, '#7a3f22');                        // тінь з боку
+      for (const bx of [x0 + w / 4, x0 + w / 2, x0 + (3 * w) / 4]) { R(bx, top + 16, 1, 1, '#5e2f19'); R(bx, top + 30, 1, 1, '#5e2f19'); }
+    }
+    R(7, top, 192, 1, '#c27a48');
+    // Бильця: заокруглені зверху.
+    for (const x0 of [0, 186]) {
+      R(x0, 100, 20, 72, OL);
+      R(x0 + 1, 102, 18, 70, '#9b5631');
+      R(x0 + 2, 100, 16, 2, '#9b5631');
+      R(x0 + 3, 101, 12, 2, '#c27a48');
+      R(x0 + (x0 ? 1 : 16), 104, 2, 68, '#7a3f22');
+    }
+    // Сидіння.
+    R(20, 126, 166, 46, OL);
+    R(21, 127, 164, 45, '#a8633a');
+    R(21, 127, 164, 2, '#c27a48');
+    R(103, 127, 1, 45, '#7a3f22');
+  }
+  const BACKDROP = (() => { drawBackdrop(); return lg.getImageData(0, 0, LW, LH); })();
+
+  // Людина по пояс: волосся, обличчя з очима, бровами, носом і ротом, кофта з тінню, руки на колінах.
+  function person(cx, base, p, o) {
+    cx = Math.round(cx);
+    const skinD = shade(p.S, -0.18), GD = shade(p.G, -0.22), GL = shade(p.G, 0.18), HD = shade(p.H, -0.25);
+    const head = [9, 13, 15, 17, 17, 17, 17, 17, 17, 17, 17, 16, 16, 15, 13, 11, 9];   // ширина обличчя по рядках
+    const hy = base - 70;                                                               // верх голови
+    // Довге волосся позаду голови, на плечі.
+    if (p.f) { R(cx - 11, hy + 2, 22, 38, OL); R(cx - 10, hy + 3, 20, 36, p.H); R(cx - 10, hy + 20, 3, 18, HD); R(cx + 7, hy + 20, 3, 18, HD); }
+    // Тулуб: кофта з округлими плечима.
+    // Шия довга, щоб голова не сиділа прямо на плечах.
+    R(cx - 4, hy + 17, 8, 13, OL); R(cx - 3, hy + 17, 6, 13, skinD);
+    const ty = base - 48;
+    // Плечі похилі: вгорі вужче, донизу ширше.
+    const rows = 48;
+    for (let r = 0; r < rows; r++) {
+      const half = r < 6 ? 9 + r * 1.5 : r < 40 ? 18 : 18 - (r - 40) * 0.5;
+      R(cx - half - 1, ty + r, half * 2 + 2, 1, OL);
+    }
+    for (let r = 1; r < rows - 1; r++) {
+      const half = r < 6 ? 9 + r * 1.5 - 1 : r < 40 ? 17 : 17 - (r - 40) * 0.5;
+      R(cx - half, ty + r, half * 2, 1, p.G);
+      R(cx - half, ty + r, 2, 1, GL);                                       // світло з вікна
+      R(cx + half - 4, ty + r, 4, 1, GD);                                   // тінь
+    }
+    R(cx - 5, ty + 1, 10, 3, GD); R(cx - 3, ty + 1, 6, 2, skinD);           // комір
+    R(cx - 15, ty + 10, 1, 26, GD); R(cx + 14, ty + 10, 1, 26, GD);         // лінія рукавів
+    // Руки на колінах.
+    R(cx - 15, base - 13, 30, 7, OL); R(cx - 14, base - 12, 28, 5, GD);
+    R(cx - 7, base - 12, 5, 4, p.S); R(cx + 2, base - 12, 5, 4, p.S);
+    // Голова з контуром.
+    head.forEach((w, i) => R(cx - Math.ceil(w / 2) - 1, hy + 2 + i, w + 2, 1, OL));
+    R(cx - 4, hy + 1, 9, 1, OL);
+    head.forEach((w, i) => R(cx - Math.floor(w / 2), hy + 2 + i, w, 1, p.S));
+    R(cx - 9, hy + 8, 1, 4, p.S); R(cx + 9, hy + 8, 1, 4, p.S);           // вуха
+    R(cx + 5, hy + 4, 3, 12, skinD);                                        // тінь на щоці
+    // Волосся зверху.
+    R(cx - 8, hy + 1, 17, 4, p.H); R(cx - 6, hy, 13, 1, p.H);
+    if (p.f) { R(cx - 9, hy + 3, 3, 11, p.H); R(cx + 7, hy + 3, 3, 11, p.H); R(cx - 4, hy + 4, 6, 2, p.H); }
+    else { R(cx - 9, hy + 3, 2, 5, p.H); R(cx + 8, hy + 3, 2, 5, p.H); R(cx - 2, hy + 4, 8, 1, p.H); }
+    R(cx - 7, hy + 1, 5, 1, shade(p.H, 0.25));                              // відблиск на волоссі
+    // Брови, очі, ніс, рум’янець, рот.
+    const ey = hy + 9;
+    R(cx - 6, ey - 2, 3, 1, HD); R(cx + 3, ey - 2, 3, 1, HD);
+    const blink = (Math.floor(o.t * 1.1 + o.seed) % 6 === 0) && ((o.t * 1.1 + o.seed) % 1 < 0.14);
+    if (blink) { R(cx - 6, ey + 1, 3, 1, '#2a1a14'); R(cx + 3, ey + 1, 3, 1, '#2a1a14'); }
+    else {
+      R(cx - 6, ey, 3, 2, '#f4f1ea'); R(cx + 3, ey, 3, 2, '#f4f1ea');
+      R(cx - 5, ey, 2, 2, '#2a1a14'); R(cx + 3, ey, 2, 2, '#2a1a14');
+    }
+    R(cx, ey + 3, 1, 2, skinD);
+    R(cx - 7, ey + 4, 2, 1, '#e8938a'); R(cx + 5, ey + 4, 2, 1, '#e8938a');
+    const open = o.talking && Math.floor(o.t * 9) % 2 === 0;
+    if (open) { R(cx - 2, ey + 6, 5, 2, '#5a1f1f'); R(cx - 1, ey + 7, 3, 1, '#c45a5a'); }
+    else R(cx - 2, ey + 6, 5, 1, '#9a4a40');
+    return { x: cx * 2, y: hy * 2 };
+  }
+
+  // Журнальний столик на передньому плані: закриває низ, на ньому чашки і піца.
+  function drawTable() {
+    const ty = 128;
+    R(0, ty - 1, LW, LH - ty + 1, OL);
+    R(0, ty, LW, 8, '#7a4f33');                       // стільниця
+    R(0, ty, LW, 1, '#9b6a45');
+    for (let x = 6; x < LW; x += 17) R(x, ty + 3, 9, 1, '#6a432b');
+    R(0, ty + 8, LW, 2, '#3a2418');                   // тінь під краєм
+    R(0, ty + 10, LW, LH - ty - 10, '#5a3926');       // передня стінка
+    for (let x = 0; x < LW; x += 24) R(x, ty + 10, 1, LH - ty - 10, '#4a2e1f');
+    // Чашки й коробка піци.
+    R(34, ty - 9, 11, 10, OL); R(35, ty - 8, 9, 9, '#e6e8ea'); R(44, ty - 6, 3, 4, OL); R(35, ty - 8, 9, 2, '#5a3a2a');
+    R(160, ty - 8, 10, 9, OL); R(161, ty - 7, 8, 8, '#d4a03e'); R(169, ty - 5, 3, 3, OL); R(161, ty - 7, 8, 2, '#4a2a1a');
+    R(78, ty - 5, 52, 6, OL); R(79, ty - 4, 50, 5, '#c9a36b'); R(79, ty - 4, 50, 1, '#e0bd85'); R(98, ty - 3, 12, 2, '#b0453a');
+  }
+
+  function drawRoom(mode, t, talkers) {
+    lg.putImageData(BACKDROP, 0, 0);
+    lg.imageSmoothingEnabled = false;
+    const anchors = {};
+    const xs = talkers.length === 1 ? [103] : [56, 150];
+    talkers.forEach((tk, i) => {
+      pctx.clearRect(0, 0, 64, 80);
+      target = pctx;
+      person(32, 78, FRIENDS[tk.name], { t, talking: tk.talking, seed: i * 2.3 });
+      target = lg;
+      // Сидить на дивані: низ кофти на рівні сидіння.
+      lg.drawImage(pc, xs[i] - 64, 172 - 160, 128, 160);
+      anchors[tk.name] = { x: xs[i] * 2, y: 20 };
+    });
+    drawTable();
+    g.drawImage(low, 0, 0, W, H);
+    return anchors;
+  }
+
+  function wrap(text, maxW) {
+    const words = text.split(' '), lines = [];
+    let cur = '';
+    for (const w of words) { const test = cur ? cur + ' ' + w : w; if (g.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test; }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  // Субтитри внизу, як на планерці: ядро болю росте лише до них, обличчя лишаються видно.
+  // Повертає прямокутник тексту в координатах низької роздільності — щоб ядро знало, куди рости.
+  // Якщо біль накрив ключові слова, вони не повертаються, коли ядро відступає.
+  const hideKey = (text, key) => { const i = text.indexOf(key); return i < 0 ? text : text.slice(0, i) + key.replace(/[^ ]/g, '·') + text.slice(i + key.length); };
+  function drawSpeech(name, text, shown, wait) {
+    const x = 21, y = 180, w = 370, h = 73;
+    g.fillStyle = 'rgba(15,17,26,.92)'; g.fillRect(x, y, w, h);
+    if (!wait) { g.fillStyle = '#d4a03e'; g.font = '14px Handjet'; g.fillText(name + ':', x + 8, y + 5); }
+    g.fillStyle = wait ? '#9aa0b8' : '#ece3cf'; g.font = '17px Handjet';
+    wrap(text.slice(0, shown), w - 16).slice(0, 2).forEach((l, i) => g.fillText(l, x + 8, y + 24 + i * 20));
+    return { x: x / 2, y: y / 2, w: w / 2, h: h / 2 };
+  }
+
+  // ---------- візит ----------
+  let pain = 6, joy = 0, warmth = 0, missedLast = false;
+  let visit = null;
+  const effPain = () => Math.max(0, pain - ($('pk').checked ? 3 : 0));
+  const stateOf = (p) => (p <= 3 ? 'light' : p <= 6 ? 'medium' : 'strong');
+  function setPain(p) {
+    pain = Math.max(0, Math.min(10, p)); $('pain').value = pain;
+    const st = { light: ['Легкий', 'var(--light)'], medium: ['Помітний', 'var(--medium)'], strong: ['Сильний', 'var(--strong)'] }[stateOf(pain)];
+    $('state').textContent = pain + ' · ' + st[0]; $('state').style.setProperty('--c', st[1]);
+  }
+  $('pain').addEventListener('input', () => setPain(Number($('pain').value)));
+  setPain(pain);
+  function showWarm() { $('warm').textContent = warmth >= 0 ? (warmth > 0 ? 'частіше' : 'як завжди') : warmth > -3 ? 'трохи рідше' : 'рідше'; }
+
+  const CPS = 24, ANSWER_SECONDS = 7;
+  function startVisit() {
+    const invited = (document.querySelector('input[name=who]:checked') || {}).value !== 'called';
+    const names = shuffle(NAMES.slice()).slice(0, invited ? 1 : 1 + rnd(2));
+    const topics = [];
+    const pool = shuffle(TOPICS.slice());
+    for (let i = 0; i < 2; i++) {
+      const speaker = names[i % names.length], gg = gen(speaker);
+      if (i === 1 && Math.random() < 0.35) { const it = inviteTopic(gg); topics.push({ speaker, ...it }); continue; }
+      const t = pool[i](gg);
+      topics.push({ speaker, ...t, opts: replies(t, gg) });
+    }
+    visit = { names, invited, topics, n: 0, repeat: true, joy: 0, notes: [] };
+    $('startBtn').hidden = true; $('msg').textContent = ''; $('msg').className = 'msg';
+    playTopic();
+  }
+
+  function playTopic(again) {
+    const tp = visit.topics[visit.n], now = performance.now() / 1000;
+    // Пауза перед реплікою, щоб ядро болю встигло плавно вирости з поточного розміру.
+    const start = now + 1.1, typed = start + tp.text.length / CPS, end = typed + 1.6;
+    const chance = { light: 0, medium: 0.55, strong: 0.92 }[stateOf(effPain())];
+    let glitch = null;
+    if (Math.random() < chance) {
+      const ks = start + tp.text.indexOf(tp.key) / CPS;
+      glitch = { start: ks - 0.1, end: end + 0.1 };
+    }
+    visit.cur = { tp, start, typed, end, glitch, again, asking: false };
+    $('answers').innerHTML = ''; $('repeatSlot').innerHTML = ''; $('timerBox').hidden = true;
+  }
+
+  function ask() {
+    const c = visit.cur;
+    c.asking = true; c.askAt = performance.now() / 1000;
+    const gg = gen(c.tp.speaker);
+    $('answers').innerHTML = c.tp.opts.map((o, i) => `<button class="ans" data-i="${i}"><kbd>${i + 1}</kbd>${esc(o.t)}</button>`).join('');
+    $('answers').querySelectorAll('.ans').forEach((b) => { b.onclick = () => answer(Number(b.dataset.i)); });
+    $('repeatSlot').innerHTML = visit.repeat ? `<button class="btn" id="repeatBtn" type="button"><kbd>R</kbd> Вибач, я відволікся, що ти ${gg('казала', 'казав')}?</button>` : '';
+    if (visit.repeat) $('repeatBtn').onclick = repeat;
+    $('timerBox').hidden = false;
+  }
+
+  function answer(i) {
+    const c = visit.cur;
+    if (!c || !c.asking) return;
+    c.asking = false;
+    const o = i == null ? null : c.tp.opts[i];
+    let kind = o ? o.kind : 'silent';
+    if (kind === 'right' && c.again) kind = 'meh';      // після «що ти казав?» бонусу вже немає
+    const gg = gen(c.tp.speaker);
+    const delta = { right: 3, meh: 0, wrong: -3, silent: -2 }[kind];
+    joy += delta; visit.joy += delta;
+    if (kind === 'wrong' || kind === 'silent') warmth--; else if (kind === 'right') warmth = Math.min(2, warmth + 1);
+    $('joy').textContent = (joy > 0 ? '+' : '') + joy; showWarm();
+    $('answers').querySelectorAll('.ans').forEach((b, k) => { b.disabled = true; b.classList.add(c.tp.opts[k].kind); });
+    $('repeatSlot').innerHTML = ''; $('timerBox').hidden = true;
+    let say;
+    if (kind === 'right') say = pick(['Дякую! Я ' + gg('знала', 'знав') + ', що ти зрозумієш.', 'Так, саме так!', 'От і я про це.']);
+    else if (kind === 'meh') say = pick(['Ну так.', 'Ага.', 'Та нормально.']);
+    else {
+      const pool = COMMENTS.any.slice();
+      pool.push(...(visit.invited ? COMMENTS.invited(gg) : COMMENTS.called));
+      if (missedLast) pool.push(...COMMENTS.again, ...COMMENTS.again);
+      say = pick(pool);
+      missedLast = true;
+    }
+    if (kind === 'right' || kind === 'meh') missedLast = missedLast && kind !== 'right';
+    c.reaction = { text: say, until: performance.now() / 1000 + 2.2 };
+    visit.notes.push(delta);
+    $('msg').className = 'msg ' + (delta > 0 ? 'good' : delta < 0 ? 'bad' : 'meh');
+    $('msg').textContent = (kind === 'silent' ? 'Ти промовчав. ' : '') + 'Радість ' + (delta > 0 ? '+' : delta < 0 ? '−' : '±') + Math.abs(delta) + (delta < 0 ? ', кличуть рідше' : kind === 'right' ? ', друг теплішає' : '');
+    setTimeout(() => { visit.n++; if (visit.n < visit.topics.length) { $('msg').textContent = ''; playTopic(); } else finish(); }, 2400);
+  }
+
+  function repeat() {
+    if (!visit || !visit.repeat || !visit.cur.asking) return;
+    visit.repeat = false; visit.cur.asking = false;
+    $('msg').className = 'msg meh'; $('msg').textContent = 'Повторює. Найкраще тепер — просто нейтрально.';
+    playTopic(true);
+  }
+
+  function finish() {
+    const e = visit.joy, li = document.createElement('li');
+    li.textContent = visit.names.join(' і ') + (visit.invited ? ' (самі)' : ' (кликав)') + ', біль ' + pain + ': ' + visit.notes.map((p) => (p > 0 ? '+' : p < 0 ? '−' : '±') + Math.abs(p)).join(', ') + ' → ' + (e > 0 ? '+' : e < 0 ? '−' : '±') + Math.abs(e);
+    $('log').prepend(li);
+    visit = null;
+    $('answers').innerHTML = '';
+    $('startBtn').hidden = false; $('startBtn').focus();
+  }
+
+  $('startBtn').onclick = startVisit;
+  window.ftDebug = () => visit;   // для налагодження з консолі
+  window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (!visit && e.code === 'Enter') { startVisit(); e.preventDefault(); return; }
+    if (visit && visit.cur && visit.cur.asking) {
+      if (/^Digit[1-3]$/.test(e.code)) answer(Number(e.code.slice(5)) - 1);
+      if (e.code === 'KeyR') repeat();
+    }
+  });
+
+  // ---------- кадр ----------
+  function frame(now) {
+    const t = now / 1000;
+    const mode = 'close';
+    const c = visit && visit.cur;
+    if (c && !c.asking && !c.reaction && t >= c.end) ask();
+    if (c && c.asking) {
+      const left = ANSWER_SECONDS - (t - c.askAt);
+      $('timer').style.width = Math.max(0, left / ANSWER_SECONDS * 100) + '%';
+      if (left <= 0) answer(null);
+    }
+    const names = visit ? visit.names : ['Оля'];
+    let speech = null;
+    if (c) {
+      if (c.reaction && t < c.reaction.until) speech = { name: c.tp.speaker, text: c.reaction.text, shown: Math.floor((t - (c.reaction.until - 2.2)) * CPS) };
+      // Поки обираєш відповідь, новини вже не видно — лише те, що друг чекає.
+      else if (!c.reaction && c.asking) speech = { name: c.tp.speaker, text: c.tp.speaker + ' ' + gen(c.tp.speaker)('чекає', 'чекає') + ', що ти скажеш…', shown: 999, wait: true };
+      else if (!c.reaction && t >= c.start && t < c.end) {
+        const lost = c.glitch && t > c.glitch.start + 0.25;
+        speech = { name: c.tp.speaker, text: lost ? hideKey(c.tp.text, c.tp.key) : c.tp.text, shown: Math.min(c.tp.text.length, Math.floor((t - c.start) * CPS)) };
+      }
+    }
+    const talkers = names.map((n) => ({ name: n, talking: !!(speech && speech.name === n && speech.shown < speech.text.length) }));
+    const anchors = drawRoom(mode, t, talkers);
+    let box = null;
+    g.textBaseline = 'top';
+    if (speech) box = drawSpeech(speech.name, speech.text, Math.max(0, speech.shown), speech.wait);
+    else if (!visit) { g.font = '17px Handjet'; g.fillStyle = 'rgba(15,17,26,.92)'; g.fillRect(21, 180, 370, 73); g.fillStyle = '#9aa0b8'; g.fillText('Натисни «Друзі прийшли», щоб почати розмову.', 29, 204); }
+    let grow = 0;
+    const target = TEXT_R;
+    const gl = c && c.glitch;
+    // Ядро росте плавно від свого поточного розміру й лише до верху тексту посередині:
+    // обличчя не накриває, а краї рядків іноді проглядають.
+    const GROW_IN = 1.0, GROW_OUT = 0.9;
+    if (gl && t > gl.start - GROW_IN && t < gl.end + GROW_OUT) {
+      grow = t < gl.start ? smooth((t - gl.start + GROW_IN) / GROW_IN) : t > gl.end ? smooth(1 - (t - gl.end) / GROW_OUT) : 1;
+    }
+    waves(t, effPain() / 10, grow, target);
+    waveCtx.putImageData(waveBuf, 0, 0);
+    g.drawImage(waveCv, 0, 0, W, H);
+    if ($('pk').checked) { g.filter = 'blur(0.6px)'; g.drawImage(view, 0, 0); g.filter = 'none'; }
+    requestAnimationFrame(frame);
+  }
+  (document.fonts && document.fonts.load ? Promise.all([document.fonts.load('14px Handjet')]) : Promise.resolve())
+    .catch(() => {}).then(() => requestAnimationFrame(frame));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Біль: глічі</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500&family=Tiny5&display=swap">
+<style>
+  /* Велика сцена з обраним набором глічів зліва, кожен гліч окремо праворуч; на телефоні одне під одним. */
+  :root {
+    --bg: #161924; --panel: #20243a; --line: #3b4263; --fg: #ece3cf; --muted: #9aa0b8;
+    --accent: #d4a03e; --light: #8fcf7e; --medium: #e9ac45; --strong: #df5b4f;
+    --font: "Handjet", "Arial Narrow", ui-sans-serif, sans-serif;
+    --font-display: "Tiny5", "Handjet", ui-sans-serif, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 19px/1.3 var(--font); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 32px; display: grid; gap: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+  h1 { margin: 0; font: 30px/1.1 var(--font-display); color: var(--accent); }
+  .sub { color: var(--muted); font-size: 17px; max-width: 72ch; margin: 0; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  .stage { background: #1e2230; border: 2px solid var(--line); padding: 12px; display: grid; gap: 10px; min-width: 0; }
+  .stage canvas { width: 100%; height: auto; max-height: calc(100vh - 250px); object-fit: contain; image-rendering: pixelated; display: block; }
+  .controls { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  .controls label { font-size: 17px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .state { font: 18px/1 var(--font-display); padding: 3px 8px; color: #111; background: var(--c); white-space: nowrap; }
+  .now { margin: 0; font-size: 17px; color: var(--muted); min-height: 1.4em; }
+  .now b { color: var(--fg); font-weight: 500; }
+  .list { display: grid; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    background: var(--panel); border: 2px solid var(--line); padding: 6px; cursor: pointer;
+  }
+  .row:has(input:checked) { border-color: var(--accent); }
+  .row canvas { width: 96px; height: auto; image-rendering: pixelated; display: block; }
+  .row span { font-size: 18px; }
+  .row small { display: block; color: var(--muted); font-size: 15px; line-height: 1.2; }
+  .row input { width: 20px; height: 20px; accent-color: var(--accent); }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { font: inherit; font-size: 16px; color: var(--fg); background: var(--panel); border: 2px solid var(--line); padding: 3px 10px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Біль: глічі</h1>
+    <p class="sub">Основа — товсті хвилі. Поверх них збої сприйняття: при легкому болю їх немає, при помітному відчутно, але рідко, при сильному часто, проте з паузами й межею: зрозуміти кадр важко, але можна. Познач ті, що лишаємо; праворуч кожен показано окремо на повну силу.</p>
+  </header>
+  <div class="layout">
+    <section class="stage">
+      <canvas id="big" width="206" height="172" aria-label="Сцена з болем і глічами"></canvas>
+      <div class="controls">
+        <label for="pain">Біль</label>
+        <input type="range" id="pain" min="0" max="10" step="1" value="8">
+        <span class="state" id="state"></span>
+      </div>
+      <p class="now" id="now"></p>
+    </section>
+    <aside class="list">
+      <div class="presets">
+        <button class="btn" id="all" type="button">Усі</button>
+        <button class="btn" id="none" type="button">Жодного</button>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  const W = 206, H = 172;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+  const bay = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+
+  // ---------- фон: стіл, монітор, бриф на екрані ----------
+
+  function makeBackground() {
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    R(0, 0, W, H, '#2a504d');
+    for (let y = 0; y < 128; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < W; x += 4) R(x, y, 1, 1, '#2f5956');
+    R(186, 10, 14, 30, '#171a22'); R(188, 12, 10, 26, '#c9c3a8');
+    R(0, 126, W, H - 126, '#4f3222'); R(0, 126, W, 2, '#6e4630');
+    for (let x = 0; x < W; x += 23) R(x, 130 + (x % 3), 14, 1, '#5a3926');
+    R(20, 4, 166, 116, '#171a22'); R(22, 6, 162, 112, '#22262d'); R(26, 10, 154, 104, '#171a22');
+    R(96, 118, 14, 8, '#22262d'); R(80, 124, 46, 4, '#22262d');
+    R(48, 136, 110, 20, '#171a22'); R(50, 138, 106, 16, '#7d858f');
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 13; k++) R(52 + k * 8, 140 + r * 5, 6, 3, '#9aa2ac');
+    R(166, 132, 14, 16, '#171a22'); R(167, 133, 12, 14, '#d4a03e'); R(179, 137, 3, 6, '#171a22');
+    R(8, 100, 4, 28, '#33373f'); R(2, 92, 16, 9, '#d4a03e');
+    // Екран: вікно з брифом і рядками тексту — щоб було видно, що саме біль заважає читати.
+    R(30, 14, 146, 96, '#e9e4d6'); R(30, 14, 146, 6, '#3b4263');
+    R(33, 16, 30, 2, '#ece3cf'); R(150, 16, 22, 2, '#ece3cf');
+    const card = (x) => { R(x, 25, 42, 38, '#3b4263'); R(x + 1, 26, 40, 36, '#fbf8f0'); R(x + 1, 26, 40, 5, '#d9d4c6'); R(x + 3, 27, 14, 2, '#5a607a'); };
+    card(36); card(82); card(128);
+    for (let y = 0; y < 22; y++) { const w = y < 11 ? y : 21 - y; R(57 - w, 34 + y, w * 2 + 1, 1, y === 0 || y === 21 ? '#171a22' : '#c9c3b2'); R(57 - w, 34 + y, 1, 1, '#171a22'); R(57 + w, 34 + y, 1, 1, '#171a22'); }
+    R(92, 35, 22, 22, '#171a22'); R(93, 36, 20, 20, '#3f7fd6');
+    R(140, 42, 18, 5, '#171a22'); R(146, 36, 6, 17, '#171a22');
+    const lines = [[36, 70, 120], [36, 76, 98], [36, 82, 132], [36, 88, 76]];
+    for (const [x, y, w] of lines) { let cx = x; while (cx < x + w) { const ww = 6 + ((cx * 7) % 13); R(cx, y, Math.min(ww, x + w - cx), 2, '#7d8296'); cx += ww + 3; } }
+    R(36, 97, 34, 8, '#3b4263'); R(38, 99, 20, 2, '#ece3cf');
+    return g.getImageData(0, 0, W, H);
+  }
+  const BG = makeBackground();
+
+  // ---------- малювання в буфер ----------
+
+  function put(d, x, y, col, a) {
+    x |= 0; y |= 0;
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    const i = (y * W + x) * 4;
+    if (a == null || a >= 1) { d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; return; }
+    d[i] += (col[0] - d[i]) * a; d[i + 1] += (col[1] - d[i + 1]) * a; d[i + 2] += (col[2] - d[i + 2]) * a;
+  }
+  const rect = (d, x, y, w, h, col) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) put(d, xx, yy, col); };
+
+  // ---------- Хвилі та їхні варіації ----------
+  // Одна функція на всі хвилі: товщина, кольори, рвані «язики» краю й синусоїда вздовж кільця.
+  const lerp3 = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  function waves(d, t, i, o) {
+    if (i <= 0) return;
+    const sx = 103, sy = 184;                          // джерело — тіло, під нижнім краєм кадру
+    const speed = (45 + 75 * i) * (o.speed || 1), period = (1.5 - 0.95 * i) * (o.period || 1);
+    const th = o.thick(i);
+    const rMax = 40 + 190 * i;
+    const list = [];
+    for (let k = Math.floor(t / period); k >= 0; k--) {
+      const r = (t - k * period) * speed + 12;
+      if (r > rMax) break;
+      list.push({ r, k });
+    }
+    const core = 10 + 18 * i + Math.sin(t * (4 + 6 * i)) * (2 + 3 * i);
+    const top = Math.max(0, sy - rMax - th - 30);
+    const g = o.grid || 1;                             // крупніші «пікселі» для вогняного варіанта
+    const tick = Math.floor(t * (o.flicker || 8));
+    for (let y = top; y < H; y += g) for (let x = 0; x < W; x += g) {
+      const cx = x + g / 2, cy = y + g / 2;
+      const dd = Math.hypot(cx - sx, (cy - sy) * 1.15);
+      const ang = Math.atan2(cy - sy, cx - sx);
+      let col = null;
+      if (dd < core) { if (dd < core - 2 || bay(x, y) < 0.5) col = o.core; }
+      else for (const { r, k } of list) {
+        let rr = r;
+        // Сигнал: кільце коливається синусоїдою і ламається сходинками.
+        if (o.wave) {
+          const seg = Math.floor((ang + Math.PI) * 5);
+          const jump = i > 0.3 ? (hash(seg + k * 13, Math.floor(t * (2 + 4 * i))) - 0.5) * Math.PI * 2 * (i - 0.3) : 0;
+          rr += (2 + 9 * i) * Math.sin(ang * (8 + 10 * i) + t * (3 + 5 * i) + jump);
+          rr = Math.round(rr / 2) * 2;
+        }
+        // Вогонь: зовнішній край рветься на язики, що мерехтять.
+        let outer = th;
+        if (o.tongues) outer += Math.floor(hash(Math.floor((ang + Math.PI) * (14 + 10 * i)) + k * 31, tick) * (4 + 16 * i) / 3) * 3;
+        const kk = dd - (rr - th);
+        if (kk < 0 || kk > th + outer) continue;
+        const fade = (1 - r / rMax) * (0.55 + 0.45 * i);
+        if (bay(x, y) > fade * (o.solid || 1.15)) continue;
+        const f = kk / (th + outer);
+        const atEdge = o.edgeOuter ? kk > th + outer - 1.5 : (kk > th + outer - 2 || kk < 1.5);
+        col = o.edgeCol && atEdge ? o.edgeCol : lerp3(o.inCol, o.outCol, f);
+        break;
+      }
+      if (col) for (let yy = 0; yy < g; yy++) for (let xx = 0; xx < g; xx++) put(d, x + xx, y + yy, col);
+    }
+  }
+  const RED_IN = hex('#c93b3e'), RED_OUT = hex('#f0aeae'), RED_CORE = hex('#d94a4a');
+  const rings = (d, t, i) => waves(d, t, i, { thick: (i) => 2.5 + 3.5 * i, inCol: RED_IN, outCol: RED_OUT, core: RED_CORE });
+  // А. Між хвилями й вогнем: біло-сірий жар, рвані язики, крупні пікселі.
+  const ashRings = (d, t, i) => waves(d, t, i, {
+    thick: (i) => 3 + 4 * i, tongues: true, grid: 2, flicker: 9, solid: 1.3,
+    inCol: hex('#fbfaf6'), outCol: hex('#8d8a84'), core: hex('#ffffff'), edgeCol: hex('#5e5b57'),
+  });
+  // Б. Ті самі хвилі, але товсті й важкі.
+  const thickRings = (d, t, i) => waves(d, t, i, {
+    thick: (i) => 6 + 11 * i, period: 1.25, speed: 0.85, solid: 1.25,
+    inCol: RED_IN, outCol: RED_OUT, core: RED_CORE,
+  });
+  // В. Між хвилями й сигналом: кільця тремтять синусоїдою і ламаються.
+  const signalRings = (d, t, i) => waves(d, t, i, {
+    thick: (i) => 3.5 + 5 * i, wave: true, solid: 1.5, edgeOuter: true,
+    inCol: hex('#1a1418'), outCol: hex('#4a2a30'), core: hex('#1a1418'), edgeCol: hex('#d23c40'),
+  });
+
+
+  // ---------- глічі: обробка готового кадру ----------
+  // Кожен отримує кадр-джерело і пише в кадр-результат; s — сила від 0 до 1.
+  const N = W * H * 4;
+  const copy = (src, dst) => dst.set(src);
+  const px = (x, y) => (((y + H) % H) * W + ((x + W) % W)) * 4;
+  const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+
+  // Межі сили підібрані так, щоб навіть на максимумі кадр лишався зрозумілим із зусиллям.
+  const smooth = (x) => x * x * (3 - 2 * x);
+  const GLITCHES = [
+    { id: 'pix', name: 'Падіння роздільності', note: 'Пікселі крупнішають, дрібне зливається',
+      fn(src, dst, t, s) {
+        // Розмір блоку змінюється плавно: два сусідні розміри змішуються.
+        const bf = 1 + 3.2 * s, b0 = Math.floor(bf), b1 = b0 + 1, f = bf - b0;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          const j0 = (Math.floor(y / b0) * b0 * W + Math.floor(x / b0) * b0) * 4;
+          const j1 = (Math.min(H - 1, Math.floor(y / b1) * b1) * W + Math.min(W - 1, Math.floor(x / b1) * b1)) * 4;
+          dst[i] = src[j0] * (1 - f) + src[j1] * f; dst[i + 1] = src[j0 + 1] * (1 - f) + src[j1 + 1] * f;
+          dst[i + 2] = src[j0 + 2] * (1 - f) + src[j1 + 2] * f; dst[i + 3] = 255;
+        }
+      } },
+    { id: 'blow', name: 'Засвіт', note: 'Світле вигорає в біле, тіні бліднуть',
+      fn(src, dst, t, s) {
+        const k = 1 + 0.9 * s, add = 48 * s;
+        for (let i = 0; i < N; i += 4) {
+          dst[i] = clamp((src[i] - 120) * k + 120 + add); dst[i + 1] = clamp((src[i + 1] - 120) * k + 120 + add);
+          dst[i + 2] = clamp((src[i + 2] - 120) * k + 120 + add); dst[i + 3] = 255;
+        }
+      } },
+    { id: 'noise', name: 'Шум', note: 'Кадр сиплеться точками, наче пісок в очах',
+      fn(src, dst, t, s) {
+        copy(src, dst);
+        const p = 0.32 * s, tick = Math.floor(t * 12);   // 12 разів на секунду: сиплеться, але не рябить
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const h = hash(x * 131 + y * 7919, tick);
+          if (h > p) continue;
+          const i = (y * W + x) * 4, r = h / p;
+          const v = r < 0.2 ? [196, 60, 64] : r < 0.6 ? [40, 38, 46] : [214, 210, 204];
+          dst[i] = v[0]; dst[i + 1] = v[1]; dst[i + 2] = v[2];
+        }
+      } },
+    { id: 'ghost', name: 'Двоїння', note: 'Напівпрозора копія кадру з’їжджає вбік',
+      fn(src, dst, t, s) {
+        const dxf = 9 * s + Math.sin(t * 1.6) * 1.5 * s, dx0 = Math.floor(dxf), f = dxf - dx0, a = 0.42 * s;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4, j0 = px(x - dx0, y), j1 = px(x - dx0 - 1, y);
+          for (let c = 0; c < 3; c++) {
+            const g = src[j0 + c] * (1 - f) + src[j1 + c] * f;
+            dst[i + c] = src[i + c] * (1 - a) + g * a;
+          }
+          dst[i + 3] = 255;
+        }
+      } },
+  ];
+
+  // ---------- коли і як сильно ----------
+  // Легкий біль — нічого. Помітний — відчутно, але рідше. Сильний — часто, проте з паузами
+  // і з межею сили: зрозуміти кадр важко, але можна.
+  function schedule(st, t, pain, enabled) {
+    if (!st.events) { st.events = []; st.next = t + 0.8; }
+    st.events = st.events.filter((e) => t < e.end);
+    if (pain <= 3 || !enabled.length) { st.next = t + 0.8; return []; }
+    // Помітний біль: новий збій не починається, поки не згас попередній.
+    if (t >= st.next && (pain >= 7 || st.events.length === 0)) {
+      const strong = pain >= 7;
+      const k = strong ? (pain - 6) / 4 : (pain - 3) / 3;      // 0..1 усередині стану
+      const busy = st.events.filter((e) => t < e.end).length;
+      const pool = enabled.filter((g) => !st.events.some((e) => e.g === g));
+      // Сильний біль іноді накладає два збої, але не більше.
+      const many = strong && busy === 0 && Math.random() < 0.25 + 0.35 * k ? 2 : 1;
+      for (let m = 0; m < Math.min(many, pool.length, 2 - busy); m++) {
+        const g = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        const dur = strong ? 1.2 + Math.random() * (0.8 + 0.8 * k) : 0.9 + Math.random() * (0.5 + 0.4 * k);
+        const pow = strong ? 0.6 + 0.3 * k + 0.1 * Math.random() : 0.38 + 0.2 * k + 0.08 * Math.random();
+        st.events.push({ g, start: t, end: t + dur, pow: Math.min(1, pow) * (many > 1 ? 0.75 : 1), seed: Math.floor(Math.random() * 1e6) });
+      }
+      st.next = t + (strong ? (2.4 - 1.0 * k) * (0.7 + Math.random() * 0.6) : (5 - 1.5 * k) * (0.7 + Math.random() * 0.6));
+    }
+    return st.events.map((e) => {
+      const a = (t - e.start) / (e.end - e.start);
+      // Наростає третину часу і так само плавно спадає.
+      const env = a < 0.35 ? smooth(a / 0.35) : a > 0.6 ? smooth((1 - a) / 0.4) : 1;
+      return { g: e.g, s: e.pow * Math.max(0, env), seed: e.seed };
+    });
+  }
+
+  // ---------- сцени ----------
+  const big = { ctx: document.getElementById('big').getContext('2d'), a: new Uint8ClampedArray(N), b: new Uint8ClampedArray(N), img: null, st: {} };
+  big.img = big.ctx.createImageData(W, H);
+  const list = document.getElementById('list');
+  let enabled = new Set(GLITCHES.map((g) => g.id));
+  try { const s = JSON.parse(localStorage.getItem('pain-glitches-2') || 'null'); if (Array.isArray(s)) enabled = new Set(s.filter((id) => GLITCHES.some((g) => g.id === id))); } catch (e) { /* без збереження */ }
+  const rows = GLITCHES.map((g, n) => {
+    const row = document.createElement('label');
+    row.className = 'row';
+    row.innerHTML = `<canvas width="${W}" height="${H}"></canvas><span>${g.name}<small>${g.note}</small></span><input type="checkbox" id="g-${g.id}" ${enabled.has(g.id) ? 'checked' : ''}>`;
+    list.appendChild(row);
+    row.querySelector('input').addEventListener('change', (e) => { e.target.checked ? enabled.add(g.id) : enabled.delete(g.id); save(); });
+    const ctx = row.querySelector('canvas').getContext('2d');
+    return { g, ctx, img: ctx.createImageData(W, H), a: new Uint8ClampedArray(N), b: new Uint8ClampedArray(N) };
+  });
+  function save() { try { localStorage.setItem('pain-glitches-2', JSON.stringify([...enabled])); } catch (e) { /* без збереження */ } }
+  const setAll = (on) => { enabled = new Set(on ? GLITCHES.map((g) => g.id) : []); rows.forEach((r) => { r.ctx.canvas.parentElement.querySelector('input').checked = on; }); save(); };
+  document.getElementById('all').onclick = () => setAll(true);
+  document.getElementById('none').onclick = () => setAll(false);
+
+  let pain = 8;
+  const slider = document.getElementById('pain'), stateEl = document.getElementById('state'), nowEl = document.getElementById('now');
+  function setPain(p) {
+    pain = Math.max(0, Math.min(10, p)); slider.value = pain;
+    const st = pain <= 3 ? ['Легкий', 'var(--light)'] : pain <= 6 ? ['Помітний', 'var(--medium)'] : ['Сильний', 'var(--strong)'];
+    stateEl.textContent = pain + ' · ' + st[0]; stateEl.style.setProperty('--c', st[1]);
+  }
+  slider.addEventListener('input', () => setPain(Number(slider.value)));
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'ArrowRight' || e.code === 'ArrowUp') { setPain(pain + 1); e.preventDefault(); }
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowDown') { setPain(pain - 1); e.preventDefault(); }
+  });
+  setPain(pain);
+
+  function base(buf, t, p) { buf.set(BG.data); thickRings(buf, t, p / 10); }
+  function apply(chain, a, b, t) {
+    let src = a, dst = b;
+    for (const c of chain) { if (c.s <= 0.01) continue; c.g.fn(src, dst, t, c.s, c.seed || 1); [src, dst] = [dst, src]; }
+    return src;
+  }
+
+  function frame(now) {
+    const t = now / 1000;
+    // Велика сцена: хвилі + обрані глічі за розкладом.
+    base(big.a, t, pain);
+    const on = GLITCHES.filter((g) => enabled.has(g.id));
+    const chain = schedule(big.st, t, pain, on);
+    const out = apply(chain, big.a, big.b, t);
+    big.img.data.set(out); big.ctx.putImageData(big.img, 0, 0);
+    const active = [...new Set(chain.filter((c) => c.s > 0.05).map((c) => c.g.name))];
+    nowEl.innerHTML = pain <= 3 ? 'Легкий біль: глічів немає.' : active.length ? 'Зараз: <b>' + active.join(', ') + '</b>' : 'Між збоями.';
+    // Праворуч кожен гліч окремо, на повну силу, з легким пульсом.
+    for (const r of rows) {
+      base(r.a, t, 8);
+      const s = 0.55 + 0.45 * Math.sin(t * 1.2);
+      const o = apply([{ g: r.g, s, seed: 7 }], r.a, r.b, t);
+      r.img.data.set(o); r.ctx.putImageData(r.img, 0, 0);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
