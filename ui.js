@@ -205,6 +205,19 @@
       renderAll();
       return;
     }
+    // Ігри — бігунець на моніторі: 4 перешкоди, біль може не дати натиснути стрибок.
+    if (id === 'games' && setupChoice.scenes && window.RunGame) {
+      phase = 'scene';
+      held.clear(); applyKeys();
+      const a = C.actions.games;
+      window.RunGame.start({
+        wrap: $('canvasWrap'), bar: $('actionBar'), jumps: a.jumps, painChance: a.painChance,
+        pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
+        onDone: (res) => { phase = 'play'; finishAction(id, p, { runner: res }); },
+      });
+      renderAll();
+      return;
+    }
     // Готування — рецепт на холодильнику й вибір продуктів; біль може накрити записку.
     if (id === 'cook' && setupChoice.scenes && window.CookGame) {
       phase = 'scene';

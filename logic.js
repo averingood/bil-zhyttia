@@ -542,13 +542,25 @@
         }
         break;
       }
-      case 'games':
-        // Радість без множника стану: у грі біль на задньому плані.
+      case 'games': {
+        // Радість без множника стану: база + по одній за кожну перестрибнуту перешкоду.
+        // Без міні-гри результат розігрується сам: спалах болю не дає стрибнути, а ще можна просто не встигнути.
+        let run = opts.runner;
+        if (!run) {
+          run = { cleared: 0, pain: false };
+          for (let i = 0; i < a.jumps; i++) {
+            if (i > 0 && rand(s) < a.painChance[stateKey(s)]) { run.pain = true; break; }
+            if (rand(s) < a.hitChance) break;
+            run.cleared++;
+          }
+        }
         s.gamesToday = (s.gamesToday || 0) + 1;
         s.stats.games = (s.stats.games || 0) + 1;
-        addJoy(s, a.joy);
-        note = 'радість +' + a.joy + ', затягнуло на ' + a.slots + ' слоти';
+        const gain = a.joy + a.perJump * run.cleared;
+        addJoy(s, gain);
+        note = 'перешкод ' + run.cleared + '/' + a.jumps + (run.cleared < a.jumps ? (run.pain ? ', біль не дав стрибнути — game over' : ', game over') : '') + ', радість +' + gain + ', затягнуло на ' + a.slots + ' слоти';
         break;
+      }
       case 'doctor': {
         // Різко: базовий біль знижується одразу, а не вночі. Повернути його може хронізація.
         const was = s.base;
@@ -985,7 +997,7 @@
     out.borrow = Math.max(0, cost - s.energy);
     const after = clone(s);
     // Візит рахуємо без розмови: її результат випадковий і міг обнулити радість на картці.
-    doAction(after, id, id === 'work' ? { score: maxWorkScore() } : id === 'friends' ? { deferTalk: true } : id === 'cook' ? { cook: { misses: 0 } } : null);
+    doAction(after, id, id === 'work' ? { score: maxWorkScore() } : id === 'friends' ? { deferTalk: true } : id === 'cook' ? { cook: { misses: 0 } } : id === 'games' ? { runner: { cleared: C.actions.games.jumps } } : null);
     if (after.lost) { out.fatal = after.lost; return out; }
 
     const hidden = !stateCfg(s).hintsVisible;
@@ -1003,7 +1015,7 @@
         fx.push({ t: 'біль заглушить ~' + Math.round(cover * 100) + '% питань' + (check(s, 'meds').available && after2 < cover ? ' (зі знеболювальним ~' + Math.round(after2 * 100) + '%)' : ''), kind: 'pain' });
       }
     }
-    if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
+    if (after.joy !== s.joy) fx.push({ t: (id === 'cook' ? 'якщо смачно — радість до ' : id === 'games' ? 'радість ' + signed(C.actions.games.joy) + '…' : 'радість ') + signed(after.joy - s.joy), kind: 'joy' });
     if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base, kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
     else if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
