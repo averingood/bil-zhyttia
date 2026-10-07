@@ -210,16 +210,8 @@
     delete s.debts[name];
     if (s.loanAsk === name) s.loanAsk = null;
     journalFor(s, s.day).did.push('Повернув ' + d.amount + ' ₴ ' + name);
-    // Друг дякує й сам кличе зустрітися сьогодні — так навіть з радістю на нулі є куди піти.
-    const cur = s.invites[s.day];
-    let invited = false;
-    if (s.slot < slotsOf(s) && (!cur || cur.status === 'cancelled')) {
-      s.invites[s.day] = { name, status: 'open', line: Math.floor(rand(s) * C.friends.inviteLines.length), thanks: true };
-      invited = true;
-      journalFor(s, s.day).did.push(name + ' дякує й кличе зустрітися');
-    }
     checkLose(s, s.day);
-    return { name, amount: d.amount, invited };
+    return { name, amount: d.amount };
   }
   // Не повернув на прохання — друга втрачено. Усіх втрачено — кінець гри.
   function loseFriend(s, name) {
@@ -281,7 +273,7 @@
     const a = C.actions[id];
     if (s.lost || s.finished) return no('Гра завершена');
     // Заціпеніння: нічого не хочеться. Можна лише замовити їжу й відгукнутися, якщо друзі самі покличуть.
-    if (s.joy <= 0 && !C.numb.allowed.includes(id)) return no('Радість на нулі: нічого не хочеться. Лишається замовити їжу й чекати, що покличуть друзі');
+    if (s.joy <= 0 && !C.numb.allowed.includes(id)) return no('Радість на нулі: нічого не хочеться. Лишається замовити їжу, пограти в комп і чекати, що покличуть друзі');
     if (id === 'friends' && !inviteToday(s) && !freeFriends(s).length) return no('Кликати нікого: кому винен — не прийдуть, а когось уже втрачено');
     if (s.joy <= 0 && id === 'friends' && !inviteToday(s)) return no('Самому кликати немає сил — тільки якщо друзі запропонують');
     if (s.slot >= slotsOf(s)) return no('Слоти на сьогодні скінчилися, час спати');
@@ -913,13 +905,13 @@
       const e = s.extra;
       ev.push({ kind: 'info', text: 'Підсумок на ранок: біль ' + pain(s) + ' (базовий ' + s.base + (e ? ', тимчасовий ' + signed(e) : '') + ')' });
     }
-    // Заціпеніння: ночі на нулі радості без зустрічі. Зустріч скидає лічильник.
+    // Заціпеніння: на нулі радості гра не закінчується, але робота, їжа й лікування стоять —
+    // решта сфер котиться під відкіс. Витягти можуть лише друзі, які самі покличуть.
     if (s.joy > 0 || s.friendsToday > 0) s.numbNights = 0;
     else {
       s.numbNights = (s.numbNights || 0) + 1;
-      const left = C.numb.nights - s.numbNights;
-      ev.push({ kind: 'bad', text: left > 0 ? 'Радість на нулі. Ще ' + left + ' ' + (left === 1 ? 'ніч' : 'ночі') + ' без друзів — і кінець.' : 'Радість на нулі вже ' + s.numbNights + ' ночі, і ніхто не прийшов.' });
-      if (left <= 0 && !s.lost) s.lost = { cause: 'joy', day: s.day, sphere: CAUSES.joy.sphere, text: CAUSES.joy.text };
+      s.stats.numbNights = (s.stats.numbNights || 0) + 1;
+      ev.push({ kind: 'bad', text: 'Радість на нулі вже ' + s.numbNights + ' ' + (s.numbNights === 1 ? 'ніч' : 'ночі') + ': усе з рук валиться. Витягти можуть друзі, якщо покличуть.' });
     }
     j.night = ev.map((e) => e.text);
     checkLose(s, s.day);
@@ -1135,8 +1127,7 @@
     }
     if (pain(s) >= C.night.badNight.minPain)
       out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (ресурс −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
-    if (s.joy <= 0) out.push({ kind: 'fatal', t: 'Радість на нулі: працювати й займатися собою не виходить. Можна замовити їжу й прийняти друзів, якщо покличуть. ' +
-      'Ще ' + (C.numb.nights - (s.numbNights || 0)) + ' ноч. без зустрічі — і кінець.' });
+    if (s.joy <= 0) out.push({ kind: 'fatal', t: 'Радість на нулі: працювати й займатися собою не виходить. Можна замовити їжу, пограти в комп і прийняти друзів, якщо самі покличуть (ті, кому не винен).' });
     if (s.courseStreak > 0 && !s.courseToday)
       out.push({ kind: s.courseOn ? 'pain' : 'info', t: 'Курсова пігулка сьогодні ще не випита. Пропуск — і курс з нуля' + (s.courseOn ? ', базовий біль знову зросте на ' + C.actions.course.baseDrop : '') + '.' });
     if (s.creativityBlocked) out.push({ kind: 'joy', t: 'Творчість вимкнена, поки радість не підніметься вище ' + C.joy.creativityOnAbove + '.' });
@@ -1155,17 +1146,13 @@
 
   function summary(s) {
     const st = s.stats;
-    const deadlines = Math.floor(Math.min(s.lost ? s.lost.day : s.days, s.days) / C.work.deadlineEvery);
     const kept = [];
     const lost = [];
     if (st.meetings) kept.push('Зустрічі з друзями: ' + st.meetings + (st.invitesAccepted ? ', з них на їхнє запрошення ' + st.invitesAccepted : ''));
-    if (st.createDays) kept.push('Дні з творчістю: ' + st.createDays + (st.maxStreak > 1 ? ', найдовша серія ' + st.maxStreak + ' дн.' : ''));
-    if (st.workUnits) kept.push('Зроблено роботи: ' + st.workUnits + ' од., зароблено ' + st.earned + ' ₴' +
+    if (st.createDays) kept.push('Дні з творчістю: ' + st.createDays);
+    if (st.workUnits) kept.push('Зароблено: ' + st.earned + ' ₴' +
       (s.pending.length ? ' (ще ' + s.pending.reduce((a, p) => a + p.amount, 0) + ' ₴ в дорозі)' : ''));
-    if (st.deadlinesMet) kept.push('Дедлайни виконано: ' + st.deadlinesMet + ' з ' + deadlines);
-    if (s.trainings) kept.push('Днів із вправами: ' + s.trainings + '; базовий біль ' + s.baseStart + (s.base !== s.baseStart ? ' → ' + s.base : ', без змін'));
-    if (!s.partTime && deadlines > 0) kept.push('Робота на повний графік');
-    kept.push('Наприкінці: ' + s.money + ' ₴, радість ' + s.joy + ', біль ' + pain(s));
+    if (s.trainings) kept.push('Днів із вправами: ' + s.trainings);
 
     if (st.invitesRefused) lost.push('Відмови друзям: ' + st.invitesRefused + ' (' +
       st.refusals.map((r) => r.name + ', день ' + r.day).join('; ') + ')');
@@ -1173,35 +1160,35 @@
     if (s.partTime) lost.push('Частковий графік із дня ' + s.partTimeDay + ', дохід ×' + C.work.partTimeMult);
     if (st.hungryDays) lost.push('Дні без їжі: ' + st.hungryDays);
     if (st.autoDelivery) lost.push('Вечорів, коли їжу замовляли вже без сил вибирати: ' + st.autoDelivery);
-    if (st.borrowed) lost.push('Позичено ресурсу: ' + st.borrowed + ', стільки ж болю наступного дня');
+    if (st.borrowed) lost.push('Позичено ресурсу: ' + st.borrowed);
     if (st.stateDays.strong) lost.push('Днів у сильному болю: ' + st.stateDays.strong);
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
     if (st.chronic) lost.push('Біль хронізувався: базовий +' + st.chronic + ' (тиждень без вправ або часті загострення)');
+    if (st.numbNights) lost.push('Ночей із радістю на нулі: ' + st.numbNights);
     if (st.friendsLost) lost.push('Втрачено друзів через борги: ' + st.friendsLost);
     {
       const b = bookNow(s);
-      if (st.booksRead || (b && s.book.done)) kept.push('Книжки: дочитано ' + (st.booksRead || 0) + (b && s.book.done ? ', недочитана «' + b[0] + '» (' + s.book.done + ' з ' + b[1] + ')' : ''));
+      if (st.booksRead) kept.push('Дочитано книжок: ' + st.booksRead);
+      if (b && s.book.done) lost.push('Недочитана «' + b[0] + '» (' + s.book.done + ' з ' + b[1] + ')');
     }
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
     if (st.games) kept.push('Вечорів в іграх: ' + st.games);
     if (st.doctor) kept.push('Дзвінків лікарю: ' + st.doctor + ' (базовий біль −' + st.doctor * C.actions.doctor.baseDrop + ')');
-    if (st.songs || (s.song && s.song.done)) kept.push('Пісні: ' + ((st.songTitles || []).map((t) => '«' + t + '»').join(', ') || 'жодної дописаної') + (s.song && s.song.done ? '; недописана «' + s.song.title + '» (' + s.song.done + ' з ' + C.actions.create.songSessions + ')' : ''));
-    if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed + ' (кожен пропуск — курс з нуля)');
+    if (st.songs) kept.push('Пісні: ' + (st.songTitles || []).map((t) => '«' + t + '»').join(', '));
+    if (s.song && s.song.done) lost.push('Недописана «' + s.song.title + '» (' + s.song.done + ' з ' + C.actions.create.songSessions + ')');
+    if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed);
     if (st.borrowedMoney) {
       const left = Object.entries(s.debts || {});
       lost.push('Позичено в друзів: ' + st.borrowedMoney + ' ₴' + (left.length ? '; не повернуто: ' + left.map(([n, d]) => n + ' ' + d.amount + ' ₴').join(', ') : ', усе повернуто'));
     }
     if (st.unpaidUnits) lost.push('Неоплачуваних робочих днів за дедлайни: ' + st.unpaidUnits);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
-    if (st.meds) kept.push('Знеболювальне: ' + st.meds + ' р.');
-    if (st.earlyNights) kept.push('Лягав раніше: ' + st.earlyNights + ' р.');
     if (st.coffee) kept.push('Кави випито: ' + st.coffee + ' чаш.');
     if (st.talkHeard) kept.push('Почув друзів: ' + st.talkHeard + ' р.');
     if (st.talkMissed) lost.push('Не почув друзів: ' + st.talkMissed + ' р.' + ((s.warmth || 0) < 0 ? ', кличуть рідше' : ''));
     if (st.fines) lost.push('Штрафи на планерках: ' + st.fines + ' ₴');
-    if (st.tried) lost.push('Хотілося щось зробити, але бракувало ресурсу, грошей чи сил: ' + st.tried + ' р.');
 
     return {
       lost: s.lost ? Object.assign({}, s.lost) : null,

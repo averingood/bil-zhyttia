@@ -497,7 +497,7 @@
   }
   function bindDebt(el) {
     const pay = el.querySelector('[data-debt=pay]'), later = el.querySelector('[data-debt=later]');
-    if (pay) pay.onclick = () => { const a = G.debtAsk(game); const r = a && G.repay(game, a.name); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '.' + (r.invited ? ' ' + r.name + ' дякує й кличе зустрітися сьогодні.' : '')); else toast('Не вистачає грошей'); renderAll(); };
+    if (pay) pay.onclick = () => { const a = G.debtAsk(game); const r = a && G.repay(game, a.name); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '.'); else toast('Не вистачає грошей'); renderAll(); };
     if (later) later.onclick = () => {
       const a = G.debtAsk(game); const r = a && G.loseFriend(game, a.name);
       if (r) toast(r.text);
@@ -670,7 +670,7 @@
         <div class="tip">
           ${s.daysAlone && !s.friendsToday ? `<p ${s.daysAlone >= C.lonely.afterDays - 1 ? 'class="warn"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо, радість ' + C.lonely.joy + ' щоночі, поки когось не побачиш' : ' · з ' + C.lonely.afterDays + '-ї ночі радість ' + C.lonely.joy + ' щоночі'}.</p>` : ''}
           ${s.creativityBlocked ? `<p class="warn">Писати пісні не виходить, поки радість не підніметься до ${C.joy.creativityOnAbove}+.</p>` : ''}
-          <p class="why">Щоночі біль забирає радість: легкий ${C.states.light.joyDaily}, помітний ${C.states.medium.joyDaily}, сильний ${C.states.strong.joyDaily}. Дають радість друзі, пісні, книжки, розтяжка, смачна їжа, чистий дім. На нулі — заціпеніння: ${C.numb.nights} ночі без друзів, і кінець.</p>
+          <p class="why">Щоночі біль забирає радість: легкий ${C.states.light.joyDaily}, помітний ${C.states.medium.joyDaily}, сильний ${C.states.strong.joyDaily}. Дають радість друзі, пісні, книжки, розтяжка, смачна їжа, чистий дім. На нулі — заціпеніння: гра триває, але лишаються тільки доставка, комп і друзі, якщо самі покличуть. Решта сфер котиться вниз.</p>
         </div>
       </div>
 
@@ -730,7 +730,7 @@
     `;
     if (tipIndex != null) showTip(tipIndex);   // панель перемалювалась — підказка лишається з новими числами
     $('endBtn').onclick = endDayClick;
-    document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. ' + (r.invited ? r.name + ' дякує й кличе зустрітися сьогодні.' : 'Тепер знову можна в гості.')); renderAll(); }; });
+    document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. Тепер знову можна в гості.'); renderAll(); }; });
     if ($('borrowBtn')) $('borrowBtn').onclick = showBorrow;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
