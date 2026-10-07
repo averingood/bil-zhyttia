@@ -711,7 +711,7 @@
   function checkLose(s, day) {
     if (s.lost) return;
     let cause = null;
-    // Радість 0 сама гру не закінчує — це робить ніч, коли заціпеніння триває задовго (endDay).
+    // Радість 0 гру не закінчує: програш — лише гроші (і втрата всіх друзів, див. loseFriend).
     if (s.money <= 0) cause = 'money';
     if (cause) s.lost = { cause, day, sphere: CAUSES[cause].sphere, text: CAUSES[cause].text };
   }
