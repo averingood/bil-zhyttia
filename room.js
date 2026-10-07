@@ -517,14 +517,24 @@
       if (!onBag) { this.hero.sitting = false; this.hero.sit = 0; }
       this.cut = { ending: kind, phase: onBag ? 'sit' : 'walk', t: 0, onDone, slot: this.view.slot, caption: '', flash: 0, medics: [],
         sleeping: false, drain: 0, joy0: this.view.joy || 30, boxes: 0 };
-      this.path = onBag ? [] : kind === 'joy' ? this.findPath(BAG_FRONT[0], BAG_FRONT[1]) : this.findPath(5.4, 7.0);
+      this.path = onBag ? [] : kind === 'joy' || kind === 'friends' ? this.findPath(BAG_FRONT[0], BAG_FRONT[1]) : this.findPath(5.4, 7.0);
       this.target = null;
     }
 
     updateEnding(dt) {
       const c = this.cut;
       const go = (p) => { c.phase = p; c.t = 0; };
-      if (c.ending === 'joy') {
+      if (c.ending === 'friends') {
+        // Останній друг пішов: сісти на мішок, телефон мовчить, світ тьмяніє.
+        if (c.phase === 'walk') {
+          c.caption = 'Борг так і не повернуто';
+          if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('quiet'); }
+        } else if (c.phase === 'quiet') {
+          c.drain = Math.min(1, c.t / 4);
+          c.caption = c.t < 2.2 ? 'Останній друг перестав відповідати.' : 'Телефон мовчить. Писати більше нікому.';
+          if (c.t > 6) go('done');
+        }
+      } else if (c.ending === 'joy') {
         // Пуф → підвестися → вдягнути все чорне → повільно вийти. Кімната тим часом вицвітає.
         c.drain = Math.min(1, c.drain + dt / 6);
         if (c.phase === 'walk') {
@@ -567,7 +577,7 @@
       if (c.phase === 'done') { const cb = c.onDone; this.cut = null; cb && cb(); return; }
       this.view.slot = c.slot;
       this.view.night = false;
-      if (c.ending === 'joy') this.view.joy = c.joy0 * (1 - c.drain);
+      if (c.ending === 'joy' || c.ending === 'friends') this.view.joy = c.joy0 * (1 - c.drain);
     }
 
     updateCut(dt) {

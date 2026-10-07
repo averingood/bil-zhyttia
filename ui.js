@@ -394,7 +394,7 @@
     if (phase === 'scene' || phase === 'cut') return;      // рядок дій зайняла сцена або фінальна анімація
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
     const z = room.currentZone();
-    const banner = inviteBanner();
+    const banner = debtBanner() + inviteBanner();
     const slotTxt = game.slot < G.slotsOf(game)
       ? G.slotName(game, game.slot) + ' · слот ' + (game.slot + 1) + ' з ' + G.slotsOf(game)
       : 'Слоти скінчилися';
@@ -402,14 +402,14 @@
       el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${room.walking ? 'Іде…' : 'Квартира'}</span><span class="ab-meta">${slotTxt}</span></div>
         <p class="ab-empty">Клікни на меблі або йди стрілками. Біля зони з'являться дії, клавіші 1–9 їх обирають.
         ${game.slot >= G.slotsOf(game) ? '<br>День скінчився, скоро ніч.' : ''}</p>`;
-      bindInvite(el);
+      bindInvite(el); bindDebt(el);
       return;
     }
     const list = G.zoneActions(game, z);
     el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span><span class="ab-meta">${slotTxt}</span></div>
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
     el.querySelectorAll('.act').forEach((b) => { b.onclick = () => act(b.dataset.id); });
-    bindInvite(el);
+    bindInvite(el); bindDebt(el);
   }
 
   function inviteBanner() {
@@ -423,6 +423,51 @@
       </span>
       ${p.available && p.borrow ? `<span class="warn">Позичиш ${p.borrow}: завтра біль +${p.borrow * C.night.borrowPain}, радість −${p.borrow * C.joy.borrowPenalty}</span>` : ''}
       ${!p.available ? `<span class="warn">${esc(p.reason)}</span>` : ''}</div>`;
+  }
+
+  // Позика: список друзів. Хто позичив — не приходить, поки не повернеш.
+  function showBorrow() {
+    if (phase !== 'play') return;
+    const L = C.friends.loan;
+    const rows = C.friends.names.map((n) => {
+      const d = (game.debts || {})[n], gone = (game.lostFriends || {})[n];
+      if (gone) return '';
+      const why = d ? 'уже винен ' + d.amount + ' ₴' : '';
+      return `<button class="btn ${why ? '' : 'primary'}" data-borrow="${esc(n)}" ${why ? 'disabled' : ''}>${esc(n)}${why ? ' · ' + why : ' · ' + L.amount + ' ₴'}</button>`;
+    }).join('');
+    openModal(`<h2>Позичити ${L.amount} ₴</h2>
+      <p class="sub">Поки борг не повернеш, цей друг не прийде в гості й не кличе. Через ${L.askAfter} днів спитає про гроші — не повернеш того дня, і друга втрачено назавжди. Втратиш усіх — кінець гри.</p>
+      <div class="borrow-list">${rows}</div>
+      <div class="row"><button class="btn" id="borrowClose">Не треба</button></div>`, true);
+    document.querySelectorAll('[data-borrow]').forEach((b) => { b.onclick = () => {
+      const r = G.borrow(game, b.dataset.borrow);
+      closeModal();
+      if (r) toast('Позичив ' + r.amount + ' ₴ у ' + r.name + '. Поки не повернеш, ' + r.name + ' не прийде.');
+      renderAll();
+    }; });
+    $('borrowClose').onclick = closeModal;
+  }
+
+  // Нагадування про борг: повернути зараз або «поки не можу».
+  function debtBanner() {
+    const a = G.debtAsk(game);
+    if (!a || phase !== 'play') return '';
+    return `<div class="invite"><span class="inv-msg"><b>${esc(a.name)}</b> пише: «Слухай, а можеш повернути ${a.amount} ₴?»</span>
+      <span class="inv-btns">
+        <button class="btn primary" data-debt="pay" ${game.money < a.amount ? 'aria-disabled="true"' : ''}>Повернути ${a.amount} ₴</button>
+        <button class="btn" data-debt="later">Не можу · втратиш друга</button>
+      </span>
+      <span class="warn">Не повернеш сьогодні — ${esc(a.name)} більше не напише${G.friendsLeft(game).length === 1 ? '. Це останній друг: після цього — кінець гри' : ''}.</span></div>`;
+  }
+  function bindDebt(el) {
+    const pay = el.querySelector('[data-debt=pay]'), later = el.querySelector('[data-debt=later]');
+    if (pay) pay.onclick = () => { const a = G.debtAsk(game); const r = a && G.repay(game, a.name); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '.'); else toast('Не вистачає грошей'); renderAll(); };
+    if (later) later.onclick = () => {
+      const a = G.debtAsk(game); const r = a && G.loseFriend(game, a.name);
+      if (r) toast(r.text);
+      renderAll();
+      if (game.lost) setTimeout(showEnd, 900);
+    };
   }
 
   function bindInvite(el) {
@@ -575,6 +620,9 @@
       <div class="sec">
         <div class="sec-h"><span class="lbl">Гроші</span><span class="val" style="color:var(--money)">${s.money} ₴</span></div>
         <div class="sub fogwrap"><span class="${hidden ? 'fog' : ''}">Очікується: ${pendTxt}</span></div>
+        ${Object.entries(s.debts || {}).map(([n, d]) => `<div class="debt"><span>Винен ${esc(n)} ${d.amount} ₴ · спитає в день ${d.askDay}</span>
+          <button class="btn ghost" data-repay="${esc(n)}" ${s.money < d.amount ? 'disabled' : ''}>Повернути</button></div>`).join('')}
+        ${phase === 'play' && C.friends.names.some((n) => G.canBorrow(s, n)) ? `<button class="btn ghost" id="borrowBtn">Позичити ${C.friends.loan.amount} ₴ у друзів</button>` : ''}
       </div>
 
       <div class="sec">
@@ -624,6 +672,8 @@
       ${endWarn ? `<div class="warn" style="color:var(--fatal)">${fc.lost ? 'Після ночі гра закінчиться: ' + esc(fc.lost.text.toLowerCase()) : 'Уночі біль дійде до 10: лікарня'}</div>` : ''}
     `;
     $('endBtn').onclick = endDayClick;
+    document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. Тепер знову можна в гості.'); renderAll(); }; });
+    if ($('borrowBtn')) $('borrowBtn').onclick = showBorrow;
     const ph = document.querySelector('.painhelp');
     if (ph) ph.ontoggle = () => { painHelpOpen = ph.open; };
     $('journalBtn').onclick = showJournal;
@@ -673,24 +723,19 @@
     const diffs = Object.entries(C.difficulty).map(([k, d]) => `
       <label class="opt"><input type="radio" name="diff" id="diff-${k}" value="${k}" ${k === setupChoice.difficulty ? 'checked' : ''}>
         <span>${d.name}</span><small>Базовий біль ${d.basePain}, шанс нічного загострення ${Math.round(d.flareChance * 100)}%</small></label>`).join('');
-    const lens = C.dayOptions.map((n) => `
-      <label class="opt"><input type="radio" name="len" id="len-${n}" value="${n}" ${n === setupChoice.days ? 'checked' : ''}>
-        <span>${n} днів</span><small>Оренда кожні ${C.rent.every} днів, дедлайн щотижня</small></label>`).join('');
     openModal(`
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і ресурсу, скільки дозволяє ранковий біль.
       Розподіляй їх між роботою, радістю і тим, що знижує біль. Ресурс можна позичати, але завтра він повернеться болем.</p>
-      <p class="sub">Гра закінчується, якщо радість або гроші падають до нуля. Біль 10 — це лікарня.</p>
+      <p class="sub">Треба прожити ${C.days} днів. Оренда кожні ${C.rent.every} днів, дедлайн щотижня. Гроші на нулі — кінець; радість на нулі — заціпеніння. Біль 10 — це лікарня.</p>
       <div class="opts"><span class="lbl">Тяжкість</span>${diffs}</div>
-      <div class="opts"><span class="lbl">Тривалість</span>${lens}</div>
       <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J відкриває журнал, M вмикає чи вимикає міні-ігри (планерки й розмови).</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
     $('startBtn').focus();
     $('startBtn').onclick = () => {
       const d = document.querySelector('input[name=diff]:checked');
-      const l = document.querySelector('input[name=len]:checked');
-      setupChoice = { difficulty: d ? d.value : 'normal', days: l ? Number(l.value) : C.days, scenes: setupChoice.scenes };
+      setupChoice = { difficulty: d ? d.value : 'normal', days: C.days, scenes: setupChoice.scenes };
       newGame(setupChoice);
     };
   }
@@ -733,7 +778,7 @@
   // Дострокове завершення: спершу сцена в кімнаті, потім підсумок.
   let endingPlayed = false;
   function showEnd() {
-    if (game && game.lost && !endingPlayed && ['joy', 'money'].includes(game.lost.cause)) {
+    if (game && game.lost && !endingPlayed && ['joy', 'money', 'friends'].includes(game.lost.cause)) {
       endingPlayed = true;
       phase = 'cut';
       closeModal();

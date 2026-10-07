@@ -37,6 +37,7 @@
   const CAUSES = {
     joy:   { sphere: 'Радість', text: 'Радість на нулі, і друзі так і не прийшли' },
     money: { sphere: 'Гроші', text: 'Гроші скінчилися' },
+    friends: { sphere: 'Друзі', text: 'Не лишилося жодного друга' },
   };
 
   // ---------- випадковість з відтворюваним зерном ----------
@@ -120,7 +121,7 @@
       restedToday: 0, medsToday: 0, exerciseToday: 0, friendsToday: 0,
       pending: [],
       workWeek: 0, misses: 0, partTime: false, partTimeDay: null,
-      meetDays: [], invites: {},
+      meetDays: [], invites: {}, debts: {}, lostFriends: {}, loanAsk: null,
       journal: [],
       stats: {
         workUnits: 0, earned: 0, meetings: 0, createDays: 0, maxStreak: 0,
@@ -168,13 +169,72 @@
     return 'розмова: радість ' + (joy >= 0 ? '+' : '−') + Math.abs(joy) + (missed ? ', друзі помітили, що ти не тут' : '');
   }
 
+  // Друзі, які можуть прийти: не втрачені й ті, кому ми не винні грошей.
+  const friendsLeft = (s) => C.friends.names.filter((n) => !(s.lostFriends || {})[n]);
+  const freeFriends = (s) => friendsLeft(s).filter((n) => !(s.debts || {})[n]);
+
   function addInvite(s, day) {
     if (s.invites[day]) return;
-    s.invites[day] = { name: pick(s, C.friends.names), status: 'open', line: Math.floor(rand(s) * C.friends.inviteLines.length) };
+    const names = freeFriends(s);
+    if (!names.length) return;
+    s.invites[day] = { name: pick(s, names), status: 'open', line: Math.floor(rand(s) * C.friends.inviteLines.length) };
+  }
+
+  // ---------- позики в друзів ----------
+  // debts[name] = { amount, since, askDay }; lostFriends[name] — друга втрачено через неповернений борг.
+  function canBorrow(s, name) {
+    if (s.lost || s.finished) return false;
+    return friendsLeft(s).includes(name) && !(s.debts || {})[name];
+  }
+  function borrow(s, name) {
+    if (!canBorrow(s, name)) return null;
+    const L = C.friends.loan;
+    s.debts = s.debts || {};
+    s.debts[name] = { amount: L.amount, since: s.day, askDay: s.day + L.askAfter };
+    s.money += L.amount;
+    s.stats.borrowedMoney = (s.stats.borrowedMoney || 0) + L.amount;
+    // Боржник не приходить: його запрошення скасовуються.
+    for (const d in s.invites) if (s.invites[d].name === name && s.invites[d].status === 'open' && Number(d) >= s.day) s.invites[d].status = 'cancelled';
+    journalFor(s, s.day).did.push('Позичив ' + L.amount + ' ₴ у ' + name);
+    return { name, amount: L.amount };
+  }
+  function repay(s, name) {
+    const d = (s.debts || {})[name];
+    if (!d || s.money < d.amount) return null;
+    s.money -= d.amount;
+    delete s.debts[name];
+    if (s.loanAsk === name) s.loanAsk = null;
+    journalFor(s, s.day).did.push('Повернув ' + d.amount + ' ₴ ' + name);
+    checkLose(s, s.day);
+    return { name, amount: d.amount };
+  }
+  // Не повернув на прохання — друга втрачено. Усіх втрачено — кінець гри.
+  function loseFriend(s, name) {
+    const d = (s.debts || {})[name];
+    if (!d) return null;
+    delete s.debts[name];
+    if (s.loanAsk === name) s.loanAsk = null;
+    s.lostFriends = s.lostFriends || {}; s.lostFriends[name] = true;
+    s.stats.friendsLost = (s.stats.friendsLost || 0) + 1;
+    addJoy(s, C.friends.loan.loseJoy);
+    for (const k in s.invites) if (s.invites[k].name === name && s.invites[k].status === 'open') s.invites[k].status = 'cancelled';
+    const text = name + ' більше не пише: борг так і не повернуто. Радість ' + signed(C.friends.loan.loseJoy);
+    journalFor(s, s.day).refused.push(text);
+    if (!friendsLeft(s).length && !s.lost) s.lost = { cause: 'friends', day: s.day, sphere: CAUSES.friends.sphere, text: CAUSES.friends.text };
+    checkLose(s, s.day);
+    return { name, text, all: !friendsLeft(s).length };
+  }
+  // Хто сьогодні питає про борг (один за раз).
+  function debtAsk(s) {
+    if (s.loanAsk && (s.debts || {})[s.loanAsk]) return { name: s.loanAsk, ...s.debts[s.loanAsk] };
+    return null;
   }
 
   function startDay(s) {
     s.slot = 0;
+    // Найдавніший борг, за яким настав час, — сьогоднішнє нагадування.
+    s.loanAsk = null;
+    for (const [n, d] of Object.entries(s.debts || {})) if (d.askDay <= s.day && (!s.loanAsk || d.since < s.debts[s.loanAsk].since)) s.loanAsk = n;
     s.relief = 0;
     s.borrowed = 0;
     s.restedToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0;
@@ -209,6 +269,7 @@
     if (s.lost || s.finished) return no('Гра завершена');
     // Заціпеніння: нічого не хочеться. Можна лише замовити їжу й відгукнутися, якщо друзі самі покличуть.
     if (s.joy <= 0 && !C.numb.allowed.includes(id)) return no('Радість на нулі: нічого не хочеться. Лишається замовити їжу й чекати, що покличуть друзі');
+    if (id === 'friends' && !inviteToday(s) && !freeFriends(s).length) return no('Кликати нікого: кому винен — не прийдуть, а когось уже втрачено');
     if (s.joy <= 0 && id === 'friends' && !inviteToday(s)) return no('Самому кликати немає сил — тільки якщо друзі запропонують');
     if (s.slot >= slotsOf(s)) return no('Слоти на сьогодні скінчилися, час спати');
     switch (id) {
@@ -367,9 +428,9 @@
           food = (C.friends.inviteLines[inv.line] || {}).food || null;
         }
         else {
-          const names = C.friends.names.slice();
+          const names = freeFriends(s);
           const first = names.splice(Math.floor(rand(s) * names.length), 1)[0];
-          guests = rand(s) < 0.5 ? [first] : [first, pick(s, names)];
+          guests = rand(s) < 0.5 || !names.length ? [first] : [first, pick(s, names)];
         }
         s.lastGuests = guests;
         s.lastVisitInvited = !!inv;
@@ -546,6 +607,9 @@
     const endState = stateKey(s);
     const bedPain = pain(s);    // з чим лягаємо: від цього залежить, чи буде безсоння
 
+    // Нагадування про борг, а гроші так і не повернуто — друга втрачено.
+    if (s.loanAsk && (s.debts || {})[s.loanAsk]) { const r = loseFriend(s, s.loanAsk); if (r) ev.push({ kind: 'bad', text: r.text }); }
+
     // Пропозиція друзів, яку так і не прийняли, — це відмова.
     const refused = refuseInvite(s);
     if (refused) ev.push({ kind: 'friends', text: refused.text });
@@ -684,7 +748,8 @@
     if (target2 <= s.days && rand(s) < inviteChance(meetingsRecent(s), s.warmth)) {
       if (!s.invites[target2]) {
         addInvite(s, target2);
-        ev.push({ kind: 'friends', text: s.invites[target2].name + ' пропонує зайти в день ' + target2 });
+        // Кликати може лише той, кому ми не винні й кого не втратили — таких може й не бути.
+        if (s.invites[target2]) ev.push({ kind: 'friends', text: s.invites[target2].name + ' пропонує зайти в день ' + target2 });
       }
     }
 
@@ -879,7 +944,7 @@
         day: d,
         rent: isRentDay(d) ? C.rent.amount : 0,
         deadline: isDeadlineDay(d) ? C.work.unitsPerDeadline : 0,
-        invite: inv ? { name: inv.name, status: inv.status } : null,
+        invite: inv && inv.status !== 'cancelled' ? { name: inv.name, status: inv.status } : null,   // скасовані (борг, втрачений друг) не показуємо
         payout: s.pending.filter((p) => p.day === d).reduce((a, p) => a + p.amount, 0),
       });
     }
@@ -962,6 +1027,7 @@
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
+    if (st.friendsLost) lost.push('Втрачено друзів через борги: ' + st.friendsLost);
     if (st.booksRead) kept.push('Дочитано книжок: ' + st.booksRead);
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
@@ -983,7 +1049,7 @@
 
   const api = {
     ZONES, ACTIONS, ACTION_IDS, CAUSES,
-    createGame, doAction, endDay, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
+    createGame, doAction, endDay, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text,
     slotsOf, slotName, dayPhase,
