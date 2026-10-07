@@ -88,6 +88,10 @@ const STRATS = {
     return next;
   },
 
+  // Ігри замість творчості/друзів, коли радість хоче підтримки, а сили мало.
+  '+ігри замість творчості': (s) => { const n = careful(s); return (n === 'create' || n === 'rest') && ok(s, 'games') && s.energy >= 1 ? 'games' : n; },
+  '+ігри при сильному болю': (s) => { const n = careful(s); return L.stateKey(s) === 'strong' && n !== 'cook' && n !== 'delivery' && ok(s, 'games') && s.energy >= 1 ? 'games' : n; },
+
   // Курс щодня, поки є гроші: пігулка не займає слота.
   '+курс ліків': (s) => (ok(s, 'course') && s.money > 40 ? 'course' : careful(s)),
   // Лікар, щойно доступний і є запас на оренду.
