@@ -658,7 +658,12 @@
 
       <div class="sec">
         <div class="sec-h"><span class="lbl">Робота за тиждень</span><span class="val">${s.workWeek}/${C.work.unitsPerDeadline}</span></div>
-        <div class="sub">Пропущено дедлайнів: ${s.misses}${s.partTime ? ' · частковий графік ×' + C.work.partTimeMult : ''}</div>
+        <div class="sub">${(() => {
+          // Корисніше знати, скільки лишилося до дедлайну, ніж лічильник пропусків.
+          let dl = s.day; while (dl % C.work.deadlineEvery !== 0) dl++;
+          const left = dl - s.day;
+          return dl > s.days ? 'Дедлайнів більше немає' : left === 0 ? 'Дедлайн сьогодні (рахується вночі)' : 'До дедлайну ' + left + ' ' + (left === 1 ? 'день' : left < 5 ? 'дні' : 'днів') + ' (день ' + dl + ')';
+        })()}${s.misses ? ' · пропущено ' + s.misses : ''}${s.unpaidUnits ? ' · без оплати ще ' + s.unpaidUnits : ''}${s.partTime ? ' · частковий графік ×' + C.work.partTimeMult : ''}</div>
       </div>
 
       <div class="sec">
