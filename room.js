@@ -953,6 +953,62 @@
       L(ctx, P(0, 0, WH), P(0, RY, WH), shade(PAL.capTop, -0.25)); L(ctx, P(0, 0, WH), P(RX, 0, WH), shade(PAL.capTop, -0.25));
     }
 
+    // Життя за вікном: своє для кожної частини дня. Усе обрізається рамкою вікна (y 3.9–5.9, z 30–49).
+    drawSkyLife(ctx, slot, night) {
+      const t = this.t, Y0 = 3.92, Y1 = 5.88, Z0 = 30, Z1 = 48.5;
+      const px = (y, z, col, w, h) => {
+        if (y < Y0 || y > Y1 || z < Z0 || z > Z1) return;
+        const p = P(0, y, z); ctx.fillStyle = col; ctx.fillRect(Math.round(p[0]), Math.round(p[1]), w || 1, h || 1);
+      };
+      // Хмара — кілька «пухнастих» смуг, що пливуть і обрізаються рамкою.
+      const cloud = (y, z, len, col) => {
+        for (let i = 0; i < len; i++) {
+          const yy = y + i * 0.09, bump = (i > 0 && i < len - 1) ? 1.4 : 0;
+          px(yy, z + bump, col, 2, 1); px(yy, z, col, 2, 1);
+        }
+      };
+      const drift = (speed, off, span) => Y0 - 0.6 + ((t * speed + off) % (span + 0.6));
+      const span = Y1 - Y0 + 0.6;
+      if (night || slot >= 4) {
+        // Ніч: місяць, зірки мерехтять, зрідка — падуча зірка.
+        const stars = [[4.05, 46], [4.4, 42], [4.7, 47.5], [5.05, 44], [5.35, 46.5], [5.7, 41.5], [4.25, 39], [5.5, 39.5], [4.9, 40.5]];
+        stars.forEach(([y, z], i) => { if (Math.sin(t * (1.3 + i * 0.37) + i * 2) > -0.35) px(y, z, i % 3 ? '#e8ecf5' : '#fff6c8'); });
+        px(5.45, 44.5, '#f3ecd0', 3, 3); px(5.55, 45.5, '#c9c4ad', 2, 2);   // місяць-серп
+        const sh = (t % 9) / 9;
+        if (sh < 0.12) { const k = sh / 0.12; for (let j = 0; j < 4; j++) px(4.0 + k * 1.4 + j * 0.06, 48 - k * 7 - j * 0.6, j ? '#9aa6c4' : '#ffffff'); }
+        return;
+      }
+      if (slot === 0) {
+        // Ранок: низьке сонце зі світінням, рожеві хмарки.
+        const rise = Math.min(4, (t % 60) * 0.05);
+        const glow = Math.sin(t * 1.5) > 0 ? '#ffe6b0' : '#fff0c8';
+        px(4.25, 32 + rise, glow, 5, 4); px(4.3, 33 + rise, '#ffd27a', 3, 3);
+        cloud(drift(0.03, 0.2, span), 43, 7, '#f5c6c0');
+        cloud(drift(0.022, 1.3, span), 39, 5, '#f8d8cf');
+      } else if (slot === 1) {
+        // День: білі хмари пливуть, зрідка пролітає пташка.
+        cloud(drift(0.05, 0, span), 45, 8, '#ffffff');
+        cloud(drift(0.035, 1.1, span), 40, 6, '#f2f6fa');
+        cloud(drift(0.06, 2.0, span), 47, 4, '#ffffff');
+        const b = (t % 11) / 11;
+        if (b < 0.4) { const by = Y0 + b / 0.4 * (Y1 - Y0), bz = 42 + Math.sin(t * 3) * 1.5, f = Math.floor(t * 6) % 2;
+          px(by, bz, '#2d3348'); px(by + 0.07, bz + (f ? 1 : -1), '#2d3348'); px(by - 0.07, bz + (f ? 1 : -1), '#2d3348'); }
+      } else if (slot === 2) {
+        // Пообіддя: золоте сонце вище, мерехтить, хмари повільні й теплі.
+        const pulse = Math.sin(t * 2) > 0.3;
+        px(5.3, 44, pulse ? '#fff1b8' : '#ffe8a0', 5, 5); px(5.35, 45, '#ffd060', 3, 3);
+        cloud(drift(0.025, 0.4, span), 40, 7, '#fbe6c4');
+        cloud(drift(0.018, 1.6, span), 46.5, 5, '#fff3dc');
+      } else {
+        // Вечір: помаранчевий диск сідає за будинки, рожеві хмари, перші зірки.
+        const sink = (t % 40) / 40 * 5;
+        px(4.6, 36 - sink, '#ff9a5a', 5, 4); px(4.65, 37 - sink, '#ffcf7a', 3, 2);
+        cloud(drift(0.02, 0.6, span), 44, 8, '#e88a8a');
+        cloud(drift(0.015, 1.8, span), 41, 5, '#c97a9a');
+        [[4.2, 47.5], [5.6, 46]].forEach(([y, z], i) => { if (Math.sin(t * 1.1 + i * 3) > 0.2) px(y, z, '#fff3d0'); });
+      }
+    }
+
     drawWallDecor(ctx) {
       const slot = this.view.slot;
       const night = this.lit.lamp > 0.8;
@@ -961,11 +1017,13 @@
       // Вікно над диваном.
       wallL(ctx, 3.75, 6.05, 23, 51, PAL.sheet);
       wallL(ctx, 3.9, 5.9, 25, 49, sky);
+      this.drawSkyLife(ctx, slot, night);
       wallL(ctx, 3.9, 5.9, 25, 30, dark(0.35));
       wallL(ctx, 4.1, 4.4, 25, 34, dark(0.45));
       wallL(ctx, 5.2, 5.6, 25, 37, dark(0.4));
       if (night) {
-        wallL(ctx, 5.3, 5.35, 32, 33, '#f2d36b'); wallL(ctx, 4.2, 4.25, 27, 28, '#f2d36b');
+        wallL(ctx, 5.3, 5.35, 32, 33, '#f2d36b'); if (Math.sin(this.t * 0.7) > -0.6) wallL(ctx, 4.2, 4.25, 27, 28, '#f2d36b');
+        if (Math.sin(this.t * 0.45 + 1) > 0) wallL(ctx, 5.4, 5.45, 29, 30, '#f2d36b');
         ctx.fillStyle = '#e8ecf5';
         const a = P(0, 4.2, 45); ctx.fillRect(a[0], a[1], 1, 1);
         const b = P(0, 5.5, 43); ctx.fillRect(b[0], b[1], 1, 1);

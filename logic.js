@@ -779,6 +779,16 @@
     calendarNight(s, s.day, ev, j);
 
     // Нові пропозиції від друзів: що рідше бачилися, то рідше кличуть.
+    // Друзі помічають, що ти зник: напрошуються на завтра, щоб самотність не стала пасткою.
+    const Wr = C.friends.worry, tomorrow = s.day + 1;
+    if (tomorrow <= s.days && !s.invites[tomorrow] && (s.joy <= 0 || (s.daysAlone >= Wr.afterDays && s.joy < Wr.lowJoy))) {
+      const chance = s.joy <= 0 ? Wr.numb : Math.min(Wr.max, Wr.base + Wr.perDay * Math.max(0, s.daysAlone - Wr.afterDays));
+      if (rand(s) < chance) {
+        addInvite(s, tomorrow);
+        const inv = s.invites[tomorrow];
+        if (inv) { inv.worry = Math.floor(rand(s) * Wr.lines.length); ev.push({ kind: 'friends', text: inv.name + ': «' + Wr.lines[inv.worry] + '»' }); }
+      }
+    }
     const target2 = s.day + C.friends.leadDays;
     if (target2 <= s.days && rand(s) < inviteChance(meetingsRecent(s), s.warmth)) {
       if (!s.invites[target2]) {
@@ -1098,7 +1108,7 @@
     ZONES, ACTIONS, ACTION_IDS, CAUSES,
     createGame, doAction, endDay, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
-    inviteText: (inv) => (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text,
+    inviteText: (inv) => (inv.worry != null ? C.friends.worry.lines[inv.worry] : (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text),
     slotsOf, slotName, dayPhase,
     pain, rawPain, stateKey, stateOfPain, stateCfg, meetingsRecent, inviteToday, energyCost,
     clone,
