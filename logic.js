@@ -577,8 +577,9 @@
       case 'course':
         s.money -= a.money;
         s.courseToday = 1;
+        if (a.joy) addJoy(s, a.joy);
         s.stats.course = (s.stats.course || 0) + 1;
-        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? (courseWorks(s) ? ', діє' : ', не діє без руху') : '') + ', −' + a.money + ' ₴' + sideEffect(s, a);
+        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? (courseWorks(s) ? ', діє' : ', не діє без руху') : '') + ', −' + a.money + ' ₴' + (a.joy ? ', радість ' + a.joy : '') + sideEffect(s, a);
         break;
       case 'clean': {
         const was = s.mess;
@@ -739,19 +740,21 @@
     if (refused) ev.push({ kind: 'friends', text: refused.text });
 
     // 1. Їжа.
+    // Само нічого не замовляється: забув поїсти — радість падає, завтра менше ресурсу,
+    // а два дні поспіль без їжі — базовий біль +1.
     if (!s.fed) {
-      const cost = C.actions.delivery.money;
-      if (s.money > cost) {
-        s.money -= cost;
-        s.stats.autoDelivery++;
-        ev.push({ kind: 'money', text: 'Їжі не було, тож замовили доставку: −' + cost + ' ₴' });
-      } else {
-        s.hungerPenalty = N.hungerEnergyPenalty;
-        s.stats.hungryDays++;
-        j.refused.push('Лишився без їжі');
-        ev.push({ kind: 'bad', text: 'Без їжі: на доставку не вистачило грошей. Завтра ресурс −' + N.hungerEnergyPenalty });
+      const H = C.hunger;
+      s.hungerPenalty = N.hungerEnergyPenalty;
+      s.stats.hungryDays++;
+      s.hungryStreak = (s.hungryStreak || 0) + 1;
+      addJoy(s, H.joy);
+      j.refused.push('Лишився без їжі');
+      ev.push({ kind: 'bad', text: 'Без їжі: радість ' + H.joy + ', завтра ресурс −' + N.hungerEnergyPenalty });
+      if (s.hungryStreak >= H.chronicDays) {
+        s.hungryStreak = 0;
+        if (chronify(s)) ev.push({ kind: 'pain', text: H.chronicDays + ' дні без їжі: базовий біль +1 (тепер ' + s.base + ')' });
       }
-    }
+    } else s.hungryStreak = 0;
 
     // 2. Біль повертається до бази.
     if (s.extra > 0) {
@@ -1116,7 +1119,8 @@
       out.push({ kind: 'pain', t: 'Добрий день легко перебрати. Те, що позичиш сьогодні, повернеться болем завтра.' });
     const inv = inviteToday(s);
     if (inv) out.push({ kind: 'friends', t: inv.name + ' хоче прийти сьогодні' + ((C.friends.inviteLines[inv.line] || {}).food ? ' і принести поїсти' : '') + '. Якщо не покличеш, це відмова: радість ' + signed(C.joy.refuseInvite) + '.' });
-    if (!s.fed) out.push({ kind: 'money', t: 'Їжі ще немає. Уночі буде автоматична доставка за ' + C.actions.delivery.money + ' ₴.' });
+    if (!s.fed) out.push({ kind: (s.hungryStreak || 0) + 1 >= C.hunger.chronicDays ? 'fatal' : 'money', t: 'Їжі ще немає — приготуй або замов доставку. Без їжі: радість ' + C.hunger.joy + ', завтра ресурс −' + C.night.hungerEnergyPenalty +
+      ((s.hungryStreak || 0) + 1 >= C.hunger.chronicDays ? ', і це вже другий день — базовий біль +1.' : '; два дні поспіль — базовий біль +1.') });
     const dl = nextDeadline(s);
     if (dl) {
       const left = C.work.unitsPerDeadline - s.workWeek;
@@ -1174,7 +1178,6 @@
     if (st.deadlinesMissed) lost.push('Пропущені дедлайни: ' + st.deadlinesMissed);
     if (s.partTime) lost.push('Частковий графік із дня ' + s.partTimeDay + ', дохід ×' + C.work.partTimeMult);
     if (st.hungryDays) lost.push('Дні без їжі: ' + st.hungryDays);
-    if (st.autoDelivery) lost.push('Вечорів, коли їжу замовляли вже без сил вибирати: ' + st.autoDelivery);
     if (st.borrowed) lost.push('Позичено ресурсу: ' + st.borrowed);
     if (st.stateDays.strong) lost.push('Днів у сильному болю: ' + st.stateDays.strong);
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);

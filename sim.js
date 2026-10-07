@@ -133,6 +133,7 @@ function play(strat, diff, seed, days) {
       if (!L.doAction(s, id).ok || s.lost) break;
     }
     if (s.lost) break;
+    if (!s.fed && L.check(s, 'delivery').available) L.doAction(s, 'delivery');   // не забуває поїсти
     L.endDay(s);
   }
   return s;
