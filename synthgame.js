@@ -1,6 +1,6 @@
 // Синтезатор від першої особи: зіграти три ноти, будь-які клавіші.
-// Біль коротко спалахує; натиснув саме тоді — рука здригається, нота фальшива.
-// Можна перечекати спалах і зіграти чисто — «слухай тіло». Повертає { fake } — скільки фальшивих.
+// Біль не можна вгадати: будь-яке натискання може несподівано відгукнутися спалахом —
+// рука здригається, нота фальшива. Повертає { fake } — скільки фальшивих.
 (function (root) {
   'use strict';
   const W = 412, H = 344, LW = 206, LH = 172;
@@ -14,7 +14,9 @@
 
   // Звук: проста пилка з м'яким згасанням; фальшива — розстроєна пара тонів.
   let audio = null;
+  const soundOn = () => { try { return localStorage.getItem('zapas.synthSound') !== '0'; } catch (e) { return true; } };
   function tone(i, fake) {
+    if (!soundOn()) return;
     try {
       audio = audio || new (window.AudioContext || window.webkitAudioContext)();
       const scale = [0, 2, 4, 5, 7, 9, 11];
@@ -34,7 +36,8 @@
   }
 
   // pressed: { i, at, fake }[]; bend — тремтіння від спалаху.
-  function drawScene(t, pressed, shake, fakeFlash) {
+  // handX — де зараз рука (плавно ковзає), dip — 0..1, наскільки пальці втиснули клавішу.
+  function drawScene(t, pressed, shake, fakeFlash, handX, dip) {
     // Тло: стіна кімнати, гірлянда, що мерехтить, і тепле світло лампи збоку.
     R(0, 0, LW, LH, '#243a3a');
     for (let y = 1; y < 70; y += 3) for (let x = (y % 2) * 2; x < LW; x += 5) R(x, y, 1, 1, '#294242');
@@ -90,20 +93,15 @@
       if (p.fake) { R(x, y, 2, 6, '#e2584a'); R(x + 2, y - 1, 3, 2, '#e2584a'); R(x - 2, y + 4, 3, 2, '#e2584a'); R(x + 3, y + 3, 2, 2, '#e2584a'); }
       else { R(x + 2, y, 2, 7, '#f2d36b'); R(x + 2, y, 5, 2, '#f2d36b'); R(x - 1, y + 5, 4, 3, '#f2d36b'); }
     });
-    // Руки над клавіатурою: права тягнеться до останньої клавіші, ліва лежить на басах.
-    const hand = (x, y, press) => {
-      R(x - 4, y + 20, 26, LH, '#2d4763'); R(x - 4, y + 20, 26, 3, '#3a5a7c'); R(x + 16, y + 22, 6, LH, '#243a52');   // рукав
-      R(x - 1, y + 4, 20, 18, '#e0ac84'); R(x - 1, y + 4, 20, 3, '#efc39c'); R(x - 1, y + 18, 20, 4, '#c48b67');    // долоня
-      for (let k = 0; k < 4; k++) {
-        const fy = y - 6 + (k === 0 || k === 3 ? 3 : 0) + (k === 1 ? press : 0);
-        R(x + k * 5, fy, 4, 12, '#e0ac84'); R(x + k * 5, fy, 4, 2, '#efc39c'); R(x + k * 5 + 3, fy + 2, 1, 9, '#c48b67');
-      }
-      R(x - 5, y + 8, 6, 5, '#e0ac84');                                                                            // великий палець
-    };
-    const target = pressed.length ? pressed[pressed.length - 1].i : 9;
-    const pressNow = pressed.length && t - pressed[pressed.length - 1].at < 0.3 ? 5 : 0;
-    hand(KX + target * KW - 5 + sx, 104, pressNow);
-    hand(16 + sx, 106, 0);
+    // Одна рука знизу: пальці лежать на клавішах, вказівний — на тій, що грає.
+    const x = Math.round(handX + sx), d = Math.round(dip * 3), fy = KY + 14 + d;
+    R(x - 6, fy + 30, 30, LH, '#2d4763'); R(x - 6, fy + 30, 30, 3, '#3a5a7c'); R(x + 18, fy + 32, 6, LH, '#243a52');   // рукав
+    R(x - 3, fy + 12, 24, 20, '#e0ac84'); R(x - 3, fy + 12, 24, 3, '#efc39c'); R(x - 3, fy + 28, 24, 4, '#c48b67');   // долоня
+    for (let k = 0; k < 4; k++) {
+      const len = k === 0 || k === 3 ? 12 : 15, top = fy + 14 - len + (k === 1 ? d : 0);
+      R(x + k * 5 + 1, top, 4, len, '#e0ac84'); R(x + k * 5 + 1, top, 4, 2, '#efc39c'); R(x + k * 5 + 4, top + 2, 1, len - 3, '#c48b67');
+    }
+    R(x - 7, fy + 16, 6, 6, '#e0ac84'); R(x - 7, fy + 16, 6, 2, '#efc39c');                                          // великий палець
   }
 
   // o: { wrap, bar, pain, state, painkiller, joy, onDone }
@@ -126,16 +124,21 @@
 
     o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Синтезатор</span><span class="ab-meta" id="scCount"></span></div>
       <div class="sc-bar"><span class="mat-input"></span><span class="sc-repeat"></span></div>
-      <div class="sc-answers"><p class="mat-input" style="font-size:20px;color:var(--muted)">Натискай будь-які клавіші — мишею або на клавіатурі. Спалахнув біль — краще перечекати.</p></div>
+      <div class="sc-answers"><p class="mat-input" style="font-size:20px;color:var(--muted)">Зіграй три ноти: клікни по клавішах або натискай літери на клавіатурі.</p>
+        <button class="btn ghost" type="button" id="synthMute"></button></div>
       <p class="sc-msg"></p>`;
     fit();
     const $q = (sel) => o.bar.querySelector(sel);
     const now = () => performance.now() / 1000;
     const t0 = now();
-    // Спалахи: що сильніший біль, то частіше; короткі, щоб їх можна було перечекати.
-    const n = { light: 2, medium: 3, strong: 4 }[o.state] || 3;
-    const spikes = [];
-    for (let i = 0; i < n; i++) { const st = t0 + 0.8 + i * (6 / n) + Math.random() * 1.2; spikes.push({ start: st, end: st + 0.55, grow: 0.3 }); }
+    // Біль не вгадаєш: кожне натискання може відгукнутися спалахом. Що сильніший біль, то частіше.
+    const chance = { light: 0.2, medium: 0.35, strong: 0.55 }[o.state] || 0.35;
+    let glitch = null;
+    const muteBtn = $q('#synthMute');
+    const paintMute = () => { muteBtn.textContent = soundOn() ? '🔊 Звук: увімк.' : '🔈 Звук: вимк.'; };
+    muteBtn.onclick = () => { try { localStorage.setItem('zapas.synthSound', soundOn() ? '0' : '1'); } catch (e) { /* не страшно */ } paintMute(); };
+    paintMute();
+    let handX = KX + 9 * KW, lastT = now();
     const pressed = [];
     let done = false, fakeUntil = 0, shakeUntil = 0;
     const count = () => { $q('#scCount').textContent = 'нота ' + Math.min(pressed.length + 1, NOTES) + ' з ' + NOTES; $q('.sc-bar .mat-input').textContent = pressed.map((p) => (p.fake ? '✗' : '♪')).join(' '); };
@@ -144,7 +147,8 @@
     function play(i) {
       if (done) return;
       const t = now();
-      const hurt = spikes.some((s) => t > s.start - s.grow * 0.6 && t < s.end + 0.15);
+      const hurt = Math.random() < chance;
+      if (hurt) glitch = { start: t + 0.02, end: t + 0.45, grow: 0.12 };   // спалах уже після натискання
       pressed.push({ i, at: t, fake: hurt });
       tone(i, hurt);
       if (hurt) { fakeUntil = t + 0.6; shakeUntil = t + 0.35; }
@@ -167,9 +171,11 @@
       play(code % KEYS);
     };
     window.addEventListener('keydown', kd, true);
+    // Лише по клавішах: клік по корпусу чи стіні нічого не грає.
     view.addEventListener('pointerdown', (e) => {
-      const r = view.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * LW;
-      play(Math.max(0, Math.min(KEYS - 1, Math.floor((x - KX) / KW))));
+      const r = view.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * LW, y = (e.clientY - r.top) / r.height * LH;
+      if (y < KY || y > KY + KH || x < KX || x > KX + KEYS * KW) return;
+      play(Math.min(KEYS - 1, Math.floor((x - KX) / KW)));
     });
 
     let closed = false, raf = 0;
@@ -183,11 +189,15 @@
     }
     function frame() {
       fit();
-      const t = now();
-      const glitch = spikes.find((s) => t < s.end + 0.35) || null;
+      const t = now(), dt = Math.min(0.05, t - lastT); lastT = t;
       const shake = t < shakeUntil ? Math.sin(t * 60) * 2 : 0;
+      // Рука плавно ковзає до клавіші; вказівний палець — над її серединою.
+      const last = pressed[pressed.length - 1];
+      const tx = last ? KX + last.i * KW + KW / 2 - 8 : handX;
+      handX += (tx - handX) * (1 - Math.exp(-dt * 14));
+      const since = last ? t - last.at : 9, dip = since < 0.25 ? Math.sin(since / 0.25 * Math.PI) : 0;
       lg.clearRect(0, 0, LW, LH);
-      drawScene(t, pressed, shake, t < fakeUntil);
+      drawScene(t, pressed, shake, t < fakeUntil, handX, dip);
       g.imageSmoothingEnabled = false;
       g.drawImage(low, 0, 0, W, H);
       root.PainFX.gloom(g, W, H, o.joy != null ? o.joy : 60);
