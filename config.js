@@ -48,7 +48,8 @@
     actions: {
       work:     { energy: 2, payDelay: 3 },
       // Творчість — писати пісню за синтезатором: кожна сесія дає радість, дописана пісня — більше.
-      create:   { energy: 1, joy: 6, streakBonus: 1, streakMax: 4, songSessions: 3, songJoy: 10 },
+      // fakeMult — скільки радості лишається після 0, 1, 2, 3 фальшивих нот у міні-грі.
+      create:   { energy: 1, joy: 6, streakBonus: 1, streakMax: 4, songSessions: 3, songJoy: 10, fakeMult: [1, 0.6, 0.3, 0.1] },
       // Дзвінок лікарю: дорого, зате базовий біль одразу й назавжди −1. Не частіше ніж раз на тиждень.
       doctor:   { energy: 1, money: 70, baseDrop: 1, cooldown: 7 },
       // Прийняти тих, хто сам просився, — радісніше: тебе згадали, кликати не довелося.

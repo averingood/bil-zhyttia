@@ -194,6 +194,18 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
+    // Пісня — три ноти на синтезаторі; натиснув у спалах болю — фальшиво, радості менше.
+    if (id === 'create' && setupChoice.scenes && window.SynthGame) {
+      phase = 'scene';
+      held.clear(); applyKeys();
+      window.SynthGame.start({
+        wrap: $('canvasWrap'), bar: $('actionBar'),
+        pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
+        onDone: (res) => { phase = 'play'; finishAction(id, p, { synth: res }); },
+      });
+      renderAll();
+      return;
+    }
     // Готування — рецепт на холодильнику й вибір продуктів; біль може накрити записку.
     if (id === 'cook' && setupChoice.scenes && window.CookGame) {
       phase = 'scene';

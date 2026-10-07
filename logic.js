@@ -421,9 +421,11 @@
         const bonus = Math.min(a.streakMax, a.streakBonus * (s.createStreak - 1));
         const again = s.createToday > 0 ? C.joy.repeatMult : 1;
         s.createToday++;
-        const gain = Math.round((a.joy + bonus) * mult * again);
+        // Фальшиві ноти (міні-гра синтезатора) зрізають радість сесії, але пісня однаково росте.
+        const fake = opts.synth ? opts.synth.fake : 0;
+        const gain = Math.round((a.joy + bonus) * mult * again * a.fakeMult[Math.min(fake, a.fakeMult.length - 1)]);
         addJoy(s, gain);
-        note = 'радість +' + gain + (s.createStreak > 1 ? ', серія ' + s.createStreak + ' дн.' : '');
+        note = 'радість +' + gain + (fake ? ', фальшивих нот ' + fake : '') + (s.createStreak > 1 ? ', серія ' + s.createStreak + ' дн.' : '');
         // Пісня пишеться за кілька сесій; дописана — окрема радість.
         s.song = s.song || { n: 1, done: 0 };
         s.song.done++;
