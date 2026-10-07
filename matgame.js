@@ -91,7 +91,7 @@
     if (ro) ro.observe(o.wrap);
 
     o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Вправи</span><span class="ab-meta" id="scCount"></span></div>
-      <div class="sc-bar"><span class="mat-input"></span><span class="sc-repeat"></span></div>
+      <div class="sc-bar"><div class="sc-timer" hidden><i></i></div><span class="mat-input"></span></div>
       <div class="sc-answers">${ARR.map((a, i) => `<button class="ans mat-arrow" type="button" data-a="${i}" disabled><kbd>${a}</kbd>${['ліво', 'вгору', 'право', 'вниз'][i]}</button>`).join('')}</div>
       <p class="sc-msg">Дивись на телефон: тренер показує рухи.</p>`;
     fit();
@@ -99,7 +99,7 @@
     const now = () => performance.now() / 1000;
     const STEP = M.step;
 
-    let round = 0, right = 0, total = 0, seq = [], input = [], mode = 'show', showFrom = 0, glitch = null, done = false;
+    let round = 0, right = 0, total = 0, seq = [], input = [], mode = 'show', showFrom = 0, glitch = null, done = false, inputAt = 0;
 
     function msg(text, cls) { const m = $q('.sc-msg'); m.className = 'sc-msg ' + (cls || ''); m.textContent = text; }
     function setButtons(on) { o.bar.querySelectorAll('.mat-arrow').forEach((b) => { b.disabled = !on; }); }
@@ -107,9 +107,10 @@
       seq = Array.from({ length: M.series[round] }, () => rnd(4));
       input = []; mode = 'show'; showFrom = now() + root.PainFX.LEAD * 0.6; glitch = null;
       // Щонайбільше одна стрілка: короткий спалах рівно на її показ.
+      // Не на останню стрілку: інакше спад болю тягнеться в «повтори» і здається, що біль запізнився.
       if (Math.random() < (M.spike[o.state] || 0)) {
-        const k = rnd(seq.length);
-        glitch = { start: showFrom + k * STEP, end: showFrom + k * STEP + STEP * 0.75, grow: M.grow };
+        const k = rnd(seq.length - 1);
+        glitch = { start: showFrom + k * STEP - 0.05, end: showFrom + k * STEP + STEP * 0.75, grow: M.grow };
       }
       $q('#scCount').textContent = 'серія ' + (round + 1) + ' з ' + M.series.length + ' · дивись';
       $q('.mat-input').textContent = '';
@@ -118,8 +119,9 @@
     function press(a) {
       if (done || mode !== 'input') return;
       input.push(a);
-      $q('.mat-input').textContent = input.map((v) => ARR[v]).join(' ');
+      $q('.mat-input').textContent = input.map((v) => (v < 0 ? '×' : ARR[v])).join(' ');
       if (input.length < seq.length) return;
+      $q('.sc-timer').hidden = true;
       const ok = input.filter((v, i) => v === seq[i]).length;
       right += ok; total += seq.length; mode = 'wait'; setButtons(false);
       msg('Серія ' + (round + 1) + ': зараховано ' + ok + ' з ' + seq.length +
@@ -162,8 +164,14 @@
     function frame() {
       fit();
       const t = now();
+      if (mode === 'input') {
+        // Таймер на повтор: не встиг — решта рухів серії мимо.
+        const left = M.inputSeconds - (t - inputAt);
+        $q('.sc-timer i').style.width = Math.max(0, left / M.inputSeconds * 100) + '%';
+        if (left <= 0) { while (input.length < seq.length - 1) input.push(-1); press(-1); }
+      }
       if (mode === 'show' && t > showFrom + seq.length * STEP + 0.3) {
-        mode = 'input'; setButtons(true);
+        mode = 'input'; setButtons(true); inputAt = t; $q('.sc-timer').hidden = false;
         $q('#scCount').textContent = 'серія ' + (round + 1) + ' з ' + M.series.length + ' · повтори';
         msg('Повтори рухи стрілками, по черзі.', '');
       }
@@ -182,7 +190,7 @@
         g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText((Math.min(i, seq.length - 1) + 1) + '/' + seq.length, px + 6, py + 4);
       } else if (mode === 'input' || mode === 'wait') {
         g.font = '16px Handjet'; g.fillStyle = '#3a4048'; g.fillText('твоя черга', px + 10, py + 6);
-        g.font = '22px Handjet'; g.fillStyle = '#15161b'; g.fillText(input.map((v) => ARR[v]).join(' '), px + 8, py + 50);
+        g.font = '22px Handjet'; g.fillStyle = '#15161b'; g.fillText(input.map((v) => (v < 0 ? '×' : ARR[v])).join(' '), px + 8, py + 50);
       }
       root.PainFX.gloom(g, W, H, o.joy != null ? o.joy : 60);
       fx.draw(g, W, H, t, o.pain, glitch, o.painkiller);

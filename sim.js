@@ -87,12 +87,7 @@ const STRATS = {
       s.energy + C.actions.coffee.gain >= L.energyCost(s, 'work')) return 'coffee';
     return next;
   },
-  // Раніше спати, коли тимчасового болю 2+, а їжа вже є.
-  '+раніше спати': (s) => {
-    const next = careful(s);
-    if (s.fed && ok(s, 'sleep') && s.extra >= 2 && next !== 'friends' && next !== 'work') return 'sleep';
-    return next;
-  },
+
   // Курс щодня, поки є гроші: пігулка не займає слота.
   '+курс ліків': (s) => (ok(s, 'course') && s.money > 40 ? 'course' : careful(s)),
   'жадібна': greedy,

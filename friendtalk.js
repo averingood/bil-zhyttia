@@ -372,9 +372,10 @@
       const tp = topics[n], now = performance.now() / 1000;
       const start = now + root.PainFX.LEAD, typed = start + tp.text.length / CPS, end = typed + 1.6;
       let glitch = null;
-      if (Math.random() < C.painCover[o.state]) {
+      const F = C.friends;
+      if (Math.random() < Math.min(0.97, C.painCover[o.state] * F.coverMult)) {
         const ks = start + tp.text.indexOf(tp.key) / CPS;
-        glitch = { start: ks - 0.1, end: end + 0.1 };
+        glitch = { start: ks - 0.1, end: end + 0.1, scale: F.coverScale[0] + Math.random() * (F.coverScale[1] - F.coverScale[0]) };
       }
       cur = { tp, start, typed, end, glitch, again, asking: false };
       $q('#scCount').textContent = 'тема ' + (n + 1) + ' з ' + topics.length;

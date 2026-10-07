@@ -194,6 +194,18 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
+    // Готування — дошка й ніж від першої особи; біль тут видно завжди.
+    if (id === 'cook' && setupChoice.scenes && window.CookGame) {
+      phase = 'scene';
+      held.clear(); applyKeys();
+      window.CookGame.start({
+        wrap: $('canvasWrap'), bar: $('actionBar'),
+        pain: G.pain(game), state: G.stateKey(game), painkiller: game.medsToday > 0, joy: game.joy,
+        onDone: () => { phase = 'play'; finishAction(id, p); },
+      });
+      renderAll();
+      return;
+    }
     // Читання — розгорнута книжка від першої особи, три перегортання.
     if (id === 'read' && setupChoice.scenes && window.ReadGame) {
       const b = G.bookNow(game);
@@ -277,11 +289,10 @@
   function finishAction(id, p, opts) {
     const talk = id === 'friends' && setupChoice.scenes && window.FriendTalk;
     const before = snap();
-    const sleepTxt = id === 'sleep' ? G.sleepGainText(game) : null;   // до дії: потім extra вже «з урахуванням сну»
     const r = G.doAction(game, id, Object.assign({}, opts, talk ? { deferTalk: true } : null));
     if (r.ok) showDelta(before,
       id === 'coffee' ? [{ t: 'шанс загострення вночі ' + Math.round(G.flareChanceTonight(game) * 100) + '%', k: 'bad' }]
-      : id === 'sleep' ? [{ t: sleepTxt, k: 'good' }] : null);
+      : null);
     // Друзі: зайшли, сіли — і тоді розмова від першої особи; після неї прощаються.
     // Поки заходять, нічого іншого робити не можна, щоб не зірвати візит.
     room.playAction(id, r.guests, talk ? () => startTalk(r.guests) : null);
@@ -628,7 +639,7 @@
       <div class="sec">
         <div class="sec-h"><span class="lbl">Радість</span><span class="val" style="color:var(--joy)">${s.joy}</span></div>
         <div class="joybar"><i style="width:${s.joy}%"></i><b style="left:${C.joy.creativityOffBelow}%"></b><b style="left:${C.joy.creativityOnAbove}%"></b></div>
-        ${s.daysAlone ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо' : ''}</div>` : ''}
+        ${s.daysAlone && !s.friendsToday ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо' : ''}</div>` : ''}
         ${s.creativityBlocked ? `<div class="warn">Творчість недоступна до радості ${C.joy.creativityOnAbove}+</div>` : ''}
       </div>
 
@@ -642,7 +653,7 @@
         <div class="sub">${bp.atMin ? 'Базовий біль на мінімумі' : bp.dropTonight ? 'Уночі базовий біль ' + s.base + ' → ' + (s.base - 1)
           : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і базовий біль ' + s.base + ' → ' + (s.base - 1)}</div>
         ${s.courseStreak || s.courseToday ? `<div class="sub" ${s.courseOn ? 'style="color:var(--light)"' : ''}>${s.courseOn ? 'Курс ліків діє: базовий біль −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}</div>` : ''}
-        ${s.daysNoExercise ? `<div class="sub" ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}</div>` : ''}
+        ${s.daysNoExercise && !(s.exerciseToday && s.exerciseQuality !== 'short') ? `<div class="sub" ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}</div>` : ''}
       </div>
 
       <div class="sec">
@@ -664,9 +675,10 @@
       </div>
 
       <div class="btns">
-        <button class="btn primary ${allUsed ? 'pulse' : ''}" id="endBtn">Завершити день <kbd>E</kbd></button>
+        <button class="btn primary ${allUsed ? 'pulse' : ''}" id="endBtn">${allUsed ? 'Завершити день' : 'Лягти раніше'} <kbd>E</kbd></button>
         <button class="btn" id="journalBtn">Журнал</button>
       </div>
+      ${!allUsed ? `<div class="sub">Слоти ще лишилися: якщо лягти зараз — ${esc(G.sleepGainText(s))}.</div>` : ''}
       <button class="btn ghost" id="restartBtn">Почати заново</button>
       ${inv ? `<div class="warn">Якщо завершити день без зустрічі: відмова ${esc(inv.name)}, радість −${Math.abs(C.joy.refuseInvite)}</div>` : ''}
       ${endWarn ? `<div class="warn" style="color:var(--fatal)">${fc.lost ? 'Після ночі гра закінчиться: ' + esc(fc.lost.text.toLowerCase()) : 'Уночі біль дійде до 10: лікарня'}</div>` : ''}

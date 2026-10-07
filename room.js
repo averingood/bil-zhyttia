@@ -473,7 +473,9 @@
     // onSeated — коли всі сіли: тоді починається розмова від першої особи, а візит чекає на неї.
     playAction(id, guests, onSeated) {
       if (id === 'friends') { this.startVisit(guests, onSeated); return; }
-      this.bubble = { id, t: id === 'rest' || id === 'sleep' ? 2.4 : 1.6 };
+      this.bubble = { id, t: id === 'rest' ? 2.4 : 1.6 };
+      // Відпочинок — посидіти в кріслі-мішку, а не розкладати диван серед дня.
+      if (id === 'rest') this.slumpToBag();
     }
 
     // ---------- лікарня: швидка вночі, дні без дому, повернення ----------
@@ -545,7 +547,7 @@
           if (c.t > 3.6) { this.setHeroSit(0); go('dress'); }
         } else if (c.phase === 'dress') {
           // Перевдягається: одяг блимає, поки не стає чорним.
-          c.caption = 'Ти вдягаєш усе чорне.';
+          c.caption = 'Ти повільно збираєшся.';
           this.hero.black = c.t > 1.4 || Math.floor(c.t / 0.22) % 2 === 1;
           if (c.t > 2.2) {
             this.hero.black = true; c.slow = true;
@@ -772,7 +774,7 @@
         if (done && !this.path.length) {
           v.phase = 'greet'; v.t = 0;
           this.faceEachOther();
-          this.say(0, 'wave');
+          this.say(0, 'talk');   // «рука, що махає» в пікселях читалася як корона
           if (v.friends[1]) this.say(1, 'talk', 0.5);
           this.say('hero', 'talk', 1.1);
         }
@@ -800,9 +802,9 @@
           if (this.hero.sitting) this.setHeroSit(0);
           v.phase = 'leave'; v.t = 0;
           this.faceEachOther();
-          this.say(0, 'wave');
+          this.say(0, 'talk');
           if (v.friends[1]) this.say(1, 'heart', 0.4);
-          this.say('hero', 'wave', 0.9);
+          this.say('hero', 'talk', 0.9);
           v.friends.forEach((f, i) => {
             f.x = f.front[0]; f.y = f.front[1];
             f.path = [...this.findPath(DOOR_IN[0] + i * 0.5, DOOR_IN[1], f.x, f.y), [DOOR[0] + i * 0.5, DOOR[1] + i * 0.3]];
@@ -1023,7 +1025,7 @@
     bedOut() {
       return this.sleeping() || this.view.night;
     }
-    sleeping() { return !!(this.bubble && (this.bubble.id === 'rest' || this.bubble.id === 'sleep')) || !!(this.cut && this.cut.sleeping); }
+    sleeping() { return !!(this.cut && this.cut.sleeping); }
 
     objects() {
       const ctx = this.ctx, v = this.view, t = this.t;

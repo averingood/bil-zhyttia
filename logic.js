@@ -27,7 +27,6 @@
     meds:     { zone: 'shelf',   label: 'Знеболювальне' },
     course:   { zone: 'shelf',   label: 'Пігулка з курсу' },
     rest:     { zone: 'sofa',    label: 'Відпочити' },
-    sleep:    { zone: 'sofa',    label: 'Лягти раніше' },
     read:     { zone: 'books',   label: 'Почитати' },
     clean:    { zone: 'kitchen', label: 'Прибрати й помити посуд' },
     coffee:   { zone: 'kitchen', label: 'Випити кави' },
@@ -55,7 +54,7 @@
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const rawPain = (s) => s.base + s.extra - s.relief;
-  const pain = (s) => clamp(rawPain(s), 0, C.painMax);
+  const pain = (s) => clamp(rawPain(s), C.painMin || 0, C.painMax);
 
   function stateOfPain(p) {
     for (const k of Object.keys(C.states)) {
@@ -312,6 +311,8 @@
         break;
       case 'clean':
         if ((s.mess || 0) <= 0) return no('Вдома й так чисто');
+        // Як і з плитою: при сильному болю біля мийки не встояти.
+        if (stateCfg(s).cookCost == null) return no('При сильному болю (' + C.states.strong.min + '+) біля мийки не встояти. Посуд почекає');
         break;
     }
     return { available: true, reason: null };
@@ -391,12 +392,15 @@
 
     switch (id) {
       case 'work': {
-        const amount = workPay(s, opts.score != null ? opts.score : autoWorkScore(s));
+        let amount = workPay(s, opts.score != null ? opts.score : autoWorkScore(s));
+        // Відпрацювання пропущеного дедлайну: заробіток не платять (штрафи — платиш).
+        const unpaid = (s.unpaidUnits || 0) > 0 && amount > 0;
+        if (unpaid) { s.unpaidUnits--; amount = 0; s.stats.unpaidUnits = (s.stats.unpaidUnits || 0) + 1; }
         if (amount > 0) s.pending.push({ day: s.day + a.payDelay, amount });
         if (amount < 0) { s.money += amount; s.stats.fines = (s.stats.fines || 0) - amount; }   // штраф одразу
         s.workWeek++;
         s.stats.workUnits++;
-        note = amount > 0 ? '+' + amount + ' ₴ прийде на день ' + (s.day + a.payDelay) : amount < 0 ? 'штраф ' + amount + ' ₴' : 'нічого не зароблено';
+        note = unpaid ? 'відпрацьовуєш дедлайн, без оплати (лишилося ' + s.unpaidUnits + ')' : amount > 0 ? '+' + amount + ' ₴ прийде на день ' + (s.day + a.payDelay) : amount < 0 ? 'штраф ' + amount + ' ₴' : 'нічого не зароблено';
         break;
       }
       case 'create': {
@@ -414,7 +418,8 @@
         break;
       }
       case 'friends': {
-        const gain = Math.round(a.joy * mult * (s.friendsToday > 0 ? C.joy.repeatMult : 1));
+        const inv0 = inviteToday(s);
+        const gain = Math.round((a.joy + (inv0 ? a.inviteJoy : 0)) * mult * (s.friendsToday > 0 ? C.joy.repeatMult : 1));
         addJoy(s, gain);
         s.meetDays.push(s.day);
         s.friendsToday++;
@@ -483,14 +488,6 @@
         s.restedToday++;
         note = 'ресурс +' + a.gain;
         break;
-      case 'sleep': {
-        const skipped = slotsOf(s) - s.slot;
-        const gainTxt = sleepGainText(s);
-        s.sleptEarly = true;
-        s.stats.earlyNights = (s.stats.earlyNights || 0) + 1;
-        note = 'пропущено слотів: ' + skipped + ', ' + gainTxt;
-        break;
-      }
       case 'read': {
         const b = bookNow(s);
         s.readToday = (s.readToday || 0) + 1;
@@ -531,7 +528,6 @@
     if (pendingTalkNote) { note += '; ' + pendingTalkNote; pendingTalkNote = null; }
     j.did.push(slotLabel + ': ' + actionLabel(s, id).toLowerCase() + ' (' + note + ')');
     if (!a.freeSlot) s.slot++;
-    if (id === 'sleep') s.slot = slotsOf(s);
     checkLose(s, s.day);
     return { ok: true, note, borrowed: borrowedNow, guests: id === 'friends' ? s.lastGuests : null };
   }
@@ -605,6 +601,9 @@
     const j = journalFor(s, s.day);
     const N = C.night;
     const endState = stateKey(s);
+    // Завершити день, поки лишилися слоти, — і є «лягти раніше».
+    s.sleptEarly = s.slot < slotsOf(s);
+    if (s.sleptEarly) s.stats.earlyNights = (s.stats.earlyNights || 0) + 1;
     const bedPain = pain(s);    // з чим лягаємо: від цього залежить, чи буде безсоння
 
     // Нагадування про борг, а гроші так і не повернуто — друга втрачено.
@@ -666,6 +665,7 @@
       s.courseStreak = (s.courseStreak || 0) + 1;
       if (!s.courseOn && s.courseStreak >= CC.days) { s.courseOn = true; ev.push({ kind: 'good', text: s.courseStreak + ' днів курсу поспіль: ліки почали діяти, базовий біль −' + CC.baseDrop }); }
     } else if (s.courseStreak > 0) {
+      s.stats.courseMissed = (s.stats.courseMissed || 0) + 1;
       if (s.courseOn) ev.push({ kind: 'pain', text: 'Курс перервано: ліки перестали діяти, базовий біль знову вищий' });
       else ev.push({ kind: 'info', text: 'Пропущено пігулку: курс доведеться почати спочатку' });
       s.courseStreak = 0; s.courseOn = false;
@@ -722,8 +722,8 @@
     // Хатні справи: безлад росте сам, від готування й гостей — ще більше.
     const H = C.chores;
     s.mess = Math.min(H.max, (s.mess || 0) + H.perDay + (s.foodType === 'cook' ? H.cookAdd : 0) + (s.friendsToday > 0 ? H.guestsAdd : 0));
-    if (s.mess >= H.badAt) { addJoy(s, H.badJoy); ev.push({ kind: 'joy', text: 'Вдома безлад, гнітить: радість ' + signed(H.badJoy) }); }
-    else if (s.mess >= H.annoyAt) { addJoy(s, H.annoyJoy); ev.push({ kind: 'joy', text: 'Посуд і речі накопичуються: радість ' + signed(H.annoyJoy) }); }
+    const messJoy = -Math.ceil(Math.max(0, s.mess - H.freeUpTo) / 2);
+    if (messJoy) { addJoy(s, messJoy); ev.push({ kind: 'joy', text: (s.mess >= H.badAt ? 'Вдома безлад, гнітить' : s.mess >= H.annoyAt ? 'Посуд і речі накопичуються' : 'Потроху захаращується') + ': радість ' + signed(messJoy) }); }
 
     // Самотність: кілька днів без зустрічей.
     if (s.friendsToday > 0) s.daysAlone = 0;
@@ -806,6 +806,10 @@
       } else {
         s.misses++;
         s.stats.deadlinesMissed++;
+        // Кожна недороблена одиниця — неоплачуваний робочий день: відпрацьовуєш задарма.
+        const owe = need - s.workWeek;
+        s.unpaidUnits = (s.unpaidUnits || 0) + owe;
+        ev.push({ kind: 'bad', text: 'За пропущений дедлайн: ' + owe + ' ' + (owe === 1 ? 'робочий день' : owe < 5 ? 'робочі дні' : 'робочих днів') + ' без оплати' });
         j.refused.push('Пропущено дедлайн: ' + s.workWeek + '/' + need);
         ev.push({ kind: 'bad', text: 'Дедлайн пропущено: ' + s.workWeek + '/' + need });
         if (!s.partTime && s.misses >= C.work.missesForPartTime) {
@@ -879,7 +883,8 @@
     if (!chk.available) return out;
     out.borrow = Math.max(0, cost - s.energy);
     const after = clone(s);
-    doAction(after, id, id === 'work' ? { score: maxWorkScore() } : null);
+    // Візит рахуємо без розмови: її результат випадковий і міг обнулити радість на картці.
+    doAction(after, id, id === 'work' ? { score: maxWorkScore() } : id === 'friends' ? { deferTalk: true } : null);
     if (after.lost) { out.fatal = after.lost; return out; }
 
     const hidden = !stateCfg(s).hintsVisible;
@@ -902,12 +907,6 @@
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
     if (id === 'coffee') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
-    if (id === 'sleep') {
-      // Поточний слот теж іде на сон: увечері це і є «раніше».
-      const left = slotsOf(s) - s.slot;
-      fx.push({ t: 'решта дня — сон (' + left + ' ' + (left === 1 ? 'слот згорить' : left < 5 ? 'слоти згорять' : 'слотів згорить') + ')', kind: 'info' });
-      fx.push({ t: sleepGainText(s), kind: sleepGain(s).with < sleepGain(s).without ? 'pain' : 'info' });
-    }
     if (after.fed && !s.fed) fx.push({ t: 'їжа на день є', kind: 'info' });
     if (after.trainings > s.trainings) {
       fx.push({ t: baseProgressText(after), kind: 'info' });
@@ -980,7 +979,8 @@
         ? 'Щоночі радість ' + signed(C.lonely.joy) + ', поки когось не побачиш.' : 'Ще день наодинці — уночі радість ' + signed(C.lonely.joy) + '.') });
     {
       const H = C.chores, next = Math.min(H.max, (s.mess || 0) + H.perDay + (s.foodType === 'cook' ? H.cookAdd : 0) + (s.friendsToday > 0 ? H.guestsAdd : 0));
-      if (next >= H.annoyAt) out.push({ kind: 'joy', t: 'Вдома ' + messText(s.mess) + '. Якщо не прибрати, уночі радість ' + signed(next >= H.badAt ? H.badJoy : H.annoyJoy) + '.' });
+      const mj = -Math.ceil(Math.max(0, next - H.freeUpTo) / 2);
+      if (mj) out.push({ kind: 'joy', t: 'Вдома ' + messText(s.mess) + '. Якщо не прибрати, уночі радість ' + signed(mj) + '.' });
     }
     if (pain(s) >= C.night.badNight.minPain)
       out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (ресурс −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
@@ -1028,8 +1028,17 @@
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
     if (st.friendsLost) lost.push('Втрачено друзів через борги: ' + st.friendsLost);
-    if (st.booksRead) kept.push('Дочитано книжок: ' + st.booksRead);
+    {
+      const b = bookNow(s);
+      if (st.booksRead || (b && s.book.done)) kept.push('Книжки: дочитано ' + (st.booksRead || 0) + (b && s.book.done ? ', недочитана «' + b[0] + '» (' + s.book.done + ' з ' + b[1] + ')' : ''));
+    }
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
+    if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed + ' (кожен пропуск — курс з нуля)');
+    if (st.borrowedMoney) {
+      const left = Object.entries(s.debts || {});
+      lost.push('Позичено в друзів: ' + st.borrowedMoney + ' ₴' + (left.length ? '; не повернуто: ' + left.map(([n, d]) => n + ' ' + d.amount + ' ₴').join(', ') : ', усе повернуто'));
+    }
+    if (st.unpaidUnits) lost.push('Неоплачуваних робочих днів за дедлайни: ' + st.unpaidUnits);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
     if (st.meds) kept.push('Знеболювальне: ' + st.meds + ' р.');
     if (st.earlyNights) kept.push('Лягав раніше: ' + st.earlyNights + ' р.');
@@ -1037,7 +1046,7 @@
     if (st.talkHeard) kept.push('Почув друзів: ' + st.talkHeard + ' р.');
     if (st.talkMissed) lost.push('Не почув друзів: ' + st.talkMissed + ' р.' + ((s.warmth || 0) < 0 ? ', кличуть рідше' : ''));
     if (st.fines) lost.push('Штрафи на планерках: ' + st.fines + ' ₴');
-    if (st.tried) lost.push('Хотів, але не міг: ' + st.tried + ' р.');
+    if (st.tried) lost.push('Хотілося щось зробити, але бракувало ресурсу, грошей чи сил: ' + st.tried + ' р.');
 
     return {
       lost: s.lost ? Object.assign({}, s.lost) : null,
