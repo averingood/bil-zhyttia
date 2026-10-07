@@ -711,11 +711,13 @@
         const front = one ? SEAT_ONE_FRONT : SEAT_FRONT[i];
         const a = { name, x: DOOR[0] + i * 0.5, y: DOOR[1] + i * 0.3, pal: look.pal, long: look.long,
           seated: false, sit: 0, sitDir: 0, path: [], seat: one ? SEAT_ONE : SEATS[i], front };
-        a.path = [[DOOR_IN[0] + i * 0.5, DOOR_IN[1]], ...this.findPath(front[0], front[1], DOOR_IN[0] + i * 0.5, DOOR_IN[1])];
+        // Спершу — крок за поріг; решта шляху до дивана — після привітання.
+        a.path = [[DOOR_IN[0] + i * 0.5, DOOR_IN[1]]];
+        a.rest = this.findPath(front[0], front[1], DOOR_IN[0] + i * 0.5, DOOR_IN[1]);
         return a;
       });
       this.visit = { phase: 'enter', t: 0, friends, onSeated: onSeated || null, hold: false };
-      // Герой іде до крісла-мішка, поки гості заходять.
+      // Герой іде до крісла-мішка біля входу й зустрічає гостей там — ніхто ні з ким не розминається.
       this.setHeroSit(0);
       this.path = this.findPath(BAG_FRONT[0], BAG_FRONT[1]);
       this.target = null;
@@ -753,9 +755,9 @@
     // Обличчям одне до одного: друзі дивляться на героя, герой — на них.
     faceEachOther() {
       const v = this.visit, h = this.hero;
-      v.friends.forEach((f) => { f.back = (h.x - f.x) + (h.y - f.y) < 0; });
-      const f0 = v.friends[0];
-      h.back = (f0.x - h.x) + (f0.y - h.y) < 0;
+      const face = (a, tx, ty) => { const dx = tx - a.x, dy = ty - a.y; a.back = dx + dy < 0; if (Math.abs(dx - dy) > 0.05) a.dir = dx - dy > 0 ? 1 : -1; };
+      v.friends.forEach((f) => face(f, h.x, h.y));
+      face(h, v.friends[0].x, v.friends[0].y);
     }
 
     updateVisit(dt) {
@@ -772,19 +774,29 @@
       this.hero.sitting = this.hero.sit > 0;
 
       if (v.phase === 'enter') {
-        // Друзі заходять, коли герой уже звільнив прохід біля дивана.
-        if (v.t < 1.3) return;
+        // Друзі переступають поріг — і одразу вітаються з героєм, обличчям до обличчя.
+        if (this.path.length) return;   // спершу герой підходить до мішка
         const done = v.friends.map((f) => this.moveActor(f, dt, sp)).every(Boolean);
-        if (done && !this.path.length) {
+        if (done) {
           v.phase = 'greet'; v.t = 0;
           this.faceEachOther();
           this.say(0, 'talk');   // «рука, що махає» в пікселях читалася як корона
-          if (v.friends[1]) this.say(1, 'talk', 0.5);
-          this.say('hero', 'talk', 1.1);
+          this.say('hero', 'talk', 0.35);
+          if (v.friends[1]) this.say(1, 'talk', 0.7);
         }
       } else if (v.phase === 'greet') {
         this.faceEachOther();
-        if (v.t > 2.2) {
+        if (v.t > 1.4) {
+          // Привіталися — гості йдуть на диван, герой лишається біля мішка.
+          v.friends.forEach((f) => { f.path = f.rest || []; });
+          v.phase = 'walk'; v.t = 0;
+        }
+      } else if (v.phase === 'walk') {
+        const done = v.friends.map((f) => this.moveActor(f, dt, sp)).every(Boolean);
+        // Герой проводжає гостей поглядом.
+        const h = this.hero, f0 = v.friends[0], dx = f0.x - h.x, dy = f0.y - h.y;
+        h.back = dx + dy < 0; if (Math.abs(dx - dy) > 0.05) h.dir = dx - dy > 0 ? 1 : -1;
+        if (done) {
           v.friends.forEach((f) => { f.sitDir = 1; f.moving = false; });
           this.hero.sit = 0.001; this.hero.sitDir = 1; this.hero.sitting = true;
           v.phase = 'sitdown'; v.t = 0;

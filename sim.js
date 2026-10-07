@@ -20,6 +20,7 @@ function deadlinePressure(s) {
 
 // Розважлива: не позичає, їсть, тримає дедлайн, відповідає друзям.
 function careful(s, opt = {}) {
+  if (ok(s, 'course')) return 'course';   // курсову пігулку п'є завжди — вона дешева й без слота
   if (!s.fed && can(s, 'cook')) return 'cook';
   if (opt.meds != null && ok(s, 'meds') && s.medsToday === 0 && s.money > 90 && L.pain(s) >= opt.meds) return 'meds';
   if (L.inviteToday(s) && can(s, 'friends')) return 'friends';

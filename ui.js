@@ -326,7 +326,7 @@
       held.clear(); applyKeys();
       $('actionBar').innerHTML = `<div class="sc-head"><span class="ab-zone">У гостях</span><span class="ab-meta">${esc(r.guests.join(' і '))} ${r.guests.length > 1 ? 'заходять' : 'заходить'}…</span></div>`;
     }
-    if (id === 'work' || id === 'create') workingT = 1.8;
+    if (id === 'work' || id === 'games') workingT = 1.8;   // монітор світиться лише від роботи й ігор, не від синтезатора
     if (r.borrowed) toast('Позичено ресурсу ' + r.borrowed + '. Завтра біль +' + r.borrowed + ', уночі радість −' + r.borrowed * C.joy.borrowPenalty + '.');
     renderAll();
     if (game.lost) setTimeout(showEnd, 900);

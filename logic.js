@@ -113,7 +113,7 @@
       seed, rng: seed | 0,
       difficulty: diffKey, days: opts.days || C.days, flareChance: diff.flareChance,
       day: 1, slot: 0,
-      baseStart: diff.basePain, base: diff.basePain, extra: C.start.extraPain, relief: 0,
+      baseStart: diff.basePain, base: diff.basePain, extra: diff.extraPain != null ? diff.extraPain : C.start.extraPain, relief: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
       // Рівень складності — це обставини життя: гроші, оренда, скільки друзів, як платить робота.
       money: diff.money != null ? diff.money : C.start.money, joy: C.start.joy,
@@ -520,7 +520,7 @@
         s.money -= a.money;
         s.medsToday++;
         s.stats.meds++;
-        note = 'біль ' + before + ' → ' + pain(s) + ', −' + a.money + ' ₴';
+        note = 'біль ' + before + ' → ' + pain(s) + ', −' + a.money + ' ₴' + sideEffect(s, a);
         break;
       }
       case 'rest':
@@ -578,7 +578,7 @@
         s.money -= a.money;
         s.courseToday = 1;
         s.stats.course = (s.stats.course || 0) + 1;
-        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? (courseWorks(s) ? ', діє' : ', не діє без руху') : '') + ', −' + a.money + ' ₴';
+        note = 'курс ' + Math.min(a.days, (s.courseStreak || 0) + 1) + '/' + a.days + (s.courseOn ? (courseWorks(s) ? ', діє' : ', не діє без руху') : '') + ', −' + a.money + ' ₴' + sideEffect(s, a);
         break;
       case 'clean': {
         const was = s.mess;
@@ -608,6 +608,18 @@
     const N = C.night, tb = s.trainBase != null ? s.trainBase : s.baseStart;
     const raw = tb - (courseWorks(s) ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0);
     s.base = Math.max(minBase(s), Math.min(s.baseStart + N.chronic.cap, raw));
+  }
+  // Побічка ліків: з шансом — одна з неприємностей. Повертає хвіст для нотатки.
+  function sideEffect(s, a) {
+    if (!a.side || rand(s) >= a.side.chance) return '';
+    const e = a.side.list[Math.floor(rand(s) * a.side.list.length)];
+    const parts = [];
+    if (e.energy) { s.energy = Math.max(0, s.energy - e.energy); parts.push('ресурс −' + e.energy); }
+    if (e.joy) { addJoy(s, -e.joy); parts.push('радість −' + e.joy); }
+    if (e.energyTomorrow) { s.sleepPenalty = (s.sleepPenalty || 0) + e.energyTomorrow; parts.push('завтра ресурс −' + e.energyTomorrow); }
+    s.stats.sideEffects = (s.stats.sideEffects || 0) + 1;
+    s.lastSide = e.text;
+    return '; побічка — ' + e.text + ': ' + parts.join(', ');
   }
   // Курс діє лише з рухом: вправи чи хоча б розтяжка сьогодні або вчора.
   function courseWorks(s) { return s.courseOn && s.day - (s.lastMoveDay != null ? s.lastMoveDay : -99) <= C.actions.course.moveEvery - 1; }
@@ -654,7 +666,8 @@
   }
 
   function flareChanceTonight(s) {
-    return Math.min(1, s.flareChance + (s.coffeeToday || 0) * C.actions.coffee.flareAdd);
+    const calm = C.night.calm ? Math.min(C.night.calm.max, (s.calmNights || 0) * C.night.calm.perNight) : 0;
+    return Math.min(1, s.flareChance + calm + (s.coffeeToday || 0) * C.actions.coffee.flareAdd);
   }
 
   // Прогрес до зниження бази — однаковий текст у картці дії, панелі й нотатці.
@@ -797,11 +810,13 @@
     // 6. Загострення.
     const roll = rand(s);
     const flare = opts.forceFlare != null ? opts.forceFlare : roll < flareChanceTonight(s);
+    if (!flare) s.calmNights = (s.calmNights || 0) + 1;
     if (flare) {
       const size = flareSize(s);
       s.extra += size;
       s.stats.flares++;
       s.lastFlareSize = size;
+      s.calmNights = 0;
       ev.push({ kind: 'flare', text: (C.night.flareNames[size] || 'Загострення') + ' вночі: тимчасовий біль +' + size });
       // Три загострення за тиждень — біль хронізується.
       const CH = N.chronic;
@@ -830,7 +845,7 @@
     // 6б. Погана ніч: з сильним болем важко заснути. Прогноз її не вгадує — це випадковість.
     const BN = N.badNight;
     if (opts.forceFlare == null && bedPain >= BN.minPain && rand(s) < (s.sleptEarly ? BN.earlyChance : BN.chance)) {
-      s.sleepPenalty = BN.energy;
+      s.sleepPenalty = (s.sleepPenalty || 0) + BN.energy;
       s.stats.badNights = (s.stats.badNights || 0) + 1;
       ev.push({ kind: 'bad', text: 'Біль не давав заснути: зранку ресурс −' + BN.energy });
     }
@@ -1150,7 +1165,7 @@
     const lost = [];
     if (st.meetings) kept.push('Зустрічі з друзями: ' + st.meetings + (st.invitesAccepted ? ', з них на їхнє запрошення ' + st.invitesAccepted : ''));
     if (st.createDays) kept.push('Дні з творчістю: ' + st.createDays);
-    if (st.workUnits) kept.push('Зароблено: ' + st.earned + ' ₴' +
+    if (st.workUnits) kept.push('Зароблено ' + st.earned + ' ₴' +
       (s.pending.length ? ' (ще ' + s.pending.reduce((a, p) => a + p.amount, 0) + ' ₴ в дорозі)' : ''));
     if (s.trainings) kept.push('Днів із вправами: ' + s.trainings);
 
@@ -1165,19 +1180,17 @@
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
-    if (st.chronic) lost.push('Біль хронізувався: базовий +' + st.chronic + ' (тиждень без вправ або часті загострення)');
     if (st.numbNights) lost.push('Ночей із радістю на нулі: ' + st.numbNights);
     if (st.friendsLost) lost.push('Втрачено друзів через борги: ' + st.friendsLost);
     {
       const b = bookNow(s);
-      if (st.booksRead) kept.push('Дочитано книжок: ' + st.booksRead);
-      if (b && s.book.done) lost.push('Недочитана «' + b[0] + '» (' + s.book.done + ' з ' + b[1] + ')');
+      const read = C.books.slice(0, (s.book || { i: 0 }).i);
+      if (read.length) kept.push('Книжки прочитано: ' + read.map((x) => '«' + x[0] + '»').join(', '));
     }
     if (st.course) kept.push('Курсових пігулок: ' + st.course);
     if (st.games) kept.push('Вечорів в іграх: ' + st.games);
     if (st.doctor) kept.push('Дзвінків лікарю: ' + st.doctor + ' (базовий біль −' + st.doctor * C.actions.doctor.baseDrop + ')');
     if (st.songs) kept.push('Пісні: ' + (st.songTitles || []).map((t) => '«' + t + '»').join(', '));
-    if (s.song && s.song.done) lost.push('Недописана «' + s.song.title + '» (' + s.song.done + ' з ' + C.actions.create.songSessions + ')');
     if (st.courseMissed) lost.push('Пропущено пігулок з курсу: ' + st.courseMissed);
     if (st.borrowedMoney) {
       const left = Object.entries(s.debts || {});
@@ -1185,7 +1198,7 @@
     }
     if (st.unpaidUnits) lost.push('Неоплачуваних робочих днів за дедлайни: ' + st.unpaidUnits);
     if (st.hospital) lost.push('Лікарня: ' + st.hospital + ' р., ' + st.hospitalDays + ' дн. випало з життя');
-    if (st.coffee) kept.push('Кави випито: ' + st.coffee + ' чаш.');
+    kept.splice(Math.min(kept.length, 4), 0, 'Наприкінці: ' + s.money + ' ₴, радість ' + s.joy + ', біль ' + pain(s));
     if (st.talkHeard) kept.push('Почув друзів: ' + st.talkHeard + ' р.');
     if (st.talkMissed) lost.push('Не почув друзів: ' + st.talkMissed + ' р.' + ((s.warmth || 0) < 0 ? ', кличуть рідше' : ''));
     if (st.fines) lost.push('Штрафи на планерках: ' + st.fines + ' ₴');
