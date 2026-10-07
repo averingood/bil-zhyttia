@@ -107,13 +107,12 @@ const STRATS = {
   'випадкова': random,
 };
 
-// Позики: розважливий гравець повертає, щойно спитали і є гроші; позичає, коли грошей на дні.
+// Позики: повертати — рішення героя, і лише коли друг сам спитає; позичає, коли грошей на дні.
 let LOANS = true;
 function loans(s) {
   if (!LOANS) return;
   const ask = L.debtAsk(s);
   if (ask && s.money >= ask.amount + 5) L.repay(s, ask.name);
-  for (const n of Object.keys(s.debts || {})) if (s.money > 90) L.repay(s, n);
   if (s.money < 30) { const n = C.friends.names.find((x) => L.canBorrow(s, x)); if (n) L.borrow(s, n); }
 }
 
