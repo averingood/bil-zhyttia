@@ -21,17 +21,17 @@
       light: {
         name: 'Легкий', min: 0, max: 3,
         energy: 7, slots: 6, cookCost: 1,
-        joyMult: 1.0, joyDaily: -2, hintsVisible: true,
+        joyMult: 1.0, joyDaily: -3, hintsVisible: true,
       },
       medium: {
         name: 'Помітний', min: 4, max: 6,
         energy: 5, slots: 4, cookCost: 2,
-        joyMult: 0.7, joyDaily: -6, hintsVisible: true,
+        joyMult: 0.7, joyDaily: -7, hintsVisible: true,
       },
       strong: {
         name: 'Сильний', min: 7, max: 10,
         energy: 3, slots: 3, cookCost: null, // null = готувати недоступно
-        joyMult: 0.4, joyDaily: -12, hintsVisible: false,
+        joyMult: 0.4, joyDaily: -13, hintsVisible: false,
       },
     },
 
