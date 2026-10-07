@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ложки — прототип</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600&family=Tiny5&display=swap">
+<style>
+  /* Прототип ядра: одна валюта (ложки), біль як погода, чотири сфери, що тануть. */
+  :root {
+    --bg: #161924; --panel: #20243a; --line: #3b4263; --fg: #ece3cf; --muted: #9aa0b8; --accent: #d4a03e;
+    --light: #8fcf7e; --medium: #e9ac45; --strong: #df5b4f; --bad: #ff7a6b;
+    --money: #e8c25a; --people: #e58fa8; --body: #6fcf8a; --soul: #8fb4ff;
+    --font: "Handjet", "Arial Narrow", ui-sans-serif, sans-serif; --display: "Tiny5", "Handjet", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 20px/1.3 var(--font); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 20px; }
+  h1 { margin: 0; font: 32px/1 var(--display); color: var(--accent); }
+  .muted { color: var(--muted); }
+  .top { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; background: var(--panel); border: 2px solid var(--line); padding: 12px 16px; }
+  .day { font: 26px/1 var(--display); }
+  .pain { display: grid; gap: 4px; }
+  .painbar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; height: 16px; }
+  .painbar i { background: #2b3049; }
+  .painbar i.on { background: var(--c); }
+  .spoons { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; min-width: 160px; }
+  .spoon { width: 18px; height: 34px; }
+  .spoon.used { opacity: .18; }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .sphere { background: var(--panel); border: 2px solid var(--line); padding: 12px; display: grid; gap: 10px; align-content: start; }
+  .sphere.danger { border-color: var(--bad); }
+  .sh { display: flex; justify-content: space-between; align-items: baseline; }
+  .sh b { font: 22px/1 var(--display); color: var(--c); }
+  .sh span { font: 26px/1 var(--display); }
+  .meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; height: 14px; }
+  .meter i { background: #2b3049; }
+  .meter i.on { background: var(--c); }
+  .sphere.danger .meter i.on { background: var(--bad); }
+  .act { font: inherit; color: var(--fg); background: #262b45; border: 2px solid var(--line); padding: 8px 10px; text-align: left; cursor: pointer; display: grid; gap: 2px; }
+  .act:hover:not(:disabled), .act:focus-visible { border-color: var(--accent); }
+  .act:disabled { opacity: .45; cursor: default; }
+  .act .row { display: flex; justify-content: space-between; gap: 8px; }
+  .act small { color: var(--muted); font-size: 16px; }
+  .act .hurt { color: var(--medium); }
+  .bottom { display: grid; grid-template-columns: 1fr 340px; gap: 12px; align-items: start; }
+  .panel { background: var(--panel); border: 2px solid var(--line); padding: 12px 14px; }
+  .panel h2 { margin: 0 0 6px; font: 18px/1 var(--display); color: var(--muted); }
+  .log p { margin: 2px 0; font-size: 18px; }
+  .log .d { color: var(--accent); }
+  .btn { font: 22px/1 var(--font); padding: 10px 18px; background: var(--accent); color: #1b1b22; border: 0; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--fg); border: 2px solid var(--line); }
+  .rules ul { margin: 0; padding-left: 18px; font-size: 17px; }
+  .rules li { margin: 3px 0; }
+  .end { position: fixed; inset: 0; background: rgba(10,12,20,.88); display: grid; place-items: center; padding: 16px; }
+  .end .box { background: var(--panel); border: 2px solid var(--line); padding: 18px; width: min(760px, 100%); display: grid; gap: 12px; }
+  .end h2 { margin: 0; font: 28px/1.1 var(--display); color: var(--bad); }
+  canvas { width: 100%; height: auto; background: #1a1e2e; image-rendering: auto; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 17px; }
+  .legend i { display: inline-block; width: 14px; height: 4px; vertical-align: middle; margin-right: 5px; background: var(--c); }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .bottom { grid-template-columns: 1fr; }
+    .top { grid-template-columns: 1fr; }
+    .spoons { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ложки</h1>
+    <span class="muted">Прототип ядра: 21 день, чотири сфери. Виграти не можна — обираєш, як і коли посиплеться.</span>
+  </header>
+
+  <section class="top">
+    <div class="day" id="day"></div>
+    <div class="pain"><span id="painTxt"></span><div class="painbar" id="painbar"></div></div>
+    <div class="spoons" id="spoons" aria-label="Ложки на сьогодні"></div>
+  </section>
+
+  <section class="grid" id="spheres"></section>
+
+  <section class="bottom">
+    <div class="panel log" id="log"><h2>Ночі</h2></div>
+    <div style="display:grid;gap:12px">
+      <button class="btn" id="endBtn">Закінчити день</button>
+      <div class="panel rules">
+        <h2>Правила</h2>
+        <ul>
+          <li>Зранку біль дає ложки: що сильніше болить, то менше. Кожна справа коштує ложки.</li>
+          <li>Щоночі кожна сфера −1, а з часом життя тисне сильніше — ще −1 у кількох сферах.</li>
+          <li>Біль б'є по сферах по-різному: заробляєш менше, зустрічі дають менше, вправи дорожчі, пісні з болем 7+ не пишуться.</li>
+          <li>Тіло тримає біль: слабке — завтра +1, міцне (7+) — загострення вдвічі рідше.</li>
+          <li>Гроші тримають тіло: ≤2 — тіло −1 щоночі. Ліки коштують гроші.</li>
+          <li>Люди підхоплюють: 6+ — у поганий день +1 ложка.</li>
+          <li>Душа дає сили: 7+ — +1 ложка, ≤2 — −1.</li>
+          <li>Базовий біль з часом росте (дні 6, 11, 16). Сфера на нулі — кінець.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="end" id="end" hidden>
+  <div class="box">
+    <h2 id="endTitle"></h2>
+    <p id="endText" class="muted" style="margin:0"></p>
+    <canvas id="chart" width="720" height="300"></canvas>
+    <div class="legend" id="legend"></div>
+    <div><button class="btn" id="againBtn">Ще раз</button></div>
+  </div>
+</div>
+
+<script src="spoons-logic.js"></script>
+<script>
+(function () {
+  'use strict';
+  const S = window.Spoons, $ = (id) => document.getElementById(id);
+  const COL = { money: 'var(--money)', people: 'var(--people)', body: 'var(--body)', soul: 'var(--soul)' };
+  const HEX = { money: '#e8c25a', people: '#e58fa8', body: '#6fcf8a', soul: '#8fb4ff', pain: '#df5b4f' };
+  let s;
+
+  const spoonSvg = (used) => `<svg class="spoon${used ? ' used' : ''}" viewBox="0 0 9 17" shape-rendering="crispEdges" aria-hidden="true">
+    <rect x="2" y="0" width="5" height="1" fill="#cfd3dc"/><rect x="1" y="1" width="7" height="4" fill="#cfd3dc"/><rect x="2" y="5" width="5" height="1" fill="#cfd3dc"/>
+    <rect x="2" y="1" width="2" height="2" fill="#eef1f6"/><rect x="4" y="6" width="1" height="10" fill="#aeb3bf"/><rect x="3" y="16" width="3" height="1" fill="#aeb3bf"/></svg>`;
+  const painCol = (p) => (p <= 3 ? 'var(--light)' : p <= 6 ? 'var(--medium)' : 'var(--strong)');
+
+  function render() {
+    const p = S.pain(s);
+    $('day').textContent = 'День ' + Math.min(s.day, S.R.days) + ' з ' + S.R.days;
+    $('painTxt').innerHTML = 'Біль <b style="color:' + painCol(p) + '">' + p + '</b> <span class="muted">(базовий ' + s.base + (s.extra ? (s.extra > 0 ? ' +' : ' ') + s.extra : '') + (s.relief ? ', ліки −' + s.relief : '') + ')</span>';
+    $('painbar').innerHTML = Array.from({ length: 10 }, (_, i) => `<i class="${i < p ? 'on' : ''}" style="--c:${painCol(p)}"></i>`).join('');
+    $('spoons').innerHTML = Array.from({ length: s.spoonsMorning }, (_, i) => spoonSvg(i >= s.spoons)).join('');
+    $('spheres').innerHTML = Object.entries(S.SPHERES).map(([k, sp]) => {
+      const v = s[k];
+      const acts = S.ACTIONS.filter((a) => a.sphere === k).map((a) => {
+        const why = S.check(s, a), cost = a.cost(p), g = a.gain(p), full = a.gain(1);
+        const hurt = g < full || cost > a.cost(1);
+        const extras = [a.money ? 'гроші ' + a.money : '', a.painToday ? 'біль сьогодні ' + a.painToday : '', a.painTomorrow ? 'біль завтра ' + a.painTomorrow : ''].filter(Boolean).join(', ');
+        return `<button class="act" data-id="${a.id}" ${why ? 'disabled' : ''} title="${a.why || ''}">
+          <span class="row"><span>${a.name}</span><span>${cost ? cost + ' лож.' : 'без ложок'}</span></span>
+          <small>${why ? why : `<span class="${hurt ? 'hurt' : ''}">${sp.name.toLowerCase()} +${g}${g < full ? ' (без болю +' + full + ')' : ''}</span>${extras ? ' · ' + extras : ''}${cost > a.cost(1) ? ' · <span class="hurt">дорожче через біль</span>' : ''}`}</small>
+        </button>`;
+      }).join('');
+      return `<div class="sphere ${v <= 2 ? 'danger' : ''}" style="--c:${COL[k]}">
+        <div class="sh"><b>${sp.icon} ${sp.name}</b><span>${v}</span></div>
+        <div class="meter">${Array.from({ length: 10 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('')}</div>
+        ${acts}</div>`;
+    }).join('');
+    document.querySelectorAll('.act').forEach((b) => { b.onclick = () => { S.act(s, b.dataset.id); render(); }; });
+  }
+
+  function endDay() {
+    const before = s.day;
+    const ev = S.endDay(s);
+    const line = document.createElement('p');
+    line.innerHTML = `<span class="d">Ніч ${before}:</span> ${ev.length ? ev.join('; ') : 'тихо'}.`;
+    $('log').insertBefore(line, $('log').children[1] || null);
+    if (s.lost) return showEnd();
+    render();
+  }
+
+  function showEnd() {
+    const L = s.lost;
+    $('endTitle').textContent = L.sphere ? S.SPHERES[L.sphere].fall + ' на ' + L.day + '-й день' : 'Ти прожив усі ' + S.R.days + ' днів';
+    const last = s.history[s.history.length - 1];
+    $('endText').textContent = L.sphere
+      ? 'Інші сфери на той ранок: ' + Object.keys(S.SPHERES).filter((k) => k !== L.sphere).map((k) => S.SPHERES[k].name.toLowerCase() + ' ' + last[k]).join(', ') + '. Біль у середньому ' + (s.history.reduce((a, h) => a + h.pain, 0) / s.history.length).toFixed(1) + '.'
+      : 'Так не мало статися — напиши, як вдалося.';
+    drawChart();
+    $('end').hidden = false;
+  }
+
+  function drawChart() {
+    const c = $('chart'), g = c.getContext('2d'), W = c.width, H = c.height, pad = 28, n = S.R.days;
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = '#2b3049'; g.lineWidth = 1;
+    for (let v = 0; v <= 10; v += 2) { const y = H - pad - v / 10 * (H - 2 * pad); g.beginPath(); g.moveTo(pad, y); g.lineTo(W - 8, y); g.stroke(); }
+    g.fillStyle = '#9aa0b8'; g.font = '14px Handjet';
+    for (let d = 1; d <= n; d += 4) g.fillText(d, pad + (d - 1) / (n - 1) * (W - pad - 8) - 3, H - 8);
+    const series = ['money', 'people', 'body', 'soul', 'pain'];
+    for (const k of series) {
+      g.strokeStyle = HEX[k]; g.lineWidth = k === 'pain' ? 2 : 3; g.setLineDash(k === 'pain' ? [5, 4] : []);
+      g.beginPath();
+      s.history.forEach((h, i) => { const x = pad + (h.day - 1) / (n - 1) * (W - pad - 8), y = H - pad - h[k] / 10 * (H - 2 * pad); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.stroke();
+    }
+    g.setLineDash([]);
+    $('legend').innerHTML = series.map((k) => `<span style="--c:${HEX[k]}"><i></i>${k === 'pain' ? 'біль' : S.SPHERES[k].name}</span>`).join('');
+  }
+
+  function start() { s = S.create(); $('end').hidden = true; $('log').innerHTML = '<h2>Ночі</h2>'; render(); }
+  $('endBtn').onclick = endDay;
+  $('againBtn').onclick = start;
+  window.addEventListener('keydown', (e) => { if (e.code === 'KeyE' && $('end').hidden) endDay(); });
+  start();
+})();
+</script>
+</body>
+</html>
