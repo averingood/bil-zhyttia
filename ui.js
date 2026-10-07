@@ -249,7 +249,7 @@
     const sg = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
     if (a.pending > b.pending) parts.push({ t: '+' + (a.pending - b.pending) + ' ₴ через ' + C.actions.work.payDelay + ' дні', k: 'good' });
     if (a.money !== b.money) parts.push({ t: sg(a.money - b.money) + ' ₴', k: a.money > b.money ? 'good' : 'bad' });
-    if (a.energy !== b.energy) parts.push({ t: (a.energy > b.energy ? '+' : '−') + Math.abs(a.energy - b.energy) + ' ' + (Math.abs(a.energy - b.energy) === 1 ? 'сила' : 'сили'), k: a.energy > b.energy ? 'good' : '' });
+    if (a.energy !== b.energy) parts.push({ t: 'ресурс ' + (a.energy > b.energy ? '+' : '−') + Math.abs(a.energy - b.energy), k: a.energy > b.energy ? 'good' : '' });
     if (a.borrowed > b.borrowed) parts.push({ t: 'позичено ' + (a.borrowed - b.borrowed) + ': завтра біль +' + (a.borrowed - b.borrowed), k: 'bad' });
     if (a.joy !== b.joy) parts.push({ t: 'радість ' + sg(a.joy - b.joy), k: a.joy > b.joy ? 'good' : 'bad' });
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
@@ -291,7 +291,7 @@
       $('actionBar').innerHTML = `<div class="sc-head"><span class="ab-zone">У гостях</span><span class="ab-meta">${esc(r.guests.join(' і '))} ${r.guests.length > 1 ? 'заходять' : 'заходить'}…</span></div>`;
     }
     if (id === 'work' || id === 'create') workingT = 1.8;
-    if (r.borrowed) toast('Позичено ' + r.borrowed + ' сил. Завтра біль +' + r.borrowed + ', уночі радість −' + r.borrowed * C.joy.borrowPenalty + '.');
+    if (r.borrowed) toast('Позичено ресурсу ' + r.borrowed + '. Завтра біль +' + r.borrowed + ', уночі радість −' + r.borrowed * C.joy.borrowPenalty + '.');
     renderAll();
     if (game.lost) setTimeout(showEnd, 900);
   }
@@ -379,9 +379,9 @@
         const w = $('canvasWrap');
         w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
       }
-      if (r.hospital) toast('Повернувся з лікарні. День ' + game.day + '. Біль ' + G.pain(game) + ', сил: ' + game.energy + '.');
+      if (r.hospital) toast('Повернувся з лікарні. День ' + game.day + '. Біль ' + G.pain(game) + ', ресурс: ' + game.energy + '.');
       else toast('Ранок. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() +
-        '. Сил: ' + game.energy + (r.flare ? '. Уночі було загострення.' : '.') + inviteNote());
+        '. Ресурс: ' + game.energy + (r.flare ? '. Уночі було загострення.' : '.') + inviteNote());
       renderAll();
     };
     renderAll();
@@ -418,7 +418,7 @@
     const p = G.preview(game, 'friends');
     return `<div class="invite"><span class="inv-msg"><b>${esc(inv.name)}</b> пише: «${esc(G.inviteText(inv))}»</span>
       <span class="inv-btns">
-        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ' + p.cost + ' ' + plural(p.cost, 'сила', 'сили', 'сил') : ''}</button>
+        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}</button>
         <button class="btn" data-inv="no">Відмовити · радість −${Math.abs(C.joy.refuseInvite)}</button>
       </span>
       ${p.available && p.borrow ? `<span class="warn">Позичиш ${p.borrow}: завтра біль +${p.borrow * C.night.borrowPain}, радість −${p.borrow * C.joy.borrowPenalty}</span>` : ''}
@@ -453,7 +453,7 @@
   };
 
   function actionButton(a, i) {
-    const cost = a.cost == null ? '' : a.cost === 0 ? 'без сил' : a.cost + ' ' + plural(a.cost, 'сила', 'сили', 'сил');
+    const cost = a.cost == null ? '' : a.cost === 0 ? 'без ресурсу' : 'ресурс ' + a.cost;
     let body = '';
     if (!a.available) {
       body = `<span class="a-why">${esc(a.reason)}</span>`;
@@ -551,7 +551,7 @@
       <div class="slots" style="grid-template-columns: repeat(${G.slotsOf(s) > 4 ? 3 : G.slotsOf(s)}, 1fr)">${slots}</div>
 
       <div class="sec">
-        <div class="sec-h"><span class="lbl">Сили</span><span class="val">${s.energy}</span></div>
+        <div class="sec-h"><span class="lbl">Ресурс</span><span class="val">${s.energy}</span></div>
         <div class="pips">${pips}</div>
         <div class="sub">Зранку ${s.energyMorning}${s.restedToday ? ', +' + C.actions.rest.gain + ' після відпочинку' : ''}</div>
         ${s.borrowed ? `<div class="warn">Позичено ${s.borrowed}: завтра біль +${s.borrowed * C.night.borrowPain}, уночі радість −${s.borrowed * C.joy.borrowPenalty}</div>` : ''}
@@ -561,13 +561,13 @@
         <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${cfg.name}</span> <span class="val">${p}</span></span></div>
         <div class="painbar">${cells}</div>
         <div class="painlegend">
-          <span>база ${s.base}</span>
+          <span>базовий ${s.base}</span>
           <span>тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}</span>
           ${s.relief ? `<span>знято сьогодні −${s.relief}</span>` : ''}
         </div>
         <details class="painhelp" ${painHelpOpen ? 'open' : ''}><summary>Що на що впливає</summary>
-          <p><b>База</b> — біль, до якого все повертається. Знижують її лише вправи: кожні ${C.night.trainingsPerBaseDrop} днів вправ — база −1.</p>
-          <p><b>Тимчасовий</b> — надбавка до бази. Росте: загострення вночі +${C.night.flarePain}, кожна позичена сила +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
+          <p><b>Базовий біль</b> — той, до якого все повертається. Знижують його вправи (кожні ${C.night.trainingsPerBaseDrop} днів — −1 назавжди) і курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня).</p>
+          <p><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flarePain}, кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
           <p><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
         </details>
       </div>
@@ -590,10 +590,10 @@
       </div>
 
       <div class="sec">
-        <div class="sec-h"><span class="lbl">Вправи для бази</span><span class="val">${bp.atMin ? '—' : bp.done + '/' + bp.per}</span></div>
-        <div class="sub">${bp.atMin ? 'Базовий біль на мінімумі' : bp.dropTonight ? 'Уночі база ' + s.base + ' → ' + (s.base - 1)
-          : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і база ' + s.base + ' → ' + (s.base - 1)}</div>
-        ${s.courseStreak || s.courseToday ? `<div class="sub" ${s.courseOn ? 'style="color:var(--light)"' : ''}>${s.courseOn ? 'Курс ліків діє: база −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}</div>` : ''}
+        <div class="sec-h"><span class="lbl">Вправи</span><span class="val">${bp.atMin ? '—' : bp.done + '/' + bp.per}</span></div>
+        <div class="sub">${bp.atMin ? 'Базовий біль на мінімумі' : bp.dropTonight ? 'Уночі базовий біль ' + s.base + ' → ' + (s.base - 1)
+          : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і базовий біль ' + s.base + ' → ' + (s.base - 1)}</div>
+        ${s.courseStreak || s.courseToday ? `<div class="sub" ${s.courseOn ? 'style="color:var(--light)"' : ''}>${s.courseOn ? 'Курс ліків діє: базовий біль −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}</div>` : ''}
         ${s.daysNoExercise ? `<div class="sub" ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}</div>` : ''}
       </div>
 
@@ -678,8 +678,8 @@
         <span>${n} днів</span><small>Оренда кожні ${C.rent.every} днів, дедлайн щотижня</small></label>`).join('');
     openModal(`
       <h1>Біль життя</h1>
-      <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і сил, скільки дозволяє ранковий біль.
-      Розподіляй їх між роботою, радістю і тим, що знижує біль. Сили можна позичати, але завтра вони повернуться болем.</p>
+      <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і ресурсу, скільки дозволяє ранковий біль.
+      Розподіляй їх між роботою, радістю і тим, що знижує біль. Ресурс можна позичати, але завтра він повернеться болем.</p>
       <p class="sub">Гра закінчується, якщо радість або гроші падають до нуля. Біль 10 — це лікарня.</p>
       <div class="opts"><span class="lbl">Тяжкість</span>${diffs}</div>
       <div class="opts"><span class="lbl">Тривалість</span>${lens}</div>
@@ -704,7 +704,7 @@
     $('cutCaption').hidden = true;
     lastZone = undefined;
     renderAll();
-    toast('День 1. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() + '. Сил: ' + game.energy + '.' + inviteNote());
+    toast('День 1. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() + '. Ресурс: ' + game.energy + '.' + inviteNote());
   }
 
   function inviteNote() {

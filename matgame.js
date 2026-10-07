@@ -135,7 +135,7 @@
       $q('#scCount').textContent = '';
       $q('.sc-answers').innerHTML = '';
       const share = total ? right / total : 0;
-      const q = share >= M.reliefShare ? 'завтра біль менший.' : share >= M.baseShare ? 'день іде до бази.' : 'цього разу не зараховано, але й гірше не стало.';
+      const q = share >= M.reliefShare ? 'завтра біль менший.' : share >= M.baseShare ? 'день іде в залік базового болю.' : 'цього разу не зараховано, але й гірше не стало.';
       msg('Зараховано рухів ' + right + ' з ' + total + ': ' + q, share >= M.baseShare ? 'good' : '');
       setTimeout(close, 500);
     }

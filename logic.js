@@ -420,7 +420,7 @@
       case 'rest':
         s.energy += a.gain;
         s.restedToday++;
-        note = '+' + a.gain + ' сила';
+        note = 'ресурс +' + a.gain;
         break;
       case 'sleep': {
         const skipped = slotsOf(s) - s.slot;
@@ -463,7 +463,7 @@
         s.energy += a.gain;
         s.coffeeToday = (s.coffeeToday || 0) + 1;
         s.stats.coffee = (s.stats.coffee || 0) + 1;
-        note = '+' + a.gain + ' сила, шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%';
+        note = 'ресурс +' + a.gain + ', шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%';
         break;
     }
     if (borrowedNow) note += '; позичено ' + borrowedNow;
@@ -502,9 +502,9 @@
   }
   function baseProgressText(s) {
     const b = baseProgress(s);
-    if (b.atMin) return 'база вже на мінімумі';
-    if (b.dropTonight) return 'день вправ ' + b.per + ' з ' + b.per + ': база −1 уночі';
-    return 'день вправ ' + b.done + ' з ' + b.per + ' до бази −1';
+    if (b.atMin) return 'базовий біль уже на мінімумі';
+    if (b.dropTonight) return 'день вправ ' + b.per + ' з ' + b.per + ': базовий біль −1 уночі';
+    return 'день вправ ' + b.done + ' з ' + b.per + ' до базового болю −1';
   }
 
   // «Лягти раніше» конкретними числами: скільки тимчасового болю лишиться вранці зі сном і без.
@@ -561,7 +561,7 @@
         s.hungerPenalty = N.hungerEnergyPenalty;
         s.stats.hungryDays++;
         j.refused.push('Лишився без їжі');
-        ev.push({ kind: 'bad', text: 'Без їжі: на доставку не вистачило грошей. Завтра −' + N.hungerEnergyPenalty + ' сила' });
+        ev.push({ kind: 'bad', text: 'Без їжі: на доставку не вистачило грошей. Завтра ресурс −' + N.hungerEnergyPenalty });
       }
     }
 
@@ -577,7 +577,7 @@
     // 3. Позичене.
     if (s.borrowed > 0) {
       s.extra += s.borrowed * N.borrowPain;
-      ev.push({ kind: 'pain', text: 'Позичені сили (' + s.borrowed + '): тимчасовий біль +' + s.borrowed * N.borrowPain });
+      ev.push({ kind: 'pain', text: 'Позичений ресурс (' + s.borrowed + '): тимчасовий біль +' + s.borrowed * N.borrowPain });
       const tired = s.borrowed * C.joy.borrowPenalty;
       if (tired) {
         addJoy(s, -tired);
@@ -592,7 +592,7 @@
         const less = s.exerciseToday * C.actions.exercise.reliefTomorrow;
         s.extra -= less;
         ev.push({ kind: 'good', text: 'Після вправ: тимчасовий біль −' + less });
-      } else if (q === 'partial') ev.push({ kind: 'info', text: 'Вправи частково: день іде до бази, але без −1 на завтра' });
+      } else if (q === 'partial') ev.push({ kind: 'info', text: 'Вправи частково: день іде в залік базового болю, але без −1 на завтра' });
       else ev.push({ kind: 'info', text: 'Вправ було замало: не зараховано, але й гірше не стало' });
     }
 
@@ -600,9 +600,9 @@
     const CC = C.actions.course;
     if (s.courseToday) {
       s.courseStreak = (s.courseStreak || 0) + 1;
-      if (!s.courseOn && s.courseStreak >= CC.days) { s.courseOn = true; ev.push({ kind: 'good', text: s.courseStreak + ' днів курсу поспіль: ліки почали діяти, база −' + CC.baseDrop }); }
+      if (!s.courseOn && s.courseStreak >= CC.days) { s.courseOn = true; ev.push({ kind: 'good', text: s.courseStreak + ' днів курсу поспіль: ліки почали діяти, базовий біль −' + CC.baseDrop }); }
     } else if (s.courseStreak > 0) {
-      if (s.courseOn) ev.push({ kind: 'pain', text: 'Курс перервано: ліки перестали діяти, база знову вища' });
+      if (s.courseOn) ev.push({ kind: 'pain', text: 'Курс перервано: ліки перестали діяти, базовий біль знову вищий' });
       else ev.push({ kind: 'info', text: 'Пропущено пігулку: курс доведеться почати спочатку' });
       s.courseStreak = 0; s.courseOn = false;
     }
@@ -632,7 +632,7 @@
       }
       if (s.daysNoExercise % D.rollbackEvery === 0 && s.trainings % N.trainingsPerBaseDrop > 0) {
         s.trainings--;
-        ev.push({ kind: 'pain', text: 'Тиждень без вправ: до зниження бази знову на день більше' });
+        ev.push({ kind: 'pain', text: 'Тиждень без вправ: до зниження базового болю знову на день більше' });
       }
     }
 
@@ -641,7 +641,7 @@
     if (opts.forceFlare == null && bedPain >= BN.minPain && rand(s) < (s.sleptEarly ? BN.earlyChance : BN.chance)) {
       s.sleepPenalty = BN.energy;
       s.stats.badNights = (s.stats.badNights || 0) + 1;
-      ev.push({ kind: 'bad', text: 'Біль не давав заснути: зранку сил −' + BN.energy });
+      ev.push({ kind: 'bad', text: 'Біль не давав заснути: зранку ресурс −' + BN.energy });
     }
 
     // 7. Виплати за роботу.
@@ -699,7 +699,7 @@
     }
     if (!hospital && s.day < s.days) {
       const e = s.extra;
-      ev.push({ kind: 'info', text: 'Підсумок на ранок: біль ' + pain(s) + ' (база ' + s.base + (e ? ', тимчасовий ' + signed(e) : '') + ')' });
+      ev.push({ kind: 'info', text: 'Підсумок на ранок: біль ' + pain(s) + ' (базовий ' + s.base + (e ? ', тимчасовий ' + signed(e) : '') + ')' });
     }
     // Заціпеніння: ночі на нулі радості без зустрічі. Зустріч скидає лічильник.
     if (s.joy > 0 || s.friendsToday > 0) s.numbNights = 0;
@@ -834,7 +834,7 @@
     }
     if (after.joy !== s.joy) fx.push({ t: 'радість ' + signed(after.joy - s.joy), kind: 'joy' });
     if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
-    if (after.energy > s.energy) fx.push({ t: 'сила +' + (after.energy - s.energy), kind: 'energy' });
+    if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
     if (id === 'coffee') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (id === 'sleep') {
@@ -856,7 +856,7 @@
       const d = fc.pain - before.pain;
       if (hidden && (d || id === 'exercise')) fx.push({ t: 'біль завтра: ?', kind: 'pain', fog: true });
       else if (d) fx.push({ t: 'біль завтра ' + before.pain + '→' + fc.pain, kind: 'pain' });
-      else if (id === 'exercise') fx.push({ t: 'біль завтра без змін: позичена сила з\'їдає −1', kind: 'pain' });
+      else if (id === 'exercise') fx.push({ t: 'біль завтра без змін: позичений ресурс з\'їдає −1', kind: 'pain' });
     }
 
     // Чи не закінчиться гра (або не прийде лікарня) після цієї дії, хоча без неї — ні.
@@ -891,7 +891,7 @@
     if (s.lost || s.finished) return out;
     const st = stateKey(s);
     const fc = forecastNight(s);
-    if (s.borrowed > 0) out.push({ kind: 'pain', t: 'Позичено ' + s.borrowed + ' сил: завтра біль +' + s.borrowed * C.night.borrowPain + ', радість −' + s.borrowed * C.joy.borrowPenalty + '.' });
+    if (s.borrowed > 0) out.push({ kind: 'pain', t: 'Позичено ресурсу ' + s.borrowed + ': завтра біль +' + s.borrowed * C.night.borrowPain + ', радість −' + s.borrowed * C.joy.borrowPenalty + '.' });
     if (st === 'light' && s.slot < slotsOf(s) && s.energy <= 1)
       out.push({ kind: 'pain', t: 'Добрий день легко перебрати. Те, що позичиш сьогодні, повернеться болем завтра.' });
     const inv = inviteToday(s);
@@ -918,15 +918,15 @@
       if (next >= H.annoyAt) out.push({ kind: 'joy', t: 'Вдома ' + messText(s.mess) + '. Якщо не прибрати, уночі радість ' + signed(next >= H.badAt ? H.badJoy : H.annoyJoy) + '.' });
     }
     if (pain(s) >= C.night.badNight.minPain)
-      out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (сил −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
+      out.push({ kind: 'pain', t: 'З болем ' + pain(s) + ' важко заснути: ' + Math.round(C.night.badNight.chance * 100) + '% шанс поганої ночі (ресурс −' + C.night.badNight.energy + '). Якщо лягти раніше — ' + Math.round(C.night.badNight.earlyChance * 100) + '%.' });
     if (s.joy <= 0) out.push({ kind: 'fatal', t: 'Радість на нулі: працювати й займатися собою не виходить. Можна замовити їжу й прийняти друзів, якщо покличуть. ' +
       'Ще ' + (C.numb.nights - (s.numbNights || 0)) + ' ноч. без зустрічі — і кінець.' });
     if (s.courseStreak > 0 && !s.courseToday)
-      out.push({ kind: s.courseOn ? 'pain' : 'info', t: 'Курсова пігулка сьогодні ще не випита. Пропуск — і курс з нуля' + (s.courseOn ? ', база знову зросте на ' + C.actions.course.baseDrop : '') + '.' });
+      out.push({ kind: s.courseOn ? 'pain' : 'info', t: 'Курсова пігулка сьогодні ще не випита. Пропуск — і курс з нуля' + (s.courseOn ? ', базовий біль знову зросте на ' + C.actions.course.baseDrop : '') + '.' });
     if (s.creativityBlocked) out.push({ kind: 'joy', t: 'Творчість вимкнена, поки радість не підніметься вище ' + C.joy.creativityOnAbove + '.' });
     if (fc) {
       out.push({ kind: 'info', t: 'Прогноз на ранок: біль ' + fc.pain + ' (' + C.states[fc.state].name.toLowerCase() + ')' +
-        (fc.energy != null ? ', сил ' + fc.energy : '') + '. Якщо буде загострення: ' + fc.painFlare + '.' });
+        (fc.energy != null ? ', ресурс ' + fc.energy : '') + '. Якщо буде загострення: ' + fc.painFlare + '.' });
       if (fc.lost) out.push({ kind: 'fatal', t: 'Якщо завершити день зараз: ' + fc.lost.text.toLowerCase() + '.' });
       else if (fc.lostFlare) out.push({ kind: 'fatal', t: 'Якщо вночі буде загострення: ' + fc.lostFlare.text.toLowerCase() + '.' });
       if (fc.hospital) out.push({ kind: 'fatal', t: 'Уночі біль дійде до 10: лікарня, ' + C.hospital.days + ' дні і ' + C.hospital.cost + ' ₴.' });
@@ -957,7 +957,7 @@
     if (s.partTime) lost.push('Частковий графік із дня ' + s.partTimeDay + ', дохід ×' + C.work.partTimeMult);
     if (st.hungryDays) lost.push('Дні без їжі: ' + st.hungryDays);
     if (st.autoDelivery) lost.push('Вечорів, коли їжу замовляли вже без сил вибирати: ' + st.autoDelivery);
-    if (st.borrowed) lost.push('Позичено сил: ' + st.borrowed + ', стільки ж болю наступного дня');
+    if (st.borrowed) lost.push('Позичено ресурсу: ' + st.borrowed + ', стільки ж болю наступного дня');
     if (st.stateDays.strong) lost.push('Днів у сильному болю: ' + st.stateDays.strong);
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
