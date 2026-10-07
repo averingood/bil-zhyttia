@@ -93,6 +93,18 @@ const STRATS = {
   '+ігри замість творчості': (s) => { const n = careful(s); return (n === 'create' || n === 'rest') && ok(s, 'games') && s.energy >= 1 ? 'games' : n; },
   '+ігри при сильному болю': (s) => { const n = careful(s); return L.stateKey(s) === 'strong' && n !== 'cook' && n !== 'delivery' && ok(s, 'games') && s.energy >= 1 ? 'games' : n; },
 
+  // Розміреність: на легкому дні не перебирати — зупинитись, коли наступна дія дасть перевантаження.
+  // Вправи і в сильному болю (їх можна, лише ресурсу йде більше відносно): інакше м'язи дубіють і біль не спадає.
+  '+вправи навіть при сильному': (s) => (ok(s, 'exercise') && s.exerciseToday === 0 && L.energyCost(s, 'exercise') <= s.energy && s.fed ? 'exercise' : careful(s, { exercise: true })),
+  '+вправи, розмірено': (s) => {
+    const n = (ok(s, 'exercise') && s.exerciseToday === 0 && L.energyCost(s, 'exercise') <= s.energy && s.fed) ? 'exercise' : careful(s, { exercise: true });
+    if (n && L.stateKey(s) === 'light') {
+      const a = L.clone(s); L.doAction(a, n);
+      // Замість перебору — щось тихе: почитати чи відпочити (не важкі справи й без ресурсу).
+      if (!L.overloadedNow(s) && L.overloadedNow(a)) return ok(s, 'read') ? 'read' : (ok(s, 'rest') ? 'rest' : null);
+    }
+    return n;
+  },
   // Курс щодня, поки є гроші: пігулка не займає слота.
   '+курс ліків': (s) => (ok(s, 'course') && s.money > 40 ? 'course' : careful(s)),
   // Лікар, щойно доступний і є запас на оренду.
@@ -141,9 +153,9 @@ function play(strat, setup, seed, days) {
 
 // Типові набори обставин замість старих рівнів складності.
 const SETUPS = {
-  'як «Легше»': { money: 200, friends: 3, minBase: 2 },
-  'за замовчуванням': {},
-  'як «Тяжко»': { money: 150, friends: 2, minBase: 5 },
+  'легко (200 ₴, 3 друзі, біль 3)': { money: 200, friends: 3, basePain: 3 },
+  'середньо (170 ₴, 3, біль 4)': { money: 170, friends: 3, basePain: 4 },
+  'тяжко (140 ₴, 2, біль 5)': { money: 140, friends: 2, basePain: 5 },
 };
 
 const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0) + '%';

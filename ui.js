@@ -22,7 +22,7 @@
   // scenes — планерка й розмови з друзями від першої особи; вимкнено — результат рахується сам.
   // Перемикається в самій грі (біля столу й дивана, клавіша M), тож пам'ятаємо між сесіями.
   let numbIdle = 0;          // скільки герой стоїть без діла з радістю 0   // панель перемальовується часто — довідка не має згортатися сама
-  let setupChoice = { money: C.setup.money.def, friends: C.setup.friends.def, minBase: C.setup.minBase.def, days: C.days, scenes: loadScenes() };
+  let setupChoice = { money: C.setup.money.def, friends: C.setup.friends.def, basePain: C.setup.basePain.def, days: C.days, scenes: loadScenes() };
   function loadScenes() { try { return localStorage.getItem('zapas.scenes') !== '0'; } catch (e) { return true; } }
   function toggleScenes() {
     setupChoice.scenes = !setupChoice.scenes;
@@ -604,7 +604,8 @@
 
     const cal = G.calendar(s, 7).map((d, i) => {
       const ev = [];
-      if (d.rent) ev.push(`<span class="e-rent">−${d.rent}₴</span>`);
+      if (d.rise) ev.push(`<span class="e-rent">дорожче +${d.rise}₴</span>`);
+      if (d.decline) ev.push(`<span class="e-rent">тіло +${d.decline}</span>`);
       if (d.deadline) ev.push(`<span class="e-dl">здати ${d.deadline}</span>`);
       if (d.invite) ev.push(`<span class="e-inv ${d.invite.status === 'refused' ? 'refused' : ''}">♥ ${esc(d.invite.name)}</span>`);
       if (d.payout) ev.push(`<span class="e-pay">+${d.payout}₴</span>`);
@@ -627,7 +628,7 @@
     el.innerHTML = `
       <div class="p-head">
         <div class="p-day">День ${s.day} <small>з ${s.days}</small></div>
-        <span class="sub">мін. біль ${s.setup.minBase} · друзів ${s.setup.friends}</span>
+        <span class="sub">базовий ${s.setup.basePain} · друзів ${s.setup.friends}</span>
       </div>
       <div class="slots" style="grid-template-columns: repeat(${G.slotsOf(s) > 4 ? 3 : G.slotsOf(s)}, 1fr)">${slots}</div>
 
@@ -646,7 +647,7 @@
         <div class="painbar">${cells}</div>
         <div class="tip">
           <p>Базовий ${s.base} · тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ' · знято сьогодні −' + s.relief : ''}.</p>
-          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня і рухаєшся хоча б раз на ${C.actions.course.moveEvery} дні), дзвінок лікарю (−${C.actions.doctor.baseDrop}, лише з болем ${C.actions.doctor.minPain}+). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}. Лікуванням — не нижче ${G.minBase(game)}: тримає на плаву, але не виліковує.</p>
+          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня і рухаєшся хоча б раз на ${C.actions.course.moveEvery} дні), дзвінок лікарю (−${C.actions.doctor.baseDrop}, лише з болем ${C.actions.doctor.minPain}+). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}. Вправами — не нижче ${G.exFloor(game) + (game.decline || 0)}, з ліками — до ${G.minBase(game)}.${C.night.decline.days.map((d) => ' З ' + d + '-го дня тіло гірше тримає: базовий і межі +' + C.night.decline.pain + '.').join('')}</p>
           <p class="why"><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flareSizes[0][0]}…+${C.night.flareSizes[C.night.flareSizes.length - 1][0]} (буває легке, буває жорстке), кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
           <p class="why"><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
         </div>
@@ -660,7 +661,7 @@
         <div class="tip">
           <p class="${hidden ? 'fog' : ''}">Очікується: ${pendTxt}.</p>
           ${Object.entries(s.debts || {}).map(([n, d]) => `<p>Борг ${esc(n)} ${d.amount} ₴ — спитає в день ${d.askDay}.</p>`).join('')}
-          <p class="why">Оренда ${G.rentOf(s)} ₴ кожні ${C.rent.every} днів. За роботу платять через ${C.actions.work.payDelay} дні. Гроші на нулі — кінець гри. У кожного друга можна позичити ${C.friends.loan.amount} ₴: поки винен — не приходить, через ${C.friends.loan.askAfter} днів спитає; не повернеш — друга втрачено.</p>
+          <p class="why">Щоночі витрати на життя: ${C.costs.perWeek.join(' / ')} ₴ за тижнями${s.day >= C.costs.announceDay ? ', з ' + C.costs.riseFrom + '-го ще +' + C.costs.rise + ' ₴' : ''} (сьогодні ${G.dailyCost(s.day)} ₴). За роботу платять через ${C.actions.work.payDelay} дні. Гроші на нулі — кінець гри. У кожного друга можна позичити ${C.friends.loan.amount} ₴: поки винен — не приходить, через ${C.friends.loan.askAfter} днів спитає; не повернеш — друга втрачено.</p>
         </div>
       </div>
 
@@ -805,25 +806,25 @@
       <label class="opt setup-row"><span>${label}</span>
         <input type="range" id="su-${key}" min="${r.min}" max="${r.max}" step="${r.step || 1}" value="${setupChoice[key]}">
         <b id="su-${key}-v">${setupChoice[key]}${unit}</b><small>${note}</small></label>`;
-    const diffs = slider('money', 'Гроші на старті', SU.money, ' ₴', 'оренда ' + C.rent.amount + ' ₴ щотижня') +
+    const diffs = slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче') +
       slider('friends', 'Друзі', SU.friends, '', 'що більше, то частіше кличуть і є в кого позичити') +
-      slider('minBase', 'Мінімальний базовий біль', SU.minBase, '', 'базовий біль; на старті до нього ще +' + SU.startExtra + ' тимчасового, що сам спадає');
+      slider('basePain', 'Базовий біль', SU.basePain, '', 'на старті ще +' + SU.startExtra + ' тимчасового; вправи знижують на ' + SU.exerciseRelief + ', ліки — ще на ' + SU.medsRelief);
     openModal(`
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і майже не виходиш з квартири. Кожен день має стільки слотів і ресурсу, скільки дозволяє ранковий біль.
       Розподіляй їх між роботою, радістю і тим, що знижує біль. Ресурс можна позичати, але завтра він повернеться болем.</p>
-      <p class="sub">Треба прожити ${C.days} днів. Оренда кожні ${C.rent.every} днів, дедлайн щотижня. Гроші на нулі — кінець; радість на нулі — заціпеніння. Біль 10 — це лікарня.</p>
+      <p class="sub">Треба прожити ${C.days} днів. Щоночі витрати на життя, дедлайн щотижня. Добрий день — не привід робити все: перебір повертається болем. Гроші на нулі — кінець; радість на нулі — заціпеніння. Біль 10 — це лікарня.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>${diffs}</div>
       <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J відкриває щоденник, M вмикає чи вимикає міні-ігри (планерки й розмови).</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
-    for (const k of ['money', 'friends', 'minBase']) {
+    for (const k of ['money', 'friends', 'basePain']) {
       const inp = $('su-' + k);
       inp.oninput = () => { $('su-' + k + '-v').textContent = inp.value + (k === 'money' ? ' ₴' : ''); };
     }
     $('startBtn').focus();
     $('startBtn').onclick = () => {
-      setupChoice = { money: +$('su-money').value, friends: +$('su-friends').value, minBase: +$('su-minBase').value, days: C.days, scenes: setupChoice.scenes };
+      setupChoice = { money: +$('su-money').value, friends: +$('su-friends').value, basePain: +$('su-basePain').value, days: C.days, scenes: setupChoice.scenes };
       newGame(setupChoice);
     };
   }

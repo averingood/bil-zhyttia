@@ -86,7 +86,13 @@
   }
 
   function isDeadlineDay(d) { return d % C.work.deadlineEvery === 0; }
-  function isRentDay(d) { return d % C.rent.every === 0; }
+  // Щоденні витрати: тиждень гри визначає ставку, після riseFrom — ще +rise.
+  function dailyCost(d) {
+    const K = C.costs;
+    return K.perWeek[Math.min(K.perWeek.length - 1, Math.floor((d - 1) / 7))] + (d >= K.riseFrom ? K.rise : 0);
+  }
+  const priceNewsKnown = (s) => s.day >= C.costs.announceDay;
+  const declineKnown = (s, d) => s.day >= d - C.night.decline.warnAhead;
 
   function nextDeadline(s) {
     for (let d = s.day; d <= s.days; d++) if (isDeadlineDay(d)) return d;
@@ -107,20 +113,19 @@
   function createGame(opts) {
     opts = opts || {};
     const SU = C.setup, clampN = (v, r) => Math.max(r.min, Math.min(r.max, Math.round(v != null ? v : r.def)));
-    const minB = clampN(opts.minBase, SU.minBase), friendsN = clampN(opts.friends, SU.friends), money = clampN(opts.money, SU.money);
+    const minB = clampN(opts.basePain != null ? opts.basePain : opts.minBase, SU.basePain), friendsN = clampN(opts.friends, SU.friends), money = clampN(opts.money, SU.money);
     const seed = opts.seed != null ? opts.seed : Math.floor(Math.random() * 2 ** 31);
     const s = {
       seed, rng: seed | 0,
-      setup: { money, friends: friendsN, minBase: minB },
+      setup: { money, friends: friendsN, basePain: minB },
       days: opts.days || C.days, flareChance: SU.flareChance,
       day: 1, slot: 0,
-      // Старт: базовий — на обраному мінімумі, плюс startExtra тимчасового (спадає сам).
-      // Лікування базовий нижче не опускає — лише стримує хронізацію й знімає тимчасовий.
-      baseStart: minB, base: minB, extra: SU.startExtra, relief: 0,
+      // Старт: обраний базовий, плюс startExtra тимчасового (спадає сам).
+      baseStart: minB, base: minB, extra: SU.startExtra, relief: 0, decline: 0, spentToday: 0, demandToday: 0,
       energy: 0, energyMorning: 0, borrowed: 0,
       money, joy: C.start.joy,
       friendNames: C.friends.names.slice(0, friendsN),
-      rentAmount: C.rent.amount, payMult: 1,
+      payMult: 1,
       trainings: 0, trainBase: null, courseStreak: 0, courseToday: 0, courseOn: false, daysNoExercise: 0, daysAlone: 0, sleepPenalty: 0,
       book: { i: 0, done: 0 }, readToday: 0, mess: C.chores.startMess, song: { n: 1, done: 0 }, doctorDrops: 0, lastDoctor: -99,
       creativityBlocked: false, createStreak: 0, lastCreateDay: 0,
@@ -245,6 +250,7 @@
     s.relief = 0;
     s.borrowed = 0;
     s.restedToday = 0; s.gamesToday = 0; s.medsToday = 0; s.exerciseToday = 0; s.friendsToday = 0; s.createToday = 0; s.stretchToday = 0;
+    s.spentToday = 0; s.demandToday = 0;
     s.coffeeToday = 0; s.sleptEarly = false; s.exerciseQuality = null; s.readToday = 0; s.courseToday = 0;
     s.fed = false; s.foodType = null;
     const st = stateKey(s);
@@ -349,7 +355,7 @@
   }
   const maxWorkScore = () => C.work.meeting.questions * C.work.meeting.payRight;
   // Частковий графік урізає заробіток, але не штрафи.
-  const rentOf = (s) => (s.rentAmount != null ? s.rentAmount : C.rent.amount);
+  const costTonight = (s) => dailyCost(s.day);
   function workPay(s, score) {
     return score > 0 ? Math.round(score * (s.partTime ? C.work.partTimeMult : 1) * (s.payMult || 1)) : score;
   }
@@ -403,6 +409,9 @@
       s.borrowed += borrowedNow;
       s.stats.borrowed += borrowedNow;
     }
+    // Перевантаження рахуємо від того, скільки сил і важких слотів пішло за день.
+    s.spentToday = (s.spentToday || 0) + (cost || 0);
+    s.demandToday = (s.demandToday || 0) + (C.night.overload.demanding[id] || 0);
     const slotLabel = slotName(s, s.slot);
     let note = '';
     const mult = stateCfg(s).joyMult;
@@ -571,7 +580,7 @@
         s.money -= a.money;
         s.lastDoctor = s.day;
         s.doctorDrops = (s.doctorDrops || 0) + 1;
-        s.base = Math.max(minBase(s), s.base - a.baseDrop);
+        recalcBase(s);
         s.stats.doctor = (s.stats.doctor || 0) + 1;
         note = '−' + a.money + ' ₴, базовий біль ' + was + ' → ' + s.base;
         break;
@@ -606,11 +615,19 @@
     return { ok: true, note, borrowed: borrowedNow, guests: id === 'friends' ? s.lastGuests : null };
   }
 
-  // Базовий біль: старт − вправи − курс − лікар + хронізація, у межах [мінімум; старт + cap].
+  // Базовий біль: старт − вправи − курс − лікар + хронізація + пізнє погіршення,
+  // у межах [мінімум з ліками; старт + cap + погіршення]. Вправи самі — не нижче exFloor.
   function recalcBase(s) {
-    const N = C.night, tb = s.trainBase != null ? s.trainBase : s.baseStart;
-    const raw = tb - (courseWorks(s) ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0);
-    s.base = Math.max(minBase(s), Math.min(s.baseStart + N.chronic.cap, raw));
+    const N = C.night, tb = s.trainBase != null ? s.trainBase : s.baseStart, dec = s.decline || 0;
+    const raw = tb - (courseWorks(s) ? C.actions.course.baseDrop : 0) - (s.doctorDrops || 0) * C.actions.doctor.baseDrop + (s.chronic || 0) + dec;
+    s.base = Math.max(minBase(s), Math.min(s.baseStart + N.chronic.cap + dec, raw));
+  }
+  // Межа вправ (без погіршення): старт − exerciseRelief.
+  function exFloor(s) { return Math.max(C.painMin, s.baseStart - (s.setup ? C.setup.exerciseRelief : 1)); }
+  // Перевантажений легкий день: забагато сил чи важких справ.
+  function overloadedNow(s) {
+    const O = C.night.overload;
+    return (s.morningState || stateKey(s)) === 'light' && ((s.spentToday || 0) >= O.energy || (s.demandToday || 0) >= O.demand);
   }
   // Побічка ліків: з шансом — одна з неприємностей. Повертає хвіст для нотатки.
   function sideEffect(s, a) {
@@ -661,32 +678,32 @@
     return m <= 0 ? 'чисто' : m < H.annoyAt ? 'трохи безладу' : m < H.badAt ? 'безлад: дратує' : 'безлад: гнітить';
   }
 
-  // Кава підкручує нічне загострення.
-  // Нижче за обраний на старті мінімум базовий біль не опускається: лікування тримає на плаву, але не виліковує.
+  // Нижче цього базовий біль не опускається навіть з ліками: старт − вправи − ліки, плюс пізнє погіршення.
   function minBase(s) {
-    return Math.max(C.night.minBasePain, s.setup ? s.setup.minBase : s.baseStart);
+    const relief = s.setup ? C.setup.exerciseRelief + C.setup.medsRelief : 1;
+    return Math.max(C.night.minBasePain, s.baseStart - relief) + (s.decline || 0);
   }
 
+  // Кава й перевантаження підкручують нічне загострення.
   function flareChanceTonight(s) {
-    const calm = C.night.calm ? Math.min(C.night.calm.max, (s.calmNights || 0) * C.night.calm.perNight) : 0;
-    return Math.min(1, s.flareChance + calm + (s.coffeeToday || 0) * C.actions.coffee.flareAdd);
+    return Math.min(1, s.flareChance + (s.coffeeToday || 0) * C.actions.coffee.flareAdd + (overloadedNow(s) ? C.night.overload.flareAdd : 0));
   }
 
   // Прогрес до зниження бази — однаковий текст у картці дії, панелі й нотатці.
   // done — скільки днів вправ уже в поточному колі з per.
   function baseProgress(s) {
     const per = C.night.trainingsPerBaseDrop;
-    const atMin = s.base <= minBase(s);
+    const atMin = (s.trainBase != null ? s.trainBase : s.baseStart) <= exFloor(s);
     let done = s.trainings % per;
     // Щойно зроблений п'ятий день: база знизиться вночі, коло ще не обнулилося.
     const dropTonight = !atMin && s.trainings > 0 && done === 0 &&
-      Math.max(minBase(s), s.baseStart - Math.floor(s.trainings / per)) < (s.trainBase != null ? s.trainBase : s.baseStart);
+      Math.max(exFloor(s), s.baseStart - Math.floor(s.trainings / per)) < (s.trainBase != null ? s.trainBase : s.baseStart);
     if (dropTonight) done = per;
     return { done, per, atMin, dropTonight };
   }
   function baseProgressText(s) {
     const b = baseProgress(s);
-    if (b.atMin) return 'базовий біль уже на мінімумі';
+    if (b.atMin) return 'вправи вже дали все: далі базовий знижують лише ліки';
     if (b.dropTonight) return 'день вправ ' + b.per + ' з ' + b.per + ': базовий біль −1 уночі';
     return 'день вправ ' + b.done + ' з ' + b.per + ' до базового болю −1';
   }
@@ -806,21 +823,31 @@
         : { kind: 'pain', text: 'Пігулки без руху не діють: ' + CC.moveEvery + ' дні ні вправ, ні розтяжки — базовий біль вищий' });
       s.courseWorked = works;
     } else s.courseWorked = true;
-    const trainBase = Math.max(minBase(s), s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
+    // Пізнє погіршення: тіло гірше тримає — базовий і його межі +1.
+    if (N.decline.days.includes(s.day + 1)) {
+      s.decline = (s.decline || 0) + N.decline.pain;
+      ev.push({ kind: 'pain', text: 'Тіло гірше тримає: базовий біль і його межі +' + N.decline.pain });
+    }
+    const trainBase = Math.max(exFloor(s), s.baseStart - Math.floor(s.trainings / N.trainingsPerBaseDrop));
     if (trainBase < (s.trainBase != null ? s.trainBase : s.baseStart)) ev.push({ kind: 'good', text: s.trainings + '-й день вправ: базовий біль знизився' });
     s.trainBase = trainBase;
     recalcBase(s);
 
     // 6. Загострення.
     const roll = rand(s);
+    const over = overloadedNow(s);
     const flare = opts.forceFlare != null ? opts.forceFlare : roll < flareChanceTonight(s);
-    if (!flare) s.calmNights = (s.calmNights || 0) + 1;
+    // Перевантажений добрий день: завтра тимчасовий +1 незалежно від загострення.
+    if (over) {
+      s.extra += N.overload.pain;
+      s.stats.overloads = (s.stats.overloads || 0) + 1;
+      ev.push({ kind: 'pain', text: 'Перебрав на доброму дні: тимчасовий біль +' + N.overload.pain + (flare ? '' : ', загострення цього разу оминуло') });
+    }
     if (flare) {
       const size = flareSize(s);
       s.extra += size;
       s.stats.flares++;
       s.lastFlareSize = size;
-      s.calmNights = 0;
       ev.push({ kind: 'flare', text: (C.night.flareNames[size] || 'Загострення') + ' вночі: тимчасовий біль +' + size });
       // Три загострення за тиждень — біль хронізується.
       const CH = N.chronic;
@@ -952,10 +979,14 @@
   }
 
   function calendarNight(s, day, ev, j) {
-    if (isRentDay(day)) {
-      s.money -= rentOf(s);
-      ev.push({ kind: 'money', text: 'Оренда: −' + rentOf(s) + ' ₴' });
+    {
+      const cost = dailyCost(day);
+      s.money -= cost;
+      ev.push({ kind: 'money', text: 'Витрати на життя: −' + cost + ' ₴' });
     }
+    if (day + 1 === C.costs.announceDay) ev.push({ kind: 'money', text: 'Новина: з ' + C.costs.riseFrom + '-го дня все дорожчає — витрати +' + C.costs.rise + ' ₴ щодня' });
+    for (const d of C.night.decline.days) if (day + 1 === d - C.night.decline.warnAhead)
+      ev.push({ kind: 'pain', text: 'Тіло підказує: з ' + d + '-го дня тримати біль буде важче (базовий +' + C.night.decline.pain + ')' });
     if (isDeadlineDay(day)) {
       const need = C.work.unitsPerDeadline;
       if (s.workWeek >= need) {
@@ -1064,6 +1095,7 @@
     if (id === 'doctor') { fx.push({ t: 'базовий біль ' + s.base + ' → ' + after.base, kind: 'pain' }); fx.push({ t: 'займає слот: дзвінок на годину', kind: 'info' }); }
     else if (pain(after) !== pain(s)) fx.push({ t: 'біль сьогодні ' + pain(s) + '→' + pain(after) + ' (до ночі)', kind: 'pain' });
     if (after.energy > s.energy) fx.push({ t: 'ресурс +' + (after.energy - s.energy), kind: 'energy' });
+    if (!overloadedNow(s) && overloadedNow(after)) fx.push({ t: 'перебір: уночі загострення +' + Math.round(C.night.overload.flareAdd * 100) + '%, завтра біль +' + C.night.overload.pain, kind: 'pain' });
     if (C.actions[id].freeSlot) fx.push({ t: 'слот не займає', kind: 'info' });
     if (C.actions[id].slots > 1) fx.push({ t: 'займає ' + C.actions[id].slots + ' слоти: затягує', kind: 'info' });
     if (id === 'coffee') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
@@ -1101,7 +1133,9 @@
       const inv = s.invites[d];
       out.push({
         day: d,
-        rent: isRentDay(d) ? rentOf(s) : 0,
+        cost: dailyCost(d),
+        rise: d === C.costs.riseFrom && priceNewsKnown(s) ? C.costs.rise : 0,
+        decline: C.night.decline.days.includes(d) && declineKnown(s, d) ? C.night.decline.pain : 0,
         deadline: isDeadlineDay(d) ? C.work.unitsPerDeadline : 0,
         invite: inv && inv.status !== 'cancelled' ? { name: inv.name, status: inv.status } : null,   // скасовані (борг, втрачений друг) не показуємо
         payout: s.pending.filter((p) => p.day === d).reduce((a, p) => a + p.amount, 0),
@@ -1125,13 +1159,21 @@
     const dl = nextDeadline(s);
     if (dl) {
       const left = C.work.unitsPerDeadline - s.workWeek;
-      if (left > 0) out.push({ kind: 'info', t: 'Дедлайн у день ' + dl + ': ще ' + left + ' од. роботи' + (dl - s.day + 1 > 0 ? ' за ' + (dl - s.day + 1) + ' дн.' : '') + '.' });
+      if (left > 0) out.push({ kind: 'info', t: 'Дедлайн у день ' + dl + ': ще ' + left + ' од. роботи' + (dl - s.day + 1 > 0 ? ' за ' + (dl - s.day + 1) + ' дн.' : '.') });
     }
-    for (let d = s.day; d <= Math.min(s.days, s.day + 6); d++) {
-      if (!isRentDay(d)) continue;
-      const incoming = s.pending.filter((p) => p.day <= d).reduce((a, p) => a + p.amount, 0);
-      out.push({ kind: 'money', t: 'Оренда ' + rentOf(s) + ' ₴ у день ' + d + '. До того надійде ' + incoming + ' ₴.' });
-      break;
+    {
+      const week = []; for (let d = s.day; d <= Math.min(s.days, s.day + 6); d++) week.push(dailyCost(d));
+      const sum = week.reduce((a, b) => a + b, 0), incoming = s.pending.reduce((a, p) => a + p.amount, 0);
+      out.push({ kind: 'money', t: 'Щоночі витрати ' + dailyCost(s.day) + ' ₴; за тиждень ≈' + sum + ' ₴. Надійде ' + incoming + ' ₴.' +
+        (priceNewsKnown(s) && s.day < C.costs.riseFrom ? ' З ' + C.costs.riseFrom + '-го — ще +' + C.costs.rise + ' ₴ щодня.' : '') });
+    }
+    for (const d of C.night.decline.days) if (d > s.day && declineKnown(s, d))
+      out.push({ kind: 'pain', t: 'З ' + d + '-го дня тілу важче: базовий біль +' + C.night.decline.pain + '. Запас сил і ліки допоможуть.' });
+    if (st === 'light' && !s.lost) {
+      const O = C.night.overload;
+      if (overloadedNow(s)) out.push({ kind: 'fatal', t: 'Сьогодні перебрав: уночі загострення +' + Math.round(O.flareAdd * 100) + '%, завтра біль +' + O.pain + '. Краще зупинитись.' });
+      else if ((s.spentToday || 0) >= O.energy - 2 || (s.demandToday || 0) >= O.demand - 1)
+        out.push({ kind: 'pain', t: 'Добрий день — не привід робити все: ' + O.energy + '+ ресурсу чи ' + O.demand + '+ важких справ — і вночі розплата (зараз ' + (s.spentToday || 0) + ' ресурсу, ' + (s.demandToday || 0) + ' справ).' });
     }
     if (s.exerciseToday === 0 && ((s.daysNoExercise || 0) + 1) % C.night.chronic.weekNoExercise === 0 && s.base < s.baseStart + C.night.chronic.cap)
       out.push({ kind: 'pain', t: 'Без вправ уже ' + s.daysNoExercise + ' дн. Якщо й сьогодні без них — уночі базовий біль +1.' });
@@ -1184,6 +1226,7 @@
     if (st.blockedCreativeDays) lost.push('Днів, коли творчість була недоступна: ' + st.blockedCreativeDays);
     if (st.flares) lost.push('Загострень: ' + st.flares);
     if (st.badNights) lost.push('Безсонних ночей: ' + st.badNights);
+    if (st.overloads) lost.push('Перебрав на добрих днях: ' + st.overloads + ' р.');
     if (st.numbNights) lost.push('Ночей із радістю на нулі: ' + st.numbNights);
     if (st.friendsLost) lost.push('Втрачено друзів через борги: ' + st.friendsLost);
     {
@@ -1217,7 +1260,7 @@
 
   const api = {
     ZONES, ACTIONS, ACTION_IDS, CAUSES,
-    createGame, doAction, endDay, songTitle, rentOf, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
+    createGame, doAction, endDay, songTitle, dailyCost, costTonight, overloadedNow, exFloor, borrow, repay, loseFriend, debtAsk, canBorrow, freeFriends, friendsLeft, flareChanceTonight, bookNow, messText, sleepGainText, baseProgress, baseProgressText, maxWorkScore, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, hints, calendar, summary,
     inviteText: (inv) => (inv.worry != null ? C.friends.worry.lines[inv.worry] : (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text),
     slotsOf, slotName, dayPhase, minBase, courseWorks,
