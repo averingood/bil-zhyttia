@@ -21,7 +21,6 @@
   let autoEndedDay = 0;      // не відкривати вікно вдруге, якщо гравець повернувся        // дія, яку виконати, коли герой дійде до зони
   // scenes — планерка й розмови з друзями від першої особи; вимкнено — результат рахується сам.
   // Перемикається в самій грі (біля столу й дивана, клавіша M), тож пам'ятаємо між сесіями.
-  let painHelpOpen = false;
   let numbIdle = 0;          // скільки герой стоїть без діла з радістю 0   // панель перемальовується часто — довідка не має згортатися сама
   let setupChoice = { difficulty: 'normal', days: C.days, scenes: loadScenes() };
   function loadScenes() { try { return localStorage.getItem('zapas.scenes') !== '0'; } catch (e) { return true; } }
@@ -619,65 +618,79 @@
       </div>
       <div class="slots" style="grid-template-columns: repeat(${G.slotsOf(s) > 4 ? 3 : G.slotsOf(s)}, 1fr)">${slots}</div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Ресурс</span><span class="val">${s.energy}</span></div>
         <div class="pips">${pips}</div>
-        <div class="sub">Зранку ${s.energyMorning}${s.restedToday ? ', +' + C.actions.rest.gain * s.restedToday + ' після відпочинку' : ''}</div>
-        ${s.borrowed ? `<div class="warn">Позичено ${s.borrowed}: завтра біль +${s.borrowed * C.night.borrowPain}, уночі радість −${s.borrowed * C.joy.borrowPenalty}</div>` : ''}
+        <div class="tip">
+          <p>Зранку ${s.energyMorning}${s.restedToday ? ', +' + C.actions.rest.gain * s.restedToday + ' після відпочинку' : ''}.</p>
+          ${s.borrowed ? `<p class="warn">Позичено ${s.borrowed}: завтра біль +${s.borrowed * C.night.borrowPain}, уночі радість −${s.borrowed * C.joy.borrowPenalty}.</p>` : ''}
+          <p class="why">Ресурс видається зранку за станом болю: легкий ${C.states.light.energy}, помітний ${C.states.medium.energy}, сильний ${C.states.strong.energy}. Бракує — можна позичити, але кожна одиниця завтра повернеться болем +${C.night.borrowPain} і радістю −${C.joy.borrowPenalty}.</p>
+        </div>
       </div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${cfg.name}</span> <span class="val">${p}</span></span></div>
         <div class="painbar">${cells}</div>
-        <div class="painlegend">
-          <span>базовий ${s.base}</span>
-          <span>тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}</span>
-          ${s.relief ? `<span>знято сьогодні −${s.relief}</span>` : ''}
+        <div class="tip">
+          <p>Базовий ${s.base} · тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ' · знято сьогодні −' + s.relief : ''}.</p>
+          <p class="why"><b>Базовий</b> — той, до якого все повертається. Знижують: вправи (кожні ${C.night.trainingsPerBaseDrop} днів −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня), дзвінок лікарю (−${C.actions.doctor.baseDrop}). Підвищують: тиждень без вправ (+1), ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}.</p>
+          <p class="why"><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flarePain}, кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
+          <p class="why"><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
         </div>
-        <details class="painhelp" ${painHelpOpen ? 'open' : ''}><summary>Що на що впливає</summary>
-          <p><b>Базовий біль</b> — той, до якого все повертається. Знижують його вправи (кожні ${C.night.trainingsPerBaseDrop} днів — −1), курс ліків (−${C.actions.course.baseDrop}, поки п’єш щодня) і дзвінок лікарю (−${C.actions.doctor.baseDrop}). Підвищують: кожен тиждень без вправ (+1) і ${C.night.chronic.flares} загострення за тиждень (+1) — не вище стартового +${C.night.chronic.cap}.</p>
-          <p><b>Тимчасовий</b> — надбавка до базового. Росте: загострення вночі +${C.night.flarePain}, кожна позичена одиниця ресурсу +${C.night.borrowPain}. Спадає: сам на ${C.night.painDrift} за ніч, після вправ −${C.actions.exercise.reliefTomorrow}, якщо лягти раніше — ще −${C.actions.sleep.extraDrift}.</p>
-          <p><b>Лише сьогодні</b> — знеболювальне −${C.actions.meds.reliefToday}, розтяжка −${C.actions.stretch.reliefToday}. До ночі, потім знято.</p>
-        </details>
       </div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Гроші</span><span class="val" style="color:var(--money)">${s.money} ₴</span></div>
-        <div class="sub fogwrap"><span class="${hidden ? 'fog' : ''}">Очікується: ${pendTxt}</span></div>
-        ${Object.entries(s.debts || {}).map(([n, d]) => `<div class="debt"><span>Винен ${esc(n)} ${d.amount} ₴ · спитає в день ${d.askDay}</span>
+        ${Object.entries(s.debts || {}).map(([n, d]) => `<div class="debt"><span>Винен ${esc(n)} ${d.amount} ₴</span>
           <button class="btn ghost" data-repay="${esc(n)}" ${s.money < d.amount ? 'disabled' : ''}>Повернути</button></div>`).join('')}
         ${phase === 'play' && (s.friendNames || C.friends.names).some((n) => G.canBorrow(s, n)) ? `<button class="btn ghost" id="borrowBtn">Позичити ${C.friends.loan.amount} ₴ у друзів</button>` : ''}
+        <div class="tip">
+          <p class="${hidden ? 'fog' : ''}">Очікується: ${pendTxt}.</p>
+          ${Object.entries(s.debts || {}).map(([n, d]) => `<p>Борг ${esc(n)} ${d.amount} ₴ — спитає в день ${d.askDay}.</p>`).join('')}
+          <p class="why">Оренда ${G.rentOf(s)} ₴ кожні ${C.rent.every} днів. За роботу платять через ${C.actions.work.payDelay} дні. Гроші на нулі — кінець гри. У кожного друга можна позичити ${C.friends.loan.amount} ₴: поки винен — не приходить, через ${C.friends.loan.askAfter} днів спитає; не повернеш — друга втрачено.</p>
+        </div>
       </div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Радість</span><span class="val" style="color:var(--joy)">${s.joy}</span></div>
         <div class="joybar"><i style="width:${s.joy}%"></i><b style="left:${C.joy.creativityOffBelow}%"></b><b style="left:${C.joy.creativityOnAbove}%"></b></div>
-        ${s.daysAlone && !s.friendsToday ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо, радість ' + C.lonely.joy + ' щоночі, поки когось не побачиш' : ' · з ' + C.lonely.afterDays + '-ї ночі радість ' + C.lonely.joy + ' щоночі'}</div>` : ''}
-        ${s.creativityBlocked ? `<div class="warn">Творчість недоступна до радості ${C.joy.creativityOnAbove}+</div>` : ''}
+        <div class="tip">
+          ${s.daysAlone && !s.friendsToday ? `<p ${s.daysAlone >= C.lonely.afterDays - 1 ? 'class="warn"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо, радість ' + C.lonely.joy + ' щоночі, поки когось не побачиш' : ' · з ' + C.lonely.afterDays + '-ї ночі радість ' + C.lonely.joy + ' щоночі'}.</p>` : ''}
+          ${s.creativityBlocked ? `<p class="warn">Писати пісні не виходить, поки радість не підніметься до ${C.joy.creativityOnAbove}+.</p>` : ''}
+          <p class="why">Щоночі біль забирає радість: легкий ${C.states.light.joyDaily}, помітний ${C.states.medium.joyDaily}, сильний ${C.states.strong.joyDaily}. Дають радість друзі, пісні, книжки, розтяжка, смачна їжа, чистий дім. На нулі — заціпеніння: ${C.numb.nights} ночі без друзів, і кінець.</p>
+        </div>
       </div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Дім</span><span class="val" ${(s.mess || 0) >= C.chores.annoyAt ? 'style="color:var(--strong)"' : ''}>${esc(G.messText(s.mess || 0))}</span></div>
-        <div class="sub">${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + ' сесій' : 'Усі книжки прочитані'; })()}</div>
-        <div class="sub">Пісня №${(s.song || { n: 1 }).n}: ${(s.song || { done: 0 }).done} з ${C.actions.create.songSessions} сесій за синтезатором</div>
+        <div class="tip">
+          <p>${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + ' сесій.' : 'Усі книжки прочитані.'; })()}</p>
+          <p>Пісня №${(s.song || { n: 1 }).n}: ${(s.song || { done: 0 }).done} з ${C.actions.create.songSessions} сесій за синтезатором.</p>
+          <p class="why">Безлад росте щодня, після гостей — більше. Понад ${C.chores.freeUpTo} — щоночі забирає радість, і що гірше, то більше. Прибрати можна на кухні.</p>
+        </div>
       </div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Вправи</span><span class="val">${bp.atMin ? '—' : bp.done + '/' + bp.per}</span></div>
-        <div class="sub">${bp.atMin ? 'Базовий біль на мінімумі' : bp.dropTonight ? 'Уночі базовий біль ' + s.base + ' → ' + (s.base - 1)
-          : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і базовий біль ' + s.base + ' → ' + (s.base - 1)}</div>
-        ${s.courseStreak || s.courseToday ? `<div class="sub" ${s.courseOn ? 'style="color:var(--light)"' : ''}>${s.courseOn ? 'Курс ліків діє: базовий біль −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}</div>` : ''}
-        ${s.daysNoExercise && !(s.exerciseToday && s.exerciseQuality !== 'short') ? `<div class="sub" ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}</div>` : ''}
+        <div class="tip">
+          <p>${bp.atMin ? 'Базовий біль на мінімумі.' : bp.dropTonight ? 'Уночі базовий біль ' + s.base + ' → ' + (s.base - 1) + '.'
+            : 'Ще ' + (bp.per - bp.done) + ' ' + (bp.per - bp.done === 1 ? 'день' : bp.per - bp.done < 5 ? 'дні' : 'днів') + ' вправ, і базовий біль ' + s.base + ' → ' + (s.base - 1) + '.'}</p>
+          ${s.courseStreak || s.courseToday ? `<p>${s.courseOn ? 'Курс ліків діє: базовий біль −' + C.actions.course.baseDrop + ', не пропускай' : 'Курс ліків: ' + (s.courseStreak + (s.courseToday ? 1 : 0)) + ' з ' + C.actions.course.days + ' днів'}${s.courseToday ? ' · сьогодні випито' : ''}.</p>` : ''}
+          ${s.daysNoExercise && !(s.exerciseToday && s.exerciseQuality !== 'short') ? `<p ${s.daysNoExercise >= C.night.detrain.afterDays - 1 ? 'class="warn"' : ''}>Без вправ ${s.daysNoExercise} дн.${s.daysNoExercise >= C.night.detrain.afterDays ? ': м’язи задубіли' : ''}.</p>` : ''}
+          <p class="why">Кожні ${C.night.trainingsPerBaseDrop} днів вправ — базовий біль −1. Без вправ: на ${C.night.detrain.afterDays}-тю ніч тимчасовий +${C.night.detrain.pain}, за тиждень — базовий +1.</p>
+        </div>
       </div>
 
-      <div class="sec">
+      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Робота за тиждень</span><span class="val">${s.workWeek}/${C.work.unitsPerDeadline}</span></div>
-        <div class="sub">${(() => {
-          // Корисніше знати, скільки лишилося до дедлайну, ніж лічильник пропусків.
-          let dl = s.day; while (dl % C.work.deadlineEvery !== 0) dl++;
-          const left = dl - s.day;
-          return dl > s.days ? 'Дедлайнів більше немає' : left === 0 ? 'Дедлайн сьогодні (рахується вночі)' : 'До дедлайну ' + left + ' ' + (left === 1 ? 'день' : left < 5 ? 'дні' : 'днів') + ' (день ' + dl + ')';
-        })()}${s.misses ? ' · пропущено ' + s.misses : ''}${s.unpaidUnits ? ' · без оплати ще ' + s.unpaidUnits : ''}${s.partTime ? ' · частковий графік ×' + C.work.partTimeMult : ''}</div>
+        <div class="tip">
+          <p>${(() => {
+            let dl = s.day; while (dl % C.work.deadlineEvery !== 0) dl++;
+            const left = dl - s.day;
+            return dl > s.days ? 'Дедлайнів більше немає' : left === 0 ? 'Дедлайн сьогодні (рахується вночі)' : 'До дедлайну ' + left + ' ' + (left === 1 ? 'день' : left < 5 ? 'дні' : 'днів') + ' (день ' + dl + ')';
+          })()}${s.misses ? ' · пропущено ' + s.misses : ''}${s.unpaidUnits ? ' · без оплати ще ' + s.unpaidUnits : ''}${s.partTime ? ' · частковий графік ×' + C.work.partTimeMult : ''}.</p>
+          <p class="why">Щотижня треба ${C.work.unitsPerDeadline} одиниць роботи. Недороблене стає неоплачуваними днями; два пропущені дедлайни — частковий графік.</p>
+        </div>
       </div>
 
       <div class="sec">
@@ -705,8 +718,6 @@
     $('endBtn').onclick = endDayClick;
     document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. Тепер знову можна в гості.'); renderAll(); }; });
     if ($('borrowBtn')) $('borrowBtn').onclick = showBorrow;
-    const ph = document.querySelector('.painhelp');
-    if (ph) ph.ontoggle = () => { painHelpOpen = ph.open; };
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
   }

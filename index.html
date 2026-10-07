@@ -210,6 +210,14 @@
     border: 4px solid transparent; border-bottom-color: var(--fg); border-top: 0;
   }
   .painlegend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 20px; color: var(--muted); margin-top: 4px; }
+  .sec.tipped { position: relative; cursor: help; }
+  .sec.tipped .lbl::after { content: ' ⓘ'; opacity: .55; font-size: .85em; }
+  .sec .tip { display: none; position: absolute; right: calc(100% + 12px); top: -6px; width: 360px; z-index: 30;
+    background: var(--panel); border: 2px solid var(--accent); padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.45); }
+  .sec .tip p { margin: 0 0 6px; line-height: 1.2; }
+  .sec .tip .why { color: var(--muted); font-size: .92em; }
+  .sec.tipped:hover .tip, .sec.tipped:focus-within .tip { display: block; }
+  @media (max-width: 900px) { .sec .tip { right: auto; left: 0; top: 100%; width: 100%; } }
   .painhelp { margin-top: 4px; font-size: 19px; color: var(--muted); }
   .painhelp summary { cursor: pointer; }
   .painhelp p { margin: 4px 0; line-height: 1.2; }
