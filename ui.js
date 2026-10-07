@@ -497,7 +497,7 @@
   }
   function bindDebt(el) {
     const pay = el.querySelector('[data-debt=pay]'), later = el.querySelector('[data-debt=later]');
-    if (pay) pay.onclick = () => { const a = G.debtAsk(game); const r = a && G.repay(game, a.name); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '.'); else toast('Не вистачає грошей'); renderAll(); };
+    if (pay) pay.onclick = () => { const a = G.debtAsk(game); const r = a && G.repay(game, a.name); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '.' + (r.invited ? ' ' + r.name + ' дякує й кличе зустрітися сьогодні.' : '')); else toast('Не вистачає грошей'); renderAll(); };
     if (later) later.onclick = () => {
       const a = G.debtAsk(game); const r = a && G.loseFriend(game, a.name);
       if (r) toast(r.text);
@@ -730,7 +730,7 @@
     `;
     if (tipIndex != null) showTip(tipIndex);   // панель перемалювалась — підказка лишається з новими числами
     $('endBtn').onclick = endDayClick;
-    document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. Тепер знову можна в гості.'); renderAll(); }; });
+    document.querySelectorAll('[data-repay]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; const r = G.repay(game, b.dataset.repay); if (r) toast('Повернув ' + r.amount + ' ₴ ' + r.name + '. ' + (r.invited ? r.name + ' дякує й кличе зустрітися сьогодні.' : 'Тепер знову можна в гості.')); renderAll(); }; });
     if ($('borrowBtn')) $('borrowBtn').onclick = showBorrow;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;

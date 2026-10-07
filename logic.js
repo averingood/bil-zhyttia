@@ -210,8 +210,16 @@
     delete s.debts[name];
     if (s.loanAsk === name) s.loanAsk = null;
     journalFor(s, s.day).did.push('Повернув ' + d.amount + ' ₴ ' + name);
+    // Друг дякує й сам кличе зустрітися сьогодні — так навіть з радістю на нулі є куди піти.
+    const cur = s.invites[s.day];
+    let invited = false;
+    if (s.slot < slotsOf(s) && (!cur || cur.status === 'cancelled')) {
+      s.invites[s.day] = { name, status: 'open', line: Math.floor(rand(s) * C.friends.inviteLines.length), thanks: true };
+      invited = true;
+      journalFor(s, s.day).did.push(name + ' дякує й кличе зустрітися');
+    }
     checkLose(s, s.day);
-    return { name, amount: d.amount };
+    return { name, amount: d.amount, invited };
   }
   // Не повернув на прохання — друга втрачено. Усіх втрачено — кінець гри.
   function loseFriend(s, name) {
