@@ -609,7 +609,7 @@
       <div class="sec">
         <div class="sec-h"><span class="lbl">Ресурс</span><span class="val">${s.energy}</span></div>
         <div class="pips">${pips}</div>
-        <div class="sub">Зранку ${s.energyMorning}${s.restedToday ? ', +' + C.actions.rest.gain + ' після відпочинку' : ''}</div>
+        <div class="sub">Зранку ${s.energyMorning}${s.restedToday ? ', +' + C.actions.rest.gain * s.restedToday + ' після відпочинку' : ''}</div>
         ${s.borrowed ? `<div class="warn">Позичено ${s.borrowed}: завтра біль +${s.borrowed * C.night.borrowPain}, уночі радість −${s.borrowed * C.joy.borrowPenalty}</div>` : ''}
       </div>
 
@@ -639,7 +639,7 @@
       <div class="sec">
         <div class="sec-h"><span class="lbl">Радість</span><span class="val" style="color:var(--joy)">${s.joy}</span></div>
         <div class="joybar"><i style="width:${s.joy}%"></i><b style="left:${C.joy.creativityOffBelow}%"></b><b style="left:${C.joy.creativityOnAbove}%"></b></div>
-        ${s.daysAlone && !s.friendsToday ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо' : ''}</div>` : ''}
+        ${s.daysAlone && !s.friendsToday ? `<div class="sub" ${s.daysAlone >= C.lonely.afterDays - 1 ? 'style="color:var(--strong)"' : ''}>Без зустрічей ${s.daysAlone} дн.${s.daysAlone >= C.lonely.afterDays ? ': самотньо, радість ' + C.lonely.joy + ' щоночі, поки когось не побачиш' : ' · з ' + C.lonely.afterDays + '-ї ночі радість ' + C.lonely.joy + ' щоночі'}</div>` : ''}
         ${s.creativityBlocked ? `<div class="warn">Творчість недоступна до радості ${C.joy.creativityOnAbove}+</div>` : ''}
       </div>
 

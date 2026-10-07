@@ -289,9 +289,6 @@
         if (s.medsToday >= a.perDay) return no('Знеболювальне сьогодні вже було');
         if (s.money < a.money) return no('Не вистачає грошей на знеболювальне');
         break;
-      case 'rest':
-        if (s.restedToday >= a.perDay) return no('Сьогодні вже відпочивав');
-        break;
       case 'exercise':
         if (s.exerciseToday >= a.perDay) return no('Вправи сьогодні вже були, більше тіло не витримає');
         break;
