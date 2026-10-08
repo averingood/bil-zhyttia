@@ -280,7 +280,7 @@
     if (a.money !== b.money && !covered.has('money')) parts.push({ t: sg(a.money - b.money) + ' ₴', k: a.money > b.money ? 'good' : 'bad' });
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
     if (a.tomorrow > b.tomorrow) parts.push({ t: 'завтра ресурс −' + (a.tomorrow - b.tomorrow), k: 'bad' });
-    if (a.future > b.future) { const f = game.future[game.future.length - 1]; parts.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, k: 'good' } : { t: 'завтра відкат +' + f.amount, k: 'bad' }); }
+    if (a.future > b.future) { const f = game.future[game.future.length - 1]; parts.push(f.kind === 'relief' ? { t: (f.day === game.day + 1 ? 'завтра' : 'день ' + f.day) + ': біль −' + f.amount, k: 'good' } : { t: 'завтра відкат +' + f.amount, k: 'bad' }); }
     if (a.fed && !b.fed && !covered.has('fed') && game.foodType === 'guests') parts.push({ t: 'друзі нагодували', k: 'good' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
     if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '»!', k: 'good' });
@@ -644,7 +644,7 @@
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
           <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body} (і біль −${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка +${C.actions.stretch.body}, своя їжа +${C.actions.cook.body}.</li>
-          <li><b>Втрати:</b> без їжі −${C.hungry.body}, щоночі тане.</li>
+          <li><b>Втрати:</b> без їжі −${C.hungry.body[0]} (другий день поспіль −${C.hungry.body[1]}), щоночі тане.</li>
           <li><b>Дає:</b> що міцніше, то рідше загострення: ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : i === a.length - 1 ? 'нижче' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
           <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — платний укол, +${C.doctor.rescue} за ${C.doctor.rescueCost} ₴.</li>
         </ul>`)}

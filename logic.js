@@ -596,7 +596,12 @@
 
     const ref = refuseInvite(s);
     if (ref) ev.push({ kind: 'friends', text: ref.text });
-    if (!s.fed) { s.body = clampS(s.body - C.hungry.body); s.stats.hungry++; ev.push({ kind: 'bad', text: 'Без їжі: Тіло −' + C.hungry.body }); }
+    if (!s.fed) {
+      s.hungryStreak = (s.hungryStreak || 0) + 1;
+      const H = C.hungry.body, loss = H[Math.min(H.length, s.hungryStreak) - 1];
+      s.body = clampS(s.body - loss); s.stats.hungry++;
+      ev.push({ kind: 'bad', text: (s.hungryStreak > 1 ? 'Знову без їжі' : 'Без їжі') + ': Тіло −' + loss });
+    } else s.hungryStreak = 0;
     // Оплата, що настає завтра, приходить уночі — до витрат.
     const due = s.pending.filter((x) => x.day <= s.day + 1);
     if (due.length) {
@@ -812,7 +817,7 @@
     else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
-    for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
+    for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: (f.day === s.day + 1 ? 'завтра' : 'день ' + f.day) + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (id === 'games') fx.push({ t: 'Засидишся: ' + Math.round(C.actions.games.tomorrowChance * 100) + '% шанс втратити ' + C.actions.games.tomorrow + ' ресурс завтра', kind: 'pain' });
     else if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
