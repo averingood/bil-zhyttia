@@ -121,7 +121,7 @@
     let sp = C.spoons[Math.max(0, Math.min(10, pain(s)))];
     if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Емоції в нормі: ресурс +1' }); }
     if (s.spoonTomorrow) { sp -= s.spoonTomorrow; ev.push({ kind: 'bad', text: 'Учора взяв наперед: ресурс −' + s.spoonTomorrow }); s.spoonTomorrow = 0; }
-    if (sp <= 3 && s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Друг підхопив у поганий ранок: ресурс +1' }); }
+    if (s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Є на кого спертися: ресурс +1' }); }
     s.spoons = s.spoonsMorning = Math.max(1, sp);
     const st = stateKey(s);
     if (st === 'strong') s.stats.strongDays++;
