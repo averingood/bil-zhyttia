@@ -386,7 +386,9 @@
         s.people = clampS(s.people + a.people);
         s.soul = clampS(s.soul + a.soul);
         s.stats.meetings++; s.stats.boards = (s.stats.boards || 0) + 1;
+        // Хто де сяде — щоразу інакше.
         guests = s.friendNames.slice();
+        for (let i = guests.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [guests[i], guests[k]] = [guests[k], guests[i]]; }
         note = 'вечір настолок: прийшли всі — ' + guests.join(', ') + '; Стосунки +' + a.people + ', Настрій +' + a.soul + ', −' + a.money + ' ₴ на частування';
         break;
       }

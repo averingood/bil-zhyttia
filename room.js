@@ -548,7 +548,7 @@
       this.hero.sitting = false; this.hero.sit = 0; this.hero.black = false;
       this.hero.x = 4.3; this.hero.y = 4.7; this.path = []; this.target = null;
       const spots = [[3.2, 3.9], [3.3, 5.7], [4.6, 6.5], [5.5, 6.0], [5.9, 4.6], [5.6, 3.4]];   // п'ятеро друзів і лікар
-      const guests = ['Дідуслав', 'Ковбасій', 'Любава', 'Одарка', 'Андрій'].map((n) => { const l = friendLook(n); return { pal: l.pal, long: l.long }; })
+      const guests = ['Дідуслав', 'Ковбасій', 'Любава', 'Одарка', 'Андрій'].sort(() => Math.random() - 0.5).map((n) => { const l = friendLook(n); return { pal: l.pal, long: l.long }; })
         .concat([{ pal: MEDICS[0], long: false, doctor: true }]);
       const medics = guests.map((g, i) => {
         const m = { x: DOOR[0] + (i % 2) * 0.5, y: DOOR[1] + (i % 2) * 0.3, pal: g.pal, long: g.long, doctor: g.doctor, path: [], wait: i * 0.7 };
@@ -1465,7 +1465,6 @@
       box(ctx, 0.1, 3.4, 9, 0.35, 2.8, 13, PAL.sofa);
       box(ctx, 0.45, 3.7, 9, 0.9, 1.1, 3, PAL.cushion);
       box(ctx, 0.45, 4.8, 9, 0.9, 1.1, 3, PAL.cushion);
-      if (!this.guests) box(ctx, 0.47, 5.45, 12, 0.25, 0.4, 6, PAL.mustard);
       box(ctx, 0.1, 3.4, 9, 1.25, 0.3, 6, PAL.sofa);
       box(ctx, 0.1, 5.9, 9, 1.25, 0.3, 6, PAL.sofa);
       // Гості після бильців, інакше переднє бильце розрізає їх навпіл.
