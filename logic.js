@@ -93,7 +93,7 @@
       seed, rng: seed | 0, days: opts.days || C.days, day: 1,
       setup: { money, basePain },
       baseStart: basePain, base: basePain, extra: SU.startExtra, relief: 0,
-      courseDrop: 0, courseToday: 0, doctorDrop: 0, pillDays: [], blockDay: -99, loan: null,
+      courseDrop: 0, courseToday: 0, doctorDrop: 0, pillDays: [], blockDay: -99, loans: [],
       money, people: C.start.people, body: C.start.body, soul: C.start.soul,
       spoons: 0, spoonsMorning: 0, spent: 0, borrowed: 0, spoonTomorrow: 0,
       friendNames: C.friends.names.slice(0, friendsN),
@@ -145,9 +145,11 @@
   // ---------- друзі ----------
   function addInvite(s, day) {
     if (day > s.days || s.invites[day]) return null;
-    const name = pick(s, s.friendNames), v = (C.friends.voices || {})[name];
+    const pool = freeFriends(s);
+    if (!pool.length) return null;
+    const name = pick(s, pool), v = (C.friends.voices || {})[name];
     // Іноді просяться вдвох — тоді вдвох і приходять; інакше приходить лише той, хто писав.
-    const rest = s.friendNames.filter((n) => n !== name);
+    const rest = pool.filter((n) => n !== name);
     const withName = v && v.pair && rest.length && rand(s) < C.friends.invitePair ? pick(s, rest) : null;
     const lines = withName ? v.pair : v ? v.invite : C.friends.inviteLines;
     s.invites[day] = { name, with: withName, status: 'open', line: Math.floor(rand(s) * lines.length) };
@@ -182,6 +184,13 @@
   // Хто проситься: «Любава» чи «Любава і Дідуслав»; дієслово в числі.
   function inviteWho(inv) { return inv.with ? inv.name + ' і ' + inv.with : inv.name; }
   const inviteVerb = (inv, one, many) => (inv.with ? many : one);
+  // Імена у відмінках: «у Ковбасія», «Одарці».
+  const nGen = (n) => (C.friends.gen || {})[n] || n, nDat = (n) => (C.friends.dat || {})[n] || n;
+  const inviteWhoDat = (inv) => nDat(inv.name) + (inv.with ? ' і ' + nDat(inv.with) : '');
+  // Борги: кому винен — того не кличеш і він не проситься.
+  const owes = (s, name) => s.loans.some((l) => l.from === name);
+  const freeFriends = (s) => s.friendNames.filter((n) => !owes(s, n));
+  const nextLoan = (s) => s.loans.slice().sort((x, y) => x.due - y.due)[0] || null;
   // Відмова: явна (кнопкою) або мовчазна (день скінчився без зустрічі).
   function refuseInvite(s) {
     const inv = inviteToday(s);
@@ -191,8 +200,8 @@
     s.stats.invitesRefused++;
     const v = (C.friends.voices || {})[inv.name];
     const line = pick(s, v ? v.refuse : C.friends.refusalLines);
-    journalFor(s, s.day).refused.push('Відмовив ' + inviteWho(inv) + ': Стосунки −' + C.friends.refuse);
-    return { name: inv.name, line, text: inv.name + ': «' + line + '» Стосунки −' + C.friends.refuse };
+    journalFor(s, s.day).refused.push('Відмовив ' + inviteWhoDat(inv) + ': Стосунки −' + C.friends.refuse);
+    return { name: inv.name, nameDat: inviteWhoDat(inv), line, text: inv.name + ': «' + line + '» Стосунки −' + C.friends.refuse };
   }
 
   // ---------- перевірка дії ----------
@@ -224,6 +233,7 @@
         break;
       case 'friends':
         if (!s.friendNames.length) return no('Кликати нікого');
+        if (!inviteToday(s) && !freeFriends(s).length) return no('Ти всім винен — спершу поверни борги');
         break;
       case 'block':
         if (s.day - s.blockDay < a.cooldown) return no('Наступна процедура — не раніше дня ' + (s.blockDay + a.cooldown));
@@ -231,16 +241,19 @@
       case 'gig':
         if (!gigToday(s)) return no('Сьогодні ніхто не пропонував підробіток');
         break;
-      case 'repay':
-        if (!s.loan) return no('Боргів немає');
-        if (s.money < s.loan.amount) return no('Не вистачає грошей: треба ' + s.loan.amount + ' ₴');
+      case 'repay': {
+        const l = nextLoan(s);
+        if (!l) return no('Боргів немає');
+        if (s.money < l.amount) return no('Не вистачає грошей: треба ' + l.amount + ' ₴');
         break;
+      }
       case 'board':
         if (s.day - (s.boardDay != null ? s.boardDay : -99) < a.cooldown) return no('Настолки — раз на тиждень: наступні з дня ' + (s.boardDay + a.cooldown));
+        if (!freeFriends(s).length) return no('Ти всім винен — кликати нікого');
         break;
       case 'loan':
         if (s.people < a.minPeople) return no('Стосунки на межі — позичити нема в кого');
-        if (s.loan) return no('Спершу поверни борг (' + s.loan.amount + ' ₴ ' + s.loan.from + ')');
+        if (!freeFriends(s).length) return no('Ти вже позичив у всіх п’ятьох');
         break;
     }
     return { available: true, reason: null };
@@ -312,10 +325,10 @@
         s.stats.meetings++;
         // Приходять по одному або вдвох: хто кликав (чи кого покликав ти) і, буває, ще хтось за компанію.
         // Запросився — приходить той, хто писав (удвох — якщо й просилися вдвох). Покликав сам — буває, хтось ще за компанію.
-        const first = inv ? inv.name : pick(s, s.friendNames);
+        const first = inv ? inv.name : pick(s, freeFriends(s));
         const names = [first];
         if (inv) { if (inv.with) names.push(inv.with); }
-        else if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
+        else if (rand(s) < C.friends.pairChance) { const rest = freeFriends(s).filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
         // Близькі (Стосунки високі) частіше приходять з їжею.
         // Покликав сам — частуєш (з шансом treatChance прийдуть голодні: −treat ₴).
@@ -417,36 +430,45 @@
         note = 'біль −' + a.reliefToday + ' сьогодні, −' + a.reliefNext.join(' і −') + ' наступні дні, Тіло +' + a.body + ', −' + a.money + ' ₴';
         break;
       case 'repay': {
-        const l = s.loan;
-        s.money -= l.amount; s.loan = null;
+        const l = nextLoan(s);
+        s.money -= l.amount; s.loans = s.loans.filter((x) => x !== l);
         note = 'борг ' + l.amount + ' ₴ (' + l.from + ') повернуто раніше строку';
+        tags.push({ t: 'віддав борг ' + nDat(l.from) + ': −' + l.amount + ' ₴', k: '', covers: ['money'] });
         break;
       }
       case 'gig': {
         s.money += a.pay; s.stats.earned += a.pay;
-        note = s.gig.from + ' підкинув' + (C.friends.female.includes(s.gig.from) ? 'а' : '') + ' підробіток: +' + a.pay + ' ₴ одразу';
+        s.people = clampS(s.people - (a.people || 0));
+        note = s.gig.from + ' підкинув' + (C.friends.female.includes(s.gig.from) ? 'а' : '') + ' підробіток: +' + a.pay + ' ₴ одразу' + (a.people ? '; брати гроші від друга незручно: Стосунки −' + a.people : '');
         s.gig = null;
         break;
       }
       case 'board': {
         s.boardDay = s.day;
-        s.people = clampS(s.people + a.people);
+        // Приходять усі, кому ти не винен; Стосунки — за кожного.
+        guests = freeFriends(s);
+        const gainB = a.people * guests.length;
+        s.people = clampS(s.people + gainB);
         s.soul = clampS(s.soul + a.soul);
         s.stats.meetings++; s.stats.boards = (s.stats.boards || 0) + 1;
         // Хто де сяде — щоразу інакше.
-        guests = s.friendNames.slice();
         for (let i = guests.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [guests[i], guests[k]] = [guests[k], guests[i]]; }
-        note = 'вечір настолок: прийшли всі — ' + guests.join(', ') + '; Стосунки +' + a.people + ', Настрій +' + a.soul + ', −' + a.money + ' ₴ на частування';
+        note = 'вечір настолок: прийшли ' + guests.join(', ') + '; Стосунки +' + gainB + ', Настрій +' + a.soul + ', −' + a.money + ' ₴ на частування';
+        tags.push({ t: 'настолки: прийшли ' + guests.length + ' — Стосунки +' + gainB, k: 'good', covers: ['people'] });
         break;
       }
       case 'loan': {
-        const from = pick(s, s.friendNames);
-        const close = s.people >= a.close.people, amount = close ? a.close.amount : a.amount, dueIn = close ? a.close.dueIn : a.dueIn;
+        // У кого — випадково з тих, кому ще не винен (і не з того, хто сьогодні проситься в гості).
+        const inv = inviteToday(s), pool = freeFriends(s);
+        const pool2 = pool.filter((n) => !inv || (n !== inv.name && n !== inv.with));
+        const from = pick(s, pool2.length ? pool2 : pool), amount = a.amount;
         s.money += amount;
         s.people = clampS(s.people - a.people);
-        s.loan = { amount, due: s.day + dueIn, from };
+        const l = { amount, due: s.day + a.dueIn, from };
+        s.loans.push(l);
         s.stats.loans = (s.stats.loans || 0) + 1;
-        note = '+' + amount + ' ₴ від ' + from + (close ? ' (близький друг — більше й надовше)' : '') + ', незручно просити: Стосунки −' + a.people + '; віддати до дня ' + s.loan.due;
+        note = '+' + amount + ' ₴ від ' + nGen(from) + ', незручно просити: Стосунки −' + a.people + '; віддати до дня ' + l.due + '. Доки не віддаси, ' + from + ' не прийде в гості';
+        tags.push({ t: 'позичив у ' + nGen(from) + ': +' + amount + ' ₴, віддати до дня ' + l.due, k: '', covers: ['money'] });
         break;
       }
       case 'read': {
@@ -624,10 +646,11 @@
       ev.push({ kind: 'bad', text: 'Несподівано: ' + name.toLowerCase() + ' — завтра треба заплатити ' + amount + ' ₴' });
     }
     // Борг: настав день — віддаєш, якщо є з чого; нема — друг ображається.
-    if (s.loan && s.day >= s.loan.due) {
+    for (const l of s.loans.slice().sort((x, y) => x.due - y.due)) {
+      if (s.day < l.due) continue;
       const A = C.actions.loan;
-      if (s.money > s.loan.amount) { s.money -= s.loan.amount; ev.push({ kind: 'money', text: 'Повернув борг ' + s.loan.from + ': −' + s.loan.amount + ' ₴' }); s.loan = null; }
-      else { s.people = clampS(s.people - A.late); s.loan.due = s.day + A.again; ev.push({ kind: 'friends', text: 'Не зміг повернути борг ' + s.loan.from + ': Стосунки −' + A.late + '. Нагадає в день ' + s.loan.due }); }
+      if (s.money > l.amount) { s.money -= l.amount; ev.push({ kind: 'money', text: 'Повернув борг ' + nDat(l.from) + ': −' + l.amount + ' ₴' }); s.loans = s.loans.filter((x) => x !== l); }
+      else { s.people = clampS(s.people - A.late); l.due = s.day + A.again; ev.push({ kind: 'friends', text: 'Не зміг повернути борг ' + nDat(l.from) + ': Стосунки −' + A.late + '. Нагадає в день ' + l.due }); }
     }
     recalcBase(s);
 
@@ -789,14 +812,15 @@
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
     if (id === 'friends' && inviteToday(s)) fx.push({ t: inviteWho(inviteToday(s)) + (inviteToday(s).with ? ' самі просяться' : ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' проситься'), kind: 'info' });
-    if (id === 'repay') fx.push({ t: 'борг ' + s.loan.from + ' закрито', kind: 'good' });
-    if (id === 'loan') fx.push({ t: 'віддати ' + after.loan.amount + ' ₴ до дня ' + after.loan.due + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
+    if (id === 'repay' && nextLoan(s)) fx.push({ t: 'борг ' + nDat(nextLoan(s).from) + ' закрито — знову зможе прийти', kind: 'good' });
+    if (id === 'loan') { const l = after.loans[after.loans.length - 1]; fx.push({ t: 'у кого — випадково; віддати ' + l.amount + ' ₴ за ' + C.actions.loan.dueIn + ' днів, інакше Стосунки −' + C.actions.loan.late + '; поки винен — не прийде в гості', kind: 'pain' }); fx.push({ t: 'можна ще в ' + (freeFriends(s).length - 1) + ' з ' + s.friendNames.length, kind: 'info' }); }
+    if (id === 'board') fx.push({ t: 'прийдуть ' + freeFriends(s).length + ' (кому не винен)', kind: 'info' });
     if (id === 'course') fx.push({ t: 'пігулок за тиждень: ' + (pillsInWeek(s) + 1) + ' з ' + C.course.need, kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%', kind: 'pain' });
     return out;
   }
 
-  function zoneActions(s, zone) { return ACTION_IDS.filter((id) => ACTIONS[id].zone === zone && (id !== 'repay' || s.loan)).map((id) => preview(s, id)); }
+  function zoneActions(s, zone) { return ACTION_IDS.filter((id) => ACTIONS[id].zone === zone && (id !== 'repay' || s.loans.length)).map((id) => preview(s, id)); }
 
   // Календар: що вже відомо на найближчі дні.
   function calendar(s, len) {
@@ -809,7 +833,7 @@
       for (const f of s.future.filter((x) => x.day === d)) ev.push(f.kind === 'relief' ? { t: 'біль −' + f.amount, k: 'good' } : { t: 'відкат +' + f.amount, k: 'bad' });
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
       for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
-      if (s.loan && s.loan.due === d) ev.push({ t: 'борг −' + s.loan.amount + '₴', k: 'bad' });
+      for (const l of s.loans) if (l.due === d) ev.push({ t: 'борг −' + l.amount + '₴', k: 'bad' });
       if (s.gig && s.gig.day === d) ev.push({ t: 'підробіток', k: 'pay' });
       if (s.bill && s.bill.due === d) ev.push({ t: '−' + s.bill.amount + '₴', k: 'bad' });
       if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
@@ -837,7 +861,7 @@
       if (C.doctor.days.includes(d.day)) out.push({ kind: 'info', t: w + ': увечері прийом у лікаря.' });
       if (s.bill && s.bill.due === d.day) out.push({ kind: 'money', t: w + ': ' + s.bill.name.toLowerCase() + ' — заплатити ' + s.bill.amount + ' ₴ (знімуть уночі).' });
       if (s.gig && s.gig.day === d.day) out.push({ kind: 'money', t: w + ': ' + s.gig.from + ' пропонує підробіток, +' + C.actions.gig.pay + ' ₴. Не візьмеш — Настрій −' + C.actions.gig.refuse + '.' });
-      if (s.loan && s.loan.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + s.loan.from + ', ' + s.loan.amount + ' ₴.' });
+      for (const l of s.loans) if (l.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + nDat(l.from) + ', ' + l.amount + ' ₴.' });
       if (d.day > s.day && pressureOf(d.day) > pressureOf(d.day - 1)) out.push({ kind: 'bad', t: w + ': життя тисне сильніше.' });
       if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': витрати на життя зростуть до ' + dailyCost(d.day) + ' ₴ за ніч.' });
     }
@@ -866,7 +890,7 @@
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
     if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
     if (st.surprises) lostItems.push('Несподівані витрати: ' + st.surprises + ' ₴');
-    if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loan ? ', не повернуто ' + s.loan.amount + ' ₴' : ''));
+    if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loans.length ? ', не повернуто ' + s.loans.reduce((x, l) => x + l.amount, 0) + ' ₴' : ''));
     if (st.blocks) kept.push('Платних процедур: ' + st.blocks);
     if (st.talkMissed) lostItems.push('Не почув друзів: ' + st.talkMissed + ' р.');
     return { lost: s.lost ? Object.assign({}, s.lost) : null, daysLived: s.lost ? s.lost.day : s.days, days: s.days, kept, lostItems, history: s.history };

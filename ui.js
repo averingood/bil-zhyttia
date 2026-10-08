@@ -469,7 +469,7 @@
     if (phase !== 'play') return;
     const b = snap();
     const r = G.refuseInvite(game);
-    if (r) { toast(r.text); showDelta(b, 'Відмовив ' + r.name + ':'); }
+    if (r) { toast(r.text); showDelta(b, 'Відмовив ' + (r.nameDat || r.name) + ':'); }
     renderAll();
   }
   room.onArrive = (z) => {
@@ -573,17 +573,17 @@
         </div>
       </div>
 
-      ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loan ? ' Борг: ' + s.loan.amount + ' ₴ (' + esc(s.loan.from) + '), віддати до дня ' + s.loan.due + '.' : ''}</p>
+      ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loans.length ? ' Борги: ' + s.loans.map((l) => esc(l.from) + ' ' + l.amount + ' ₴ до дня ' + l.due).join(', ') + '.' : ''}</p>
         <ul class="tl">
           <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; біль і настрій змінюють суму), підробіток від друга.</li>
           <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; двічі на тиждень — несподіваний рахунок.</li>
-          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів (близькі — ${C.actions.loan.close.amount} на ${C.actions.loan.close.dueIn}), Стосунки −${C.actions.loan.people}; не віддав — −${C.actions.loan.late}.</li>
+          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів у випадкового друга, якому ще не винен (до ${s.friendNames.length} боргів), Стосунки −${C.actions.loan.people}; не віддав вчасно — −${C.actions.loan.late}. Кому винен — той не приходить у гості.</li>
         </ul>`)}
       ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people >= L.peopleGood ? ' Близькі поруч — діють бонуси нижче.' : s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> покликати друзів +${C.actions.friends.people.light} (ресурс ${C.actions.friends.spoons}; покликав сам — ${Math.round(C.actions.friends.treatChance * 100)}%, що прийдуть голодні: −${C.actions.friends.treat} ₴), написати +${C.actions.text.people}, настолки раз на тиждень +${C.actions.board.people}.</li>
-          <li><b>Втрати:</b> відмова −${C.friends.refuse}, позика −${C.actions.loan.people}, щоночі тане.</li>
-          <li><b>${L.peopleGood}+ дає:</b> підробіток (${Math.round(L.gigChance * 100)}% щоночі, +${C.actions.gig.pay} ₴), позика ${C.actions.loan.close.amount} ₴, гості з їжею (${Math.round(L.foodChance * 100)}%).</li>
+          <li><b>Підняти:</b> покликати друзів +${C.actions.friends.people.light} (ресурс ${C.actions.friends.spoons}; покликав сам — ${Math.round(C.actions.friends.treatChance * 100)}%, що прийдуть голодні: −${C.actions.friends.treat} ₴), написати +${C.actions.text.people}, настолки раз на тиждень +${C.actions.board.people} за кожного, хто прийшов (${C.actions.board.money} ₴).</li>
+          <li><b>Втрати:</b> відмова −${C.friends.refuse}, позика −${C.actions.loan.people}, підробіток −${C.actions.gig.people}, щоночі тане.</li>
+          <li><b>${L.peopleGood}+ дає:</b> підробіток (${Math.round(L.gigChance * 100)}% щоночі, +${C.actions.gig.pay} ₴), гості з їжею (${Math.round(L.foodChance * 100)}%).</li>
         </ul>`)}
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
