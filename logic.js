@@ -626,7 +626,7 @@
     }
     if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
-    if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
+    if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
