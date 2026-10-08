@@ -234,7 +234,7 @@
     if (gameOn('games') && id === 'games' && window.RunGame) return runScene(window.RunGame, { jumps: C.actions.games.jumps, painChance: C.actions.games.painChance }, (r) => ({ runner: r }), id, p);
     if (gameOn('cook') && id === 'cook' && window.CookGame) return runScene(window.CookGame, {}, (r) => ({ cook: r }), id, p);
     if (gameOn('exercise') && id === 'exercise' && window.MatGame) return runScene(window.MatGame, {}, (r) => ({ mat: r }), id, p);
-    if (gameOn('work') && id === 'work' && window.Meeting) return runScene(window.Meeting, { canvas, payDay: game.day + C.actions.work.payDelay }, (r) => ({ score: r.score }), id, p);
+    if (gameOn('work') && id === 'work' && window.Meeting) return runScene(window.Meeting, { canvas, day: game.day, payDay: game.day + C.actions.work.payDelay }, (r) => ({ score: r.score }), id, p);
     if (id === 'friends') {
       // Покликав сам — друзі можуть прийти голодні: вибір, чим пригостити.
       if (!G.inviteToday(game) && game.hungryNow == null && G.rollHungry(game)) { askFeed(p); return; }
@@ -276,7 +276,7 @@
     for (const tg of tags || []) { parts.push({ t: tg.t, k: tg.k || '' }); (tg.covers || []).forEach((c) => covered.add(c)); }
     const sg = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
     for (const k of ['people', 'body', 'soul']) if (a[k] !== b[k] && !covered.has(k)) parts.push({ t: G.SPHERES[k].name + ' ' + sg(a[k] - b[k]), k: a[k] > b[k] ? 'good' : 'bad' });
-    if (a.pending > b.pending) parts.push({ t: '+' + (a.pending - b.pending) + ' ₴ через ' + C.actions.work.payDelay + ' дні', k: 'good' });
+    if (a.pending > b.pending) parts.push({ t: '+' + (a.pending - b.pending) + ' ₴ ' + (C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'), k: 'good' });
     if (a.money !== b.money && !covered.has('money')) parts.push({ t: sg(a.money - b.money) + ' ₴', k: a.money > b.money ? 'good' : 'bad' });
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
     if (a.tomorrow > b.tomorrow) parts.push({ t: 'завтра ресурс −' + (a.tomorrow - b.tomorrow), k: 'bad' });
@@ -578,7 +578,7 @@
       <div class="sec-h"><span class="lbl">${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
       <div class="meter">${cells}</div>
       <div class="tip">${tip}<p class="why">${isMoney ? 'На нулі: ' + C.graceMoney + ' дні знайти гроші, інакше виселять.'
-        : 'На нулі: день на порятунок. Запас криз ' + (C.crises - ((s.crisesUsed || {})[k] || 0)) + ' з ' + C.crises + '.'}</p></div></div>`;
+        : 'На нулі: день на порятунок — підняв вище нуля, і тримаєшся далі; не підняв — кінець.'}</p></div></div>`;
   }
 
   function renderPanel() {
@@ -631,7 +631,7 @@
 
       ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loans.length ? ' Борги: ' + s.loans.map((l) => esc(l.from) + ' ' + l.amount + ' ₴ до дня ' + l.due).join(', ') + '.' : ''}</p>
         <ul class="tl">
-          <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; біль і настрій змінюють суму), підробіток від друга.</li>
+          <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші ${C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'}; біль і настрій змінюють суму), підробіток від друга.</li>
           <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; двічі на тиждень — несподіваний рахунок.</li>
           <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів у випадкового друга, якому ще не винен (до ${s.friendNames.length} боргів), Стосунки −${C.actions.loan.people}; не віддав вчасно — −${C.actions.loan.late}. Кому винен — той не приходить у гості.</li>
         </ul>`)}
@@ -709,7 +709,7 @@
     if (crisis != null && now <= 0) return name + ' на нулі. Не піднімеш сьогодні — уночі' + end;
     if (crisis != null) return name + ' зараз ' + now + ', але вночі знову впаде до нуля' + because + '. Учора воно вже було на нулі, тож другий нуль поспіль' + end;
     if (game.day >= game.days) return 'Останній день: ' + name.toLowerCase() + ' зараз ' + now + ', уночі впаде до нуля' + because + ', а порятунку вже не буде.';
-    return name + ' зараз ' + now + ', уночі впаде до нуля' + because + ', а запасу криз уже немає' + end;
+    return name + ' зараз ' + now + ', уночі впаде до нуля' + because + end;
   }
 
   // ---------- підказки секцій ----------

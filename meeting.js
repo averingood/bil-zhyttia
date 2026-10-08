@@ -280,7 +280,7 @@
       $q('.sc-answers').innerHTML = '';
       $q('.sc-msg').className = 'sc-msg ' + (score > 0 ? 'good' : 'bad');
       $q('.sc-msg').textContent = 'Зустріч завершено: ' + (score >= 0 ? '+' : '−') + Math.abs(score) + ' ₴' +
-        (score > 0 && o.payDay ? ', прийде на день ' + o.payDay : score < 0 ? ', штраф одразу' : '') + '.';
+        (score > 0 && o.payDay ? ', прийде ' + (o.payDay === o.day + 1 ? 'завтра' : 'на день ' + o.payDay) : score < 0 ? ', штраф одразу' : '') + '.';
       setKeys((e) => { if (e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape') close(); else return false; });
       // Виходити нема з чого обирати — сцена закривається сама, Enter пришвидшує.
       setTimeout(close, 500);

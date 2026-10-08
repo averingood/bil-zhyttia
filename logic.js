@@ -289,7 +289,7 @@
         const mod = base > 0 ? soulPayMod(s) : 0;   // Настрій: зосереджений — більше, пригнічений — менше
         const pay = Math.max(0, base + mod);
         if (pay > 0) s.pending.push({ day: s.day + a.payDelay, amount: pay });
-        note = pay > 0 ? '+' + pay + ' ₴ прийде на день ' + (s.day + a.payDelay) + (mod ? ' (настрій: ' + signed(mod) + ' ₴)' : '') : 'нічого не зароблено';
+        note = pay > 0 ? '+' + pay + ' ₴ прийде ' + (a.payDelay === 1 ? 'завтра' : 'на день ' + (s.day + a.payDelay)) + (mod ? ' (настрій: ' + signed(mod) + ' ₴)' : '') : 'нічого не зароблено';
         break;
       }
       case 'games': {
@@ -619,8 +619,7 @@
     const safe = {};
     for (const k of SOFT) if (s.crisis[k] != null && s[k] > 0) {
       delete s.crisis[k]; safe[k] = true;
-      const left = C.crises - (s.crisesUsed[k] || 0);
-      ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля, цієї ночі в безпеці' + (left > 0 ? ' (запас: ще ' + left + ')' : ' (запасу більше немає — наступний нуль стане кінцем)') });
+      ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля, цієї ночі в безпеці' });
     }
     // Сфери тануть: самі собою і від тиску життя.
     for (const k of SOFT) if (!safe[k]) s[k] = clampS(s[k] - C.decay);
@@ -733,7 +732,7 @@
   }
 
   // Нуль — ще не кінець. Стосунки/Тіло/Настрій: криза — наступного дня треба підняти вище нуля (перевіряється
-  // наступної ночі ще до танення); кожна сфера має запас C.crises криз, далі нуль — кінець.
+  // наступної ночі ще до танення). Скільки разів — без обмежень: поки щоразу піднімаєш, тримаєшся.
   // Гроші: на нулі є C.graceMoney днів, щоб знайти, чим платити; не знайшов — виселяють.
   // В останній день курсу часу вже немає: нуль — кінець.
   function checkLose(s, day, ev) {
@@ -754,10 +753,8 @@
       if (s[k] > 0) continue;
       if (s.crisis[k] != null || day >= s.days) { lose(k); return; }   // не підняв за день — кінець
       s.crisesUsed[k] = (s.crisesUsed[k] || 0) + 1;
-      if (s.crisesUsed[k] > C.crises) { lose(k); return; }               // запас вичерпано
       s.crisis[k] = day + 1;
-      const left = C.crises - s.crisesUsed[k];
-      ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! Завтра треба підняти вище нуля — інакше кінець' + (left ? ' (запас криз: ще ' + left + ')' : ' (це остання криза)') });
+      ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! Завтра треба підняти вище нуля — інакше кінець' });
     }
   }
 
@@ -815,7 +812,7 @@
     const fa = C.actions.friends, hungry = id === 'friends' && !inviteToday(s) && fa.treat && fa.treatChance < 1;
     if (hungry) fx.push({ t: Math.round(fa.treatChance * 100) + '%: прийдуть голодні — нагодувати (−' + fa.treat + ' ₴) чи Стосунки −1', kind: 'money' });
     else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
-    if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
+    if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ ' + (p.day === s.day + 1 ? 'завтра' : 'на день ' + p.day), kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: (f.day === s.day + 1 ? 'завтра' : 'день ' + f.day) + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (id === 'games') fx.push({ t: 'Засидишся: ' + Math.round(C.actions.games.tomorrowChance * 100) + '% шанс втратити ' + C.actions.games.tomorrow + ' ресурс завтра', kind: 'pain' });
