@@ -225,7 +225,7 @@
         s.soul = clampS(s.soul + gain);
         songTitle(s);
         s.song.done++;
-        note = 'Емоції +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '» ' + s.song.done + '/' + a.songSessions;
+        note = 'Емоції +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions + (s.song.done < a.songSessions ? ', до кінця ще ' + (a.songSessions - s.song.done) : '');
         if (s.song.done >= a.songSessions) {
           s.soul = clampS(s.soul + a.songSoul);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
@@ -323,7 +323,7 @@
         const b = bookNow(s);
         s.soul = clampS(s.soul + a.soul);
         s.book.done++;
-        note = '«' + b[0] + '» ' + s.book.done + '/' + b[1] + ', Емоції +' + a.soul;
+        note = '«' + b[0] + '»: сесія ' + s.book.done + ' з ' + b[1] + (s.book.done < b[1] ? ', до кінця ще ' + (b[1] - s.book.done) : '') + ', Емоції +' + a.soul;
         if (s.book.done >= b[1]) {
           s.soul = clampS(s.soul + a.finishSoul);
           s.stats.booksRead++; s.lastBookDone = b[0];
@@ -529,6 +529,15 @@
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; загострення ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (after.fed && !s.fed) fx.push({ t: 'їжа на день є', kind: 'info' });
+    // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
+    if (id === 'create') {
+      const A = C.actions.create, n = s.song.done + 1;
+      fx.push(n >= A.songSessions ? { t: 'остання сесія: пісню дописано (з бонусом +' + A.songSoul + ')', kind: 'good' } : { t: 'пісня: сесія ' + n + ' з ' + A.songSessions + ', дописана дасть +' + A.songSoul, kind: 'info' });
+    }
+    if (id === 'read') {
+      const b = bookNow(s), n = s.book.done + 1;
+      fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
+    }
     if (id === 'course') fx.push({ t: 'курс ' + (s.courseStreak + 1) + '-й день', kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ' і біль +' + C.night.exhausted, kind: 'pain' });
     return out;
