@@ -792,27 +792,30 @@
     }
 
     // board — вечір настолок: заходять усі, двоє на дивані, решта на подушках по той бік столика.
-    startVisit(names, onSeated, board) {
+    // heroSofa — герой сидить на дивані поруч із гостем (лікар), а не на мішку.
+    startVisit(names, onSeated, board, heroSofa) {
       this.speech = [];
       names = names && names.length ? names : ['Андрій'];
       const one = names.length === 1;
-      const friends = names.slice(0, board ? 5 : 2).map((name, i) => {
-        const look = friendLook(name);
+      const friends = names.slice(0, board ? 5 : heroSofa ? 1 : 2).map((name, i) => {
+        const look = name === 'Лікар' ? { pal: MEDICS[0], long: false } : friendLook(name);
         const floor = board && i >= 2;
         const spot = floor ? BOARD_SPOTS[i - 2] : null;
-        const front = floor ? spot : one ? SEAT_ONE_FRONT : SEAT_FRONT[i];
+        const front = floor ? spot : heroSofa ? SEAT_FRONT[1] : one ? SEAT_ONE_FRONT : SEAT_FRONT[i];
         const inX = DOOR_IN[0] + (i % 3) * 0.45, inY = DOOR_IN[1] - Math.floor(i / 3) * 0.5;
         const a = { name, x: DOOR[0] + (i % 3) * 0.45, y: DOOR[1] + Math.floor(i / 3) * 0.3, pal: look.pal, long: look.long,
-          seated: false, sit: 0, sitDir: 0, path: [], seat: floor ? spot : one ? SEAT_ONE : SEATS[i], front, floor };
+          seated: false, sit: 0, sitDir: 0, path: [], seat: floor ? spot : heroSofa ? SEATS[1] : one ? SEAT_ONE : SEATS[i], front, floor };
         // Спершу — крок за поріг; решта шляху — після привітання.
         a.path = [[inX, inY]];
         a.rest = this.findPath(front[0], front[1], inX, inY);
         return a;
       });
-      this.visit = { phase: 'enter', t: 0, friends, onSeated: onSeated || null, hold: false, board: !!board };
+      this.visit = { phase: 'enter', t: 0, friends, onSeated: onSeated || null, hold: false, board: !!board, heroSofa: !!heroSofa };
       // Герой іде до крісла-мішка біля входу й зустрічає гостей там — ніхто ні з ким не розминається.
+      // З лікарем — до дивана: сядуть поруч.
       this.setHeroSit(0);
-      this.path = this.findPath(BAG_FRONT[0], BAG_FRONT[1]);
+      const hs = this.heroStand();
+      this.path = this.findPath(hs[0], hs[1]);
       this.target = null;
     }
 
@@ -823,7 +826,8 @@
       if (v.onSeated && !v.hold) {
         this.speech = [];
         v.friends.forEach((f) => { f.path = []; f.moving = false; f.x = f.front[0]; f.y = f.front[1]; f.sit = 1; f.sitDir = 0; f.seated = true; });
-        this.path = []; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; this.hero.sit = 1; this.hero.sitDir = 0; this.hero.sitting = true;
+        const hs = this.heroStand();
+        this.path = []; this.hero.x = hs[0]; this.hero.y = hs[1]; this.hero.sit = 1; this.hero.sitDir = 0; this.hero.sitting = true;
         v.phase = 'talk'; v.t = 0; v.hold = true;
         const cb = v.onSeated; v.onSeated = null; cb();
         return true;
@@ -833,10 +837,13 @@
       return true;
     }
 
+    // Де герой стоїть, перш ніж сісти: біля мішка, а з лікарем — перед диваном.
+    heroStand() { return this.visit && this.visit.heroSofa ? SEAT_FRONT[0] : BAG_FRONT; }
+
     setHeroSit(v) {
       const h = this.hero, was = h.sit > 0;
       h.sit = v; h.sitDir = 0; h.sitting = v > 0;
-      if (was && !v) { h.x = BAG_FRONT[0]; h.y = BAG_FRONT[1]; }
+      if (was && !v) { const hs = this.heroStand(); h.x = hs[0]; h.y = hs[1]; }
     }
 
     // Гравець пішов сам: герой підводиться одразу, гості прощаються.
@@ -858,7 +865,7 @@
       if (!this.visit) return;
       if (immediate) {
         this.visit = null; this.speech = [];
-        if (this.hero.sitting) { this.setHeroSit(0); this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; }
+        if (this.hero.sitting) { const hs = this.heroStand(); this.setHeroSit(0); this.hero.x = hs[0]; this.hero.y = hs[1]; }
       } else if (this.visit.phase !== 'leave' && this.visit.phase !== 'standup') this.leaveVisit();
     }
 
@@ -1447,7 +1454,7 @@
         const bx = p[0] - 10, by = p[1] - 12;
         const pal = { O: PAL.ol, L: '#6f80a8', M: '#4c5b82', D: '#3a4668', d: '#2e3854', S: '#36415f' };
         sprite(ctx, BEANBAG, pal, bx, by);
-        if (this.hero.sit > 0) {
+        if (this.hero.sit > 0 && !(this.visit && this.visit.heroSofa)) {
           // Сідає у вм'ятину; коли сів, нижній край мішка накриває ноги.
           const from = P(BAG_FRONT[0], BAG_FRONT[1], 0).map(Math.round);
           this.drawSitter(ctx, this.hero, this.heroPal(), false, from, [p[0], p[1] - 7], true);
@@ -1513,6 +1520,11 @@
       box(ctx, 0.1, 5.9, 9, 1.25, 0.3, 6, PAL.sofa);
       // Гості після бильців, інакше переднє бильце розрізає їх навпіл.
       if (this.visit) {
+        // Герой на дивані поруч із лікарем — він сидить далі від нас, тож малюємо першим.
+        if (this.visit.heroSofa && this.hero.sit > 0) {
+          const from = P(SEAT_FRONT[0][0], SEAT_FRONT[0][1], 0).map(Math.round), to = P(SEATS[0][0], SEATS[0][1], 12).map(Math.round);
+          this.drawSitter(ctx, this.hero, this.heroPal(), false, from, [to[0], to[1] - 1], false);
+        }
         this.visit.friends.forEach((f) => {
           if (!(f.sit > 0) || f.floor) return;
           const from = P(f.front[0], f.front[1], 0).map(Math.round), to = P(f.seat[0], f.seat[1], 12).map(Math.round);

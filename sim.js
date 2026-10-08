@@ -13,6 +13,8 @@ const SOFT = ['people', 'body', 'soul'];
 // Розважливий: їсть, п'є курс, підтягує найнижчу сферу, не позичає, лишає ложку на себе, коли можна.
 function careful(s, opt = {}) {
   if (opt.course !== false && ok(s, 'course') && s.money > 30) return 'course';
+  // ЛФК — щонайменше 3 рази за тиждень до лікаря.
+  if (opt.lfk !== false && free(s, 'exercise') && L.lfkInWeek(s) < C.doctor.lfk.good) return 'exercise';
   if (ok(s, 'gig') && free(s, 'gig')) return 'gig';
   if (opt.loan !== false && ok(s, 'loan') && s.money < L.dailyCost(s.day) * 2 && !s.pending.length) return 'loan';
   if (opt.block && ok(s, 'block') && L.pain(s) >= 7 && s.money > 140) return 'block';
@@ -58,6 +60,7 @@ function random(s) {
 const STRATS = {
   'розважлива': (s) => careful(s),
   'без курсу': (s) => careful(s, { course: false }),
+  'без ЛФК': (s) => careful(s, { lfk: false }),
   'тіло понад усе': (s) => careful(s, { bodyFirst: true }),
   'розмірена': paced,
   'жадібна (бере наперед)': greedy,

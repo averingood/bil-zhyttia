@@ -23,7 +23,7 @@
   // Пам'ятаємо між сесіями.
   const MINI_GAMES = [
     ['friends', 'Розмова з друзями'], ['work', 'Планерка (робота)'], ['games', 'Гра-пробіжка'],
-    ['create', 'Синтезатор (пісня)'], ['read', 'Читання'], ['cook', 'Готування'], ['exercise', 'Вправи на килимку'],
+    ['create', 'Синтезатор (пісня)'], ['read', 'Читання'], ['cook', 'Готування'], ['exercise', 'ЛФК на килимку'],
   ];
   let setupChoice = { money: C.setup.money.def, basePain: C.setup.basePain.def };
   let gamesOn = loadGames();
@@ -67,7 +67,7 @@
     if (workingT > 0) workingT -= dt;
     if (game) {
       room.setView({
-        slot: phase === 'night' ? 4 : G.dayPhase(game),
+        slot: phase === 'night' ? 4 : phase === 'doctor' ? 3 : G.dayPhase(game),
         pain: G.pain(game),
         state: G.stateKey(game),
         working: workingT > 0,
@@ -91,7 +91,7 @@
     }
     room.update(dt);
     room.render();
-    { const sk = $('skipBtn'), want = !!game && ((phase === 'scene' && !!sceneAbort) || phase === 'cut' || canSkipAnim()); if (sk.hidden === want) sk.hidden = !want; }
+    { const sk = $('skipBtn'), want = !!game && (((phase === 'scene' || phase === 'doctor') && !!sceneAbort) || phase === 'cut' || canSkipAnim()); if (sk.hidden === want) sk.hidden = !want; }
     const cap = $('cutCaption'), text = room.cut ? room.cut.caption : '';
     if (cap.textContent !== text) cap.textContent = text;
     cap.hidden = !text;
@@ -149,7 +149,7 @@
   // щоб сцени не перехопили клавішу.
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || !game || !$('modal').hidden) return;
-    if ((phase === 'scene' && sceneAbort) || phase === 'cut' || canSkipAnim()) {
+    if (((phase === 'scene' || phase === 'doctor') && sceneAbort) || phase === 'cut' || canSkipAnim()) {
       e.preventDefault(); e.stopImmediatePropagation();
       skipNow(); renderAll();
     }
@@ -211,7 +211,7 @@
     // Звичайні анімації: візит друзів, бульбашка дії, світіння монітора.
     if (room.visit && room.skipVisit()) { renderAll(); return; }
     if (room.bubble || workingT > 0) { room.bubble = null; workingT = 0; return; }
-    if (phase === 'scene' && sceneAbort) { sceneSkipped = true; sceneAbort(); }
+    if ((phase === 'scene' || phase === 'doctor') && sceneAbort) { sceneSkipped = true; sceneAbort(); }
   }
 
   function act(id) {
@@ -358,6 +358,10 @@
     const r = G.endDay(game);
     room.endVisit(true);
     armed = null;
+    if (r.doctor) { doctorScene(r.doctor, () => afterNight(r, dayWas, left)); return; }
+    afterNight(r, dayWas, left);
+  }
+  function afterNight(r, dayWas, left) {
     // Лікарня з поверненням додому — лише якщо гра триває; якщо ця ніч кінцева, буде одна фінальна сцена.
     if (r.hospital && !game.lost) {
       phase = 'cut';
@@ -367,6 +371,56 @@
       return;
     }
     nightReport(r, dayWas, left);
+  }
+
+  // Прийом у лікаря: заходить, сідає з тобою на диван і по черзі каже висновки за тиждень.
+  function doctorScene(v, next) {
+    phase = 'doctor';
+    held.clear(); applyKeys();
+    const bar = $('actionBar');
+    let shown = 0, done = false, keyH = null;
+    const finish = () => {
+      if (done) return;
+      done = true; sceneAbort = null;
+      if (keyH) window.removeEventListener('keydown', keyH, true);
+      room.endVisit(false);   // прощається й іде
+      const b = v.after - v.before;
+      showDelta(snap(), null,
+        [{ t: (v.final ? 'Фінальний огляд: ' : 'Лікар: ') + (b ? 'базовий біль ' + v.before + ' → ' + v.after : 'базовий біль без змін (' + v.after + ')'), k: b < 0 ? 'good' : b > 0 ? 'bad' : '' }]);
+      next();
+    };
+    const draw = () => {
+      const last = shown >= v.lines.length;
+      bar.innerHTML = `<div class="sc-head"><span class="ab-zone">${v.final ? 'Фінальний огляд' : 'Прийом у лікаря'}</span><span class="ab-meta">день ${v.day}</span></div>
+        <ul class="doc-lines">${v.lines.slice(0, shown).map((l) => `<li class="${l.k}">${esc(l.t)}</li>`).join('')}</ul>
+        ${shown ? `<div class="sc-answers"><button class="ans primary doc-next" type="button"><kbd>Пробіл</kbd>${last ? 'Попрощатися' : 'Далі'}</button></div>` : '<p class="sc-msg">Лікар заходить…</p>'}`;
+      const b = bar.querySelector('.doc-next');
+      if (b) b.onclick = step;
+    };
+    const step = () => { if (done) return; if (shown >= v.lines.length) { finish(); return; } shown++; room.say(0, 'talk'); draw(); };
+    keyH = (e) => { if (shown && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); e.stopPropagation(); step(); } };
+    window.addEventListener('keydown', keyH, true);
+    sceneAbort = () => { shown = v.lines.length; finish(); };
+    room.startVisit(['Лікар'], () => { shown = 1; room.say(0, 'talk'); draw(); }, false, true);
+    draw();
+    renderAll();
+  }
+
+  // Початок тижня: що перевірить лікар. Далі гра не нагадує — тримаєш у голові сам.
+  function weekIntro() {
+    const D = C.doctor, w = Math.floor((game.day - 1) / D.week) + 1, docDay = D.days[w - 1];
+    if (!docDay || (game.day - 1) % D.week) return;
+    const final = docDay === D.days[D.days.length - 1];
+    openModal(`<h2>Тиждень ${w} з ${D.days.length}</h2>
+      <p>Увечері ${docDay}-го дня — ${final ? '<b>фінальний огляд</b> у лікаря: він підсумує весь курс' : 'прийом у лікаря'}. Він подивиться, як минув тиждень:</p>
+      <ul class="tl">
+        <li><b>Пігулки з курсу</b> (аптечка): ${D.pills.full} з ${D.week} — базовий біль −1; ${D.pills.keep} — без змін; менше — +1.</li>
+        <li><b>ЛФК</b> (килимок): ${D.lfk.good}+ рази — −1; 1–2 — без змін; жодного — +1.</li>
+      </ul>
+      <p class="sub">Гра не нагадуватиме й не рахуватиме за тебе — тримай у голові.</p>
+      <div class="row"><button class="btn primary" id="wkOk">Зрозуміло</button></div>`, true);
+    $('wkOk').onclick = closeModal;
+    $('wkOk').focus();
   }
 
   function nightReport(r, dayWas, left) {
@@ -389,6 +443,7 @@
       toast('Ранок дня ' + game.day + '. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() +
         '. Ресурс: ' + game.spoons + (r.flare ? '. Уночі було загострення.' : '.') + inviteNote());
       renderAll();
+      weekIntro();
     };
     renderAll();
   }
@@ -397,7 +452,7 @@
   function renderActions() {
     const el = $('actionBar');
     if (tipIndex == null) $('tipBox').hidden = true;   // підказка значка 🎮 не має лишатися після перемальовки
-    if (phase === 'scene' || phase === 'cut') return;
+    if (phase === 'scene' || phase === 'cut' || phase === 'doctor') return;
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
     const z = room.currentZone();
     const banner = gigBanner() + inviteBanner();
@@ -548,7 +603,6 @@
     const fc = G.forecastNight(s);
     const flareP = Math.round(G.flareChanceTonight(s) * 100);
     const incoming = s.pending.slice().sort((a, b) => a.day - b.day).map((x) => `+${x.amount} ₴ на день ${x.day}`).join(', ') || 'нічого';
-    const pills = G.pillsInWeek(s), active = G.courseActive(s);
 
     el.style.boxShadow = `inset 0 0 ${Math.max(0, p - 3) * 9}px ${Math.max(0, p - 3) * 3}px rgba(5,5,12,.75)`;
     el.innerHTML = `
@@ -567,7 +621,8 @@
             <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
             <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра (шанс загострення +${Math.round(C.night.exhausted * 100)}%). Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
             <li><b>Біль заважає:</b> менше ресурсу й заробітку, зустрічі слабші; з болем 7+ не пишеш, не читаєш, не готуєш.</li>
-            <li><b>Знижують:</b> курс ліків, лікар, вправи (через ${C.actions.exercise.reliefIn} дні), розтяжка, знеболювальне, процедура.</li>
+            <li><b>Базовий біль</b> міняє лише лікар (дні ${C.doctor.days.join(', ')}): дивиться, як ти пив пігулки й робив ЛФК за тиждень.</li>
+            <li><b>Тимчасово знижують:</b> ЛФК (−${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка, знеболювальне, процедура.</li>
             <li><b>Загострення частіші</b> від кави, знеболювального, перевтоми, слабкого Тіла й поганого настрою.</li>
           </ul>
         </div>
@@ -587,7 +642,7 @@
         </ul>`)}
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
-          <li><b>Підняти:</b> вправи +${C.actions.exercise.body} (і біль −${C.actions.exercise.relief} через ${C.actions.exercise.reliefIn} дні), розтяжка +${C.actions.stretch.body}, своя їжа +${C.actions.cook.body}.</li>
+          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body} (і біль −${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка +${C.actions.stretch.body}, своя їжа +${C.actions.cook.body}.</li>
           <li><b>Втрати:</b> без їжі −${C.hungry.body}, щоночі тане.</li>
           <li><b>Дає:</b> що міцніше, то рідше загострення: ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : i === a.length - 1 ? 'нижче' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
           <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — платний укол, +${C.doctor.rescue} за ${C.doctor.rescueCost} ₴.</li>
@@ -608,16 +663,6 @@
       <div class="sec">
         <span class="lbl">Календар</span>
         <div class="cal" style="grid-template-columns: repeat(5, 1fr)">${cal}</div>
-      </div>
-
-      <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Курс лікування</span><span class="val">${pills}/${C.course.window}</span></div>
-        <div class="tip"><p><b>Зараз:</b> ${pills} з ${C.course.window} днів — ${active ? 'курс діє, базовий біль −' + s.courseDrop : 'не діє (треба ' + C.course.need + ' з ' + C.course.window + ')'}${s.courseToday === s.day ? '; сьогоднішня випита' : ''}.</p>
-        <ul class="tl">
-          <li>Пігулка: ${C.course.money} ₴, без ресурсу, раз на день.</li>
-          <li>${C.course.need} з ${C.course.window} днів — базовий біль −${C.course.drop}; усі ${C.course.window} — −${C.course.fullDrop}.</li>
-          <li>Лікар (дні ${C.doctor.days.join(' і ')}): курс діє — ще −1; Тіло ${C.doctor.rescueBody} і нижче — укол +${C.doctor.rescue} за ${C.doctor.rescueCost} ₴.</li>
-        </ul></div>
       </div>
 
       <div class="sec">
@@ -692,10 +737,10 @@
 
   function renderAll() { renderPanel(); renderActions(); renderChips(); renderSceneToggle(); }
 
-  function canSkipAnim() { return (room.visit && !(room.visit.hold && phase === 'scene' && sceneAbort)) || !!room.bubble || workingT > 0; }
+  function canSkipAnim() { return (room.visit && !(room.visit.hold && (phase === 'scene' || phase === 'doctor') && sceneAbort)) || !!room.bubble || workingT > 0; }
   function renderSceneToggle() {
     const sk = $('skipBtn');
-    if (sk) sk.hidden = !game || !((phase === 'scene' && sceneAbort) || phase === 'cut' || canSkipAnim());
+    if (sk) sk.hidden = !game || !(((phase === 'scene' || phase === 'doctor') && sceneAbort) || phase === 'cut' || canSkipAnim());
     const b = $('sceneTog');
     b.hidden = !game || phase === 'setup' || phase === 'scene' || phase === 'cut';
     const n = MINI_GAMES.filter(([id]) => gameOn(id)).length;
@@ -775,6 +820,7 @@
     lastZone = undefined;
     renderAll();
     toast('День 1. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() + '. Ресурс: ' + game.spoons + '.' + inviteNote());
+    weekIntro();
   }
 
   function inviteNote() {

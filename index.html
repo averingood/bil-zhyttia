@@ -87,6 +87,10 @@
   .sc-timer i { display: block; height: 100%; width: 100%; background: var(--accent); }
   .sc-timer.joy i { background: var(--joy); }
   /* Місце під відповіді зарезервоване й тоді, коли їх ще нема: інакше панель росте і кадр стрибає. */
+  .doc-lines { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 21px; line-height: 1.2; }
+  .doc-lines li { padding-left: 14px; position: relative; }
+  .doc-lines li::before { content: '—'; position: absolute; left: 0; color: var(--muted); }
+  .doc-lines li.good { color: var(--light); } .doc-lines li.bad { color: var(--strong); }
   .sc-answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-rows: 58px; gap: 8px; margin-top: 6px; min-height: 124px; align-content: start; }
   .ans {
     font: inherit; font-size: 21px; text-align: left; color: var(--fg); background: var(--panel-2);
@@ -395,18 +399,18 @@
 </div>
 <div id="modal" hidden></div>
 
-<script src="config.js?v=20261008225959"></script>
-<script src="logic.js?v=20261008225959"></script>
-<script src="room.js?v=20261008225959"></script>
-<script src="painfx.js?v=20261008225959"></script>
-<script src="meeting.js?v=20261008225959"></script>
-<script src="friendtalk.js?v=20261008225959"></script>
-<script src="matgame.js?v=20261008225959"></script>
-<script src="readgame.js?v=20261008225959"></script>
-<script src="cookgame.js?v=20261008225959"></script>
-<script src="synthgame.js?v=20261008225959"></script>
-<script src="rungame.js?v=20261008225959"></script>
-<script src="ui.js?v=20261008225959"></script>
+<script src="config.js?v=20261008232149"></script>
+<script src="logic.js?v=20261008232149"></script>
+<script src="room.js?v=20261008232149"></script>
+<script src="painfx.js?v=20261008232149"></script>
+<script src="meeting.js?v=20261008232149"></script>
+<script src="friendtalk.js?v=20261008232149"></script>
+<script src="matgame.js?v=20261008232149"></script>
+<script src="readgame.js?v=20261008232149"></script>
+<script src="cookgame.js?v=20261008232149"></script>
+<script src="synthgame.js?v=20261008232149"></script>
+<script src="rungame.js?v=20261008232149"></script>
+<script src="ui.js?v=20261008232149"></script>
 <div id="tipBox" hidden></div>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// Вправи на килимку від першої особи: повтор рухів за тренером.
+// ЛФК на килимку від першої особи: повтор рухів за тренером.
 // Тренер у телефоні показує послідовність стрілок, гравець повторює її клавішами.
 // Кожен правильний рух іде в залік, помилки не караються: це підтримка, а не іспит.
 // Біль коротким спалахом накриває щонайбільше одну стрілку в серії.
@@ -91,7 +91,7 @@
     const ro = window.ResizeObserver ? new ResizeObserver(fit) : null;
     if (ro) ro.observe(o.wrap);
 
-    o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Вправи</span><span class="ab-meta" id="scCount"></span></div>
+    o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">ЛФК</span><span class="ab-meta" id="scCount"></span></div>
       <div class="sc-bar"><div class="sc-timer" hidden><i></i></div><span class="mat-input"></span></div>
       <div class="sc-answers mat-keys">${ARR.map((a, i) => `<button class="ans mat-arrow" type="button" data-a="${i}" style="grid-area:${['l', 'u', 'r', 'd'][i]}" disabled><kbd>${a}</kbd>${['ліво', 'вгору', 'право', 'вниз'][i]}</button>`).join('')}</div>
       <p class="sc-msg">Дивись на телефон: тренер показує рухи.</p>`;
@@ -139,7 +139,7 @@
       $q('.sc-answers').innerHTML = '';
       const share = total ? right / total : 0;
       const E = C.actions.exercise;
-      const q = share >= M.reliefShare ? 'Тіло +' + E.body + ', через ' + E.reliefIn + ' дні біль −' + E.relief + '.' : share >= M.baseShare ? 'частково: Тіло +' + E.partialBody + ', без полегшення потім.' : 'замало — не зараховано, але й гірше не стало.';
+      const q = share >= M.reliefShare ? 'Тіло +' + E.body + ', біль −' + E.reliefToday + ' сьогодні й −' + E.reliefNext + ' завтра.' : share >= M.baseShare ? 'частково: Тіло +' + E.partialBody + ', без полегшення потім.' : 'замало — не зараховано, але й гірше не стало.';
       msg('Зараховано рухів ' + right + ' з ' + total + ': ' + q, share >= M.baseShare ? 'good' : '');
       setTimeout(close, 500);
     }
