@@ -299,7 +299,7 @@
         sceneAbort = null;
         const before = snap();
         // Пропущено: розмова «сама» — біль іноді не дає почути суть.
-        const kinds = sceneSkipped ? [Math.random() < G.coverOf(G.pain(game)) * 0.7 ? 'silent' : 'right'] : res.kinds;
+        const kinds = sceneSkipped ? G.autoTalkKinds(game) : res.kinds;
         const note = G.applyTalk(game, kinds);
         showDelta(before, { good: 'Розмова вдалась:', meh: 'Розмова так собі:', bad: 'Розмова не склалась:' }[game.lastTalk]);
         const j = game.journal.find((e) => e.day === game.day);

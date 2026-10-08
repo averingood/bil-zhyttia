@@ -31,7 +31,7 @@
   // Ключ стоїть у різних місцях фрази: біль накриває середину, тож іноді його видно збоку.
   // heavy — погана новина серйозна (здоров'я, втрата): на неї не скажеш «от халепа».
   const T2 = (good, gk, bad, bk, heavy) => () => pick([{ good: true, text: good, key: gk }, { good: false, text: bad, key: bk, heavy: !!heavy }]);
-  // Реакції: влучна (тон), загальна (безпечно, але порожньо), хибна (протилежний тон).
+  // Реакції: влучна (тон) і хибна (протилежний тон). Нейтральної немає: або почув і влучив, або ні.
   // Лише фрази, що пасують до будь-якої новини свого тону: без «давно ти дізналася?» чи «ти ж про це мріяла».
   const R_GOOD = ['Оце так! Клас!', 'Ого, яка гарна новина!', 'Супер! Аж настрій піднявся.', 'Як класно! Розкажи ще.', 'Ха, чудово! Я радий.',
     'Ну це ж прекрасно!', 'Ох, як я за тебе радий!', 'Оце новина! Аж усміхаюсь.', 'Клас! Таке треба відзначити.', 'Ура! Оце я розумію.'];
@@ -39,13 +39,10 @@
     'Ех, оце невдача.', 'Ой-ой… Ну хоч не нудно живеш.', 'Прикро, чесно. Не засмучуйся.', 'Оце так невезіння…', 'Ох… Ну, буває й таке, на жаль.'];
   const R_HEAVY = ['Мені дуже шкода. Як ти?', 'Це важко… Я поруч.', 'Тримайся, будь ласка. Чим допомогти?', 'Ох… Співчуваю від щирого серця.',
     'Мені так шкода. Хочеш про це поговорити?', 'Це справді тяжко. Я з тобою.', 'Ох… Якщо щось треба — кажи.', 'Як же це боляче чути…'];
-  const R_MEH = ['Ого. І що тепер?', 'Он воно як.', 'Ясно. Розкажи ще.', 'Хм. А далі що?', 'Зрозуміло. І як воно?', 'Ага. І що робитимеш?',
-    'Отакої.', 'Он як. Розкажи детальніше.', 'Почув. І як тобі з цим?', 'Ого. Не чекав.'];
   const badR = (t) => (t.heavy ? R_HEAVY : R_LIGHT);
   function replies(t) {
     return shuffle([
       { t: pick(t.good ? R_GOOD : badR(t)), kind: 'right' },
-      { t: pick(R_MEH), kind: 'meh' },
       { t: pick(t.good ? badR({ heavy: Math.random() < 0.5 }) : R_GOOD), kind: 'wrong' },
     ]);
   }
@@ -505,7 +502,7 @@
       }
       $q('.sc-timer').hidden = false;
       setKeys((e) => {
-        if (/^Digit[1-3]$/.test(e.code)) answer(Number(e.code.slice(5)) - 1);
+        if (/^Digit[1-9]$/.test(e.code) && Number(e.code.slice(5)) <= cur.tp.opts.length) answer(Number(e.code.slice(5)) - 1);
         else if (e.code === 'KeyR' && repeatLeft) repeat();
         else return false;
       });
@@ -522,12 +519,11 @@
       $q('.sc-answers').querySelectorAll('.ans').forEach((b, k) => { b.disabled = true; b.classList.add(cur.tp.opts[k].kind); });
       $q('.sc-repeat').innerHTML = ''; $q('.sc-timer').hidden = true;
       let say;
-      if (kind === 'right') say = cur.tp.good
+      if (kind === 'right' || kind === 'meh') say = cur.tp.good   // meh — влучив, але після перепитування
         ? pick(['Ото ж бо! Я ' + gg('знала', 'знав') + ', що ти порадієш.', 'Так, саме так!', 'Отож! Аж самому не віриться.', 'Приємно ділитися з тобою.',
           'Як добре, що я тобі ' + gg('розповіла', 'розповів') + '.', 'Ти вмієш радіти разом.', 'Дякую, друже!', 'Ага! І я досі усміхаюсь.'])
         : pick(['Дякую, це важливо для мене.', 'Дякую, аж легше стало.', 'Ти мене розумієш.', 'Добре, що ми побачилися.',
           'Саме це мені й треба було почути.', 'Приємно, що ти зі мною.', 'Дякую, друже.', 'Як добре, що я тобі ' + gg('розповіла', 'розповів') + '.']);
-      else if (kind === 'meh') say = pick(['Ну так.', 'Ага.', 'Ну, якось так.', 'Угу.', 'Мабуть.', 'Ну, як є.', 'Ага, ну.', 'Ну, ясно.', 'Може, й так.', 'Отаке.']);
       else if (kind === 'wrong') {
         // Відповів, але невлучно: реакція на сказане, а не на мовчання.
         const tone = cur.tp.good ? 'good' : 'bad', own = COMMENTS.wrongByName[cur.tp.speaker];
@@ -543,7 +539,7 @@
       const d = T.joy[kind];
       $q('.sc-msg').className = 'sc-msg ' + (d > 0 ? 'good' : d < 0 ? 'bad' : '');
       // Без чисел: підсумок розмови (Стосунки ±1) — у кінці.
-      $q('.sc-msg').textContent = kind === 'right' ? cur.tp.speaker + ' теплішає.' : kind === 'meh' ? 'Нейтрально.'
+      $q('.sc-msg').textContent = kind === 'right' ? cur.tp.speaker + ' теплішає.' : kind === 'meh' ? 'Влучно, але після перепитування — без бонусу.'
         : (kind === 'silent' ? 'Ти промовчав — ' : 'Невлучно — ') + cur.tp.speaker + ' засмучується.';
       cur.reaction = { text: say, from: performance.now() / 1000, until: performance.now() / 1000 + 2.2 };
       setTimeout(() => { if (done || closed) return; n++; $q('.sc-msg').textContent = ''; if (n < topics.length) play(); else finish(); }, 2400);
@@ -552,7 +548,7 @@
     function repeat() {
       if (!repeatLeft || !cur.asking) return;
       repeatLeft = false; cur.asking = false; setKeys(null);
-      $q('.sc-msg').className = 'sc-msg'; $q('.sc-msg').textContent = 'Повторює. Найкраще тепер — просто нейтрально.';
+      $q('.sc-msg').className = 'sc-msg'; $q('.sc-msg').textContent = 'Повторює. Влучиш тепер — без бонусу, але й без утрат.';
       play(true);
     }
 

@@ -324,10 +324,8 @@
         note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (st === 'strong' ? ' (з болем ти «не тут»)' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
-          // Без міні-гри розмова розігрується сама: що сильніший біль, то частіше пропускаєш суть.
-          const missed = rand(s) < coverOf(pain(s)) * 0.7;
-          if (missed) { s.people = clampS(s.people - 1); s.soul = clampS(s.soul - 1); s.stats.talkMissed++; note += '; пропустив суть розмови, Стосунки −1, Настрій −1'; }
-          else s.stats.talkHeard++;
+          // Без міні-гри розмова розігрується сама — за тими ж правилами, що й міні-гра.
+          note += '; ' + talkResult(s, autoTalkKinds(s));
         }
         break;
       }
@@ -453,6 +451,15 @@
   function applyTalk(s, kinds) {
     if (!pendingTalk) return '';
     pendingTalk = null;
+    return talkResult(s, kinds);
+  }
+  // Розмова без міні-гри: кожну тему біль може накрити (coverOf) — тоді вгадуєш навпіл.
+  function autoTalkKinds(s) {
+    const c = coverOf(pain(s)), out = [];
+    for (let i = 0; i < C.friends.talk.topics; i++) out.push(rand(s) < c && rand(s) < 0.5 ? 'wrong' : 'right');
+    return out;
+  }
+  function talkResult(s, kinds) {
     const T = C.friends.talk.joy;
     const sum = (kinds || []).reduce((acc, k) => acc + (T[k] || 0), 0);
     // Вдалась — Стосунки +1. Так собі — Настрій −1. Не склалась (біль заглушив, відповідав невлад) — Стосунки −1 і Настрій −1.
@@ -835,7 +842,7 @@
   const api = {
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
-    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho,
+    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho, autoTalkKinds,
     pillsInWeek, courseActive, pain, rawPain, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },
