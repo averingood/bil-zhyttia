@@ -26,8 +26,8 @@
 
     // Старт: обирає гравець.
     setup: {
-      money:    { min: 120, max: 200, step: 10, def: 160 },
-      basePain: { min: 1, max: 5, def: 4 },
+      money:    { min: 100, max: 220, step: 10, def: 160 },
+      basePain: { min: 5, max: 5, def: 5 },   // поки що завжди 5: на старті міняються лише гроші
       startExtra: 2,       // на старті ще стільки тимчасового болю (спадає сам)
     },
     start: { people: 6, body: 6, soul: 6 },

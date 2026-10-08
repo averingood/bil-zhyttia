@@ -794,18 +794,17 @@
       Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b> і <b>Настрій</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
-        ${slider('basePain', 'Базовий біль', SU.basePain, '', 'на старті ще +' + SU.startExtra + ' тимчасового, що сам спадає')}
       </div>
       <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J — щоденник, M — міні-ігри.</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
-    for (const k of ['money', 'basePain']) {
+    for (const k of ['money']) {
       const inp = $('su-' + k);
       inp.oninput = () => { $('su-' + k + '-v').textContent = inp.value + (k === 'money' ? ' ₴' : ''); };
     }
     $('startBtn').focus();
     $('startBtn').onclick = () => {
-      setupChoice = { money: +$('su-money').value, basePain: +$('su-basePain').value };
+      setupChoice = { money: +$('su-money').value, basePain: SU.basePain.def };
       newGame(setupChoice);
     };
   }
@@ -841,7 +840,8 @@
   function showJournal() {
     if (!game) return;
     const back = phase === 'end' ? showEnd : closeModal;
-    openModal(`<h2>Щоденник</h2>${journalHTML()}<div class="row"><button class="btn primary" id="jClose">${phase === 'end' ? 'До підсумку' : 'Закрити'}</button></div>`, phase !== 'end');
+    // Кнопка закриття — вгорі, щоб не гортати до кінця; Esc теж закриває.
+    openModal(`<div class="j-head"><h2>Щоденник</h2><button class="btn primary" id="jClose">${phase === 'end' ? 'До підсумку' : 'Закрити'} <kbd>Esc</kbd></button></div>${journalHTML()}`, phase !== 'end');
     $('jClose').onclick = back;
     $('jClose').focus();
   }
