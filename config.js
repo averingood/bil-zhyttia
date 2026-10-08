@@ -89,7 +89,7 @@
       coffee:   { spoons: 0, perDay: 1, money: 6, gain: 1, flareAdd: 0.15 },
       course:   { spoons: 0, perDay: 1 },
       meds:     { spoons: 0, perDay: 1, money: 12, reliefToday: 2, rebound: 1, side: { chance: 0.25, soul: 1 } },
-      read:     { spoons: 1, soul: 1, maxPain: 6, finishSoul: 2 },
+      read:     { spoons: 1, soul: 1, maxPain: 6, finishSoul: 3 },
       // Різке покращення, але дороге: платна процедура (блокада). Біль −3 сьогодні, −2 завтра, −1 післязавтра; Тіло +1.
       block:    { spoons: 1, money: 80, cooldown: 6, reliefToday: 3, reliefNext: [2, 1], body: 1 },
       // Борг: позичити в друзів. Просити незручно (Стосунки −1). Через dueIn днів віддаєш сам, якщо є гроші;
