@@ -229,11 +229,11 @@
       }
       case 'create': {
         const fake = opts.synth ? opts.synth.fake : (rand(s) < (C.painCover[st] || 0) * 0.6 ? 1 : 0);
-        const gain = a.soul[Math.min(fake, a.soul.length - 1)];
+        const gain = a.soul[0];   // скільки обіцяно, стільки й дає: фальшиві ноти — лише про біль у моменті
         s.soul = clampS(s.soul + gain);
         songTitle(s);
         s.song.done++;
-        note = 'Емоції +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions;
+        note = 'Емоції +' + gain + (fake ? ' (фальшиві ноти через біль, але пісня росте)' : '') + ', «' + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions;
         if (s.song.done >= a.songSessions) {
           s.soul = clampS(s.soul + a.songSoul);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
@@ -556,7 +556,13 @@
       : id === 'games' ? { runner: { cleared: C.actions.games.jumps } } : null);
     pendingTalk = saved;
     const fx = out.effects;
-    for (const k of SOFT) if (after[k] !== s[k]) fx.push({ t: SPHERES[k].name + ' ' + signed(after[k] - s[k]), kind: k });
+    for (const k of SOFT) if (after[k] !== s[k]) {
+      let txt = SPHERES[k].name + ' ' + signed(after[k] - s[k]);
+      // Де результат залежить від міні-гри — кажемо чесно, від чого.
+      if (id === 'cook' && k === 'soul') txt = SPHERES[k].name + ' +' + C.actions.cook.soulIfTasty + ', якщо смачно';
+      if (id === 'games' && k === 'soul') { const g = C.actions.games; txt = SPHERES[k].name + ' +' + (g.soul - 1) + '…+' + (after[k] - s[k]) + ' (що далі пробіжиш)'; }
+      fx.push({ t: txt, kind: k });
+    }
     if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after) + ' сьогодні', kind: 'pain' });
