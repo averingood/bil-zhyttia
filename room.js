@@ -532,7 +532,7 @@
     playEnding(kind, onDone) {
       if (kind === 'win') { this.playWin(onDone); return; }
       // Тіло здалося — госпіталізація: та сама сцена швидкої, але додому вже не повертаєшся.
-      if (kind === 'body') { this.playHospital(1, 0, onDone); this.cut.final = true; this.cut.slot = this.view.slot; this.cut.sleeping = false; this.cut.phase = 'flash'; return; }
+      if (kind === 'body') { this.playHospital(1, 0, onDone); this.cut.final = true; this.cut.slot = this.view.slot; return; }   // лежить у ліжку, швидка, ноші
       this.endVisit(true);
       const onBag = kind === 'joy' && this.hero.sit >= 1;
       this.bubble = null; this.heroAway = false; this.slumpPending = false;
@@ -653,7 +653,7 @@
       const go = (p) => { c.phase = p; c.t = 0; };
       switch (c.phase) {
         case 'sleep':
-          c.caption = 'Ніч';
+          c.caption = c.final ? 'Тіло здалося' : 'Ніч';
           if (c.t > 1.0) go('flash');
           break;
         case 'flash':
@@ -672,20 +672,23 @@
           if (c.medics.map((m) => this.moveActor(m, dt, 2.2)).every(Boolean)) go('lift');
           break;
         case 'lift':
-          if (c.sleeping && c.t > 0.5) {
+          if (c.final) {
+            // Фінал: не встає — кладуть на ноші.
+            if (c.t > 0.5 && !c.stretcher) { c.sleeping = false; c.stretcher = true; this.heroAway = true; }
+          } else if (c.sleeping && c.t > 0.5) {
             c.sleeping = false;
             this.hero.x = 2.15; this.hero.y = 4.9; this.hero.back = false;
           }
           c.caption = c.final ? 'Госпіталізація' : 'Тебе забирають у лікарню';
           if (c.t > 1.4) {
             c.medics.forEach((m, i) => { m.path = [...this.findPath(DOOR_IN[0] + i * 0.5, DOOR_IN[1], m.x, m.y), [DOOR[0] + i * 0.5, DOOR[1] + i * 0.3]]; });
-            this.path = [...this.findPath(DOOR_IN[0] + 0.25, DOOR_IN[1] - 0.4), [DOOR[0] + 0.25, DOOR[1]]];
+            if (!c.final) this.path = [...this.findPath(DOOR_IN[0] + 0.25, DOOR_IN[1] - 0.4), [DOOR[0] + 0.25, DOOR[1]]];
             go('out');
           }
           break;
         case 'out': {
           // Медики підлаштовуються під його крок.
-          const done = c.medics.map((m) => this.moveActor(m, dt, Math.min(2.2, this.speed()))).every(Boolean);
+          const done = c.medics.map((m) => this.moveActor(m, dt, c.final ? 1.6 : Math.min(2.2, this.speed()))).every(Boolean);
           if (done && !this.path.length) {
             this.heroAway = true; c.medics = []; c.flash = 0;
             go('away');
@@ -1608,6 +1611,20 @@
         }
       }
       ctx.putImageData(img, 0, 0);
+      // Ноші: між двома медиками, на них — ти під простирадлом.
+      if (this.cut && this.cut.stretcher && this.cut.medics.length === 2) {
+        const [a, b] = this.cut.medics.map((m) => P(m.x, m.y, 7).map(Math.round));
+        const steps = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 1);
+        for (let k = 0; k <= steps; k++) {
+          const x = Math.round(a[0] + (b[0] - a[0]) * k / steps), y = Math.round(a[1] + (b[1] - a[1]) * k / steps);
+          ctx.fillStyle = '#2b2f3a'; ctx.fillRect(x, y + 2, 1, 1);
+          ctx.fillStyle = '#e8ecef'; ctx.fillRect(x, y - 1, 1, 3);
+          ctx.fillStyle = '#9fb8d9'; ctx.fillRect(x, y - 2, 1, 1);
+        }
+        const hx = Math.round(a[0] + (b[0] - a[0]) * 0.15), hy = Math.round(a[1] + (b[1] - a[1]) * 0.15);
+        ctx.fillStyle = '#e0ac84'; ctx.fillRect(hx - 1, hy - 4, 3, 3);
+        ctx.fillStyle = '#3a2a20'; ctx.fillRect(hx - 1, hy - 5, 3, 1);
+      }
       if (this.cut && this.cut.win) {
         for (const p of this.cut.confetti) {
           ctx.fillStyle = p.col;
