@@ -319,8 +319,7 @@
         const before = pain(s);
         s.relief += a.reliefToday;
         s.painkiller = true;
-        s.future.push({ day: s.day + 1, kind: 'rebound', amount: a.rebound });
-        note = 'біль ' + before + ' → ' + pain(s) + ', завтра відкат +' + a.rebound;
+        note = 'біль ' + before + ' → ' + pain(s) + ', загострення вночі ймовірніше (+' + Math.round(a.flareAdd * 100) + '%)';
         if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Емоції −' + a.side.soul; }
         break;
       }
@@ -382,7 +381,7 @@
   const exhaustedNow = (s) => s.spoons === 0 || s.borrowed > 0;
   function flareChanceTonight(s) {
     const t = C.links.bodyFlare.find(([min]) => s.body >= min);
-    return Math.min(1, (t ? t[1] : 0.3) + s.coffeeToday * C.actions.coffee.flareAdd + (exhaustedNow(s) ? C.night.exhausted : 0));
+    return Math.min(1, (t ? t[1] : 0.3) + s.coffeeToday * C.actions.coffee.flareAdd + (exhaustedNow(s) ? C.night.exhausted : 0) + (s.painkiller ? C.actions.meds.flareAdd : 0));
   }
   function flareSize(s) {
     const t = C.night.flareSizes, sum = t.reduce((a, x) => a + x[1], 0);
@@ -567,6 +566,7 @@
     if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after) + ' сьогодні', kind: 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
+    if (id === 'meds') fx.push({ t: 'загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; загострення ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (after.fed && !s.fed) fx.push({ t: 'їжа на день є', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
