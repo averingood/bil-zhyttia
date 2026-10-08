@@ -287,8 +287,8 @@
       }
       case 'stretch':
         s.body = clampS(s.body + a.body);
-        s.relief += a.reliefToday;
-        note = 'Тіло +' + a.body + ', біль сьогодні −' + a.reliefToday;
+        ease(s, a.reliefToday);
+        note = 'Тіло +' + a.body + ', тимчасовий біль −' + a.reliefToday;
         break;
       case 'cook': {
         s.fed = true; s.foodType = 'cook';
@@ -317,7 +317,7 @@
       }
       case 'meds': {
         const before = pain(s);
-        s.relief += a.reliefToday;
+        ease(s, a.reliefToday);
         s.painkiller = true;
         note = 'біль ' + before + ' → ' + pain(s) + ', шанс загострення вночі тепер ' + Math.round(flareChanceTonight(s) * 100) + '%';
         if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Емоції −' + a.side.soul; }
@@ -325,7 +325,7 @@
       }
       case 'block':
         s.blockDay = s.day;
-        s.relief += a.reliefToday;
+        ease(s, a.reliefToday);
         a.reliefNext.forEach((v, i) => s.future.push({ day: s.day + 1 + i, kind: 'relief', amount: v, from: 'block' }));
         s.body = clampS(s.body + a.body);
         s.stats.blocks = (s.stats.blocks || 0) + 1;
@@ -371,6 +371,10 @@
     s.lastTalkMissed = d < 0;
     return d > 0 ? 'розмова вдалась: Стосунки +1' : d < 0 ? 'біль заглушив розмову: Стосунки −1' : 'розмова як розмова';
   }
+
+  // Зняти тимчасовий біль: не «до ночі», а насправді — він далі спадає вже з нового рівня.
+  // Нижче базового опускається щонайбільше на 2.
+  function ease(s, n) { s.extra = Math.max(-2, s.extra - n); }
 
   function recalcBase(s) {
     s.base = Math.max(C.painMin, s.baseStart - Math.min(C.maxRelief, s.courseDrop + s.doctorDrop));
@@ -427,7 +431,8 @@
         if (!pool.length) { pool = SOFT.filter((k) => s[k] > C.mercy); if (!pool.length) pool = SOFT.slice(); }
         const k = pool.splice(Math.floor(rand(s) * pool.length), 1)[0]; s[k] = clampS(s[k] - 1); hit.push(SPHERES[k].name);
       }
-      ev.push({ kind: 'bad', text: 'Життя тисне: ' + hit.join(', ') + ' ще −1' });
+      const by = {}; hit.forEach((n) => { by[n] = (by[n] || 0) + 1; });
+      ev.push({ kind: 'bad', text: 'Життя тисне: ' + Object.entries(by).sort((a, b) => b[1] - a[1]).map(([n, c]) => n + ' −' + c).join(', ') });
     }
     if (st === 'strong' && s.soul > C.mercy) { s.soul = clampS(s.soul - L.strongSoul); ev.push({ kind: 'pain', text: 'День у сильному болю пригнічує: Емоції −' + L.strongSoul }); }
 
@@ -563,7 +568,7 @@
     }
     if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
-    if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after) + ' сьогодні', kind: 'pain' });
+    if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after), kind: 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
