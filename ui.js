@@ -356,7 +356,7 @@
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
     const z = room.currentZone();
     const banner = gigBanner() + inviteBanner();
-    const meta = 'Ресурс ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
+    const meta = 'Лишилось ресурсу: ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
     if (!z) {
       el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${room.walking ? 'Іде…' : 'Квартира'}</span><span class="ab-meta">${meta}</span></div>
         <p class="ab-empty">Клікни на меблі або йди стрілками. Біля зони з'являться дії, клавіші 1–9 їх обирають.
@@ -489,7 +489,7 @@
     const hints = G.hints(s);
     const fc = G.forecastNight(s);
     const flareP = Math.round(G.flareChanceTonight(s) * 100);
-    const incoming = s.pending.slice().sort((a, b) => a.day - b.day).map((x) => `д.${x.day} +${x.amount}`).join(', ') || 'немає';
+    const incoming = s.pending.slice().sort((a, b) => a.day - b.day).map((x) => `+${x.amount} ₴ на день ${x.day}`).join(', ') || 'нічого';
     const pills = G.pillsInWeek(s), active = G.courseActive(s);
 
     el.style.boxShadow = `inset 0 0 ${Math.max(0, p - 3) * 9}px ${Math.max(0, p - 3) * 3}px rgba(5,5,12,.75)`;
@@ -503,7 +503,8 @@
         <div class="sec-h"><span class="lbl">Ресурс</span><span><span class="state-tag" style="--c:${col}">біль ${p}</span></span></div>
         <div class="tris">${tri}</div>
         <div class="tip">
-          <p><b>Зараз:</b> ресурс ${s.spoons} з ${s.spoonsMorning}${eaten ? ', біль з\'їв ' + eaten : ''}${s.borrowed ? ', узято наперед ' + s.borrowed : ''}. Біль ${p}: базовий ${s.base}, тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}. Шанс загострення вночі ${flareP}%.</p>
+          <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}, виданих зранку${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + ' — біль забрав ' + eaten + '.' : ''}</p>
+          <p><b>Біль ${p}:</b> базовий ${s.base}${s.extra ? ', тимчасовий ' + (s.extra > 0 ? '+' : '−') + Math.abs(s.extra) : ''}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
             <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
             <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра (шанс загострення +${Math.round(C.night.exhausted * 100)}%). Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
@@ -514,7 +515,7 @@
         </div>
       </div>
 
-      ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loan ? ' Борг ' + s.loan.amount + ' ₴ ' + esc(s.loan.from) + ' — до дня ' + s.loan.due + '.' : ''}</p>
+      ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loan ? ' Борг: ' + s.loan.amount + ' ₴ (' + esc(s.loan.from) + '), віддати до дня ' + s.loan.due + '.' : ''}</p>
         <ul class="tl">
           <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; біль і настрій змінюють суму), підробіток від друга.</li>
           <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; раз на тиждень — несподіваний рахунок.</li>
