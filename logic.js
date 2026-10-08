@@ -140,7 +140,11 @@
     const inv = s.invites[s.day];
     return inv && inv.status === 'open' ? inv : null;
   }
-  function inviteText(inv) { return (C.friends.inviteLines[inv.line] || C.friends.inviteLines[0]).text; }
+  // Рядок запрошення в роді того, хто пише.
+  function inviteText(inv) {
+    const l = C.friends.inviteLines[inv.line] || C.friends.inviteLines[0];
+    return !C.friends.female.includes(inv.name) && l.textM ? l.textM : l.text;
+  }
   // Відмова: явна (кнопкою) або мовчазна (день скінчився без зустрічі).
   function refuseInvite(s) {
     const inv = inviteToday(s);
