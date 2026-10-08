@@ -62,9 +62,9 @@ const STRATS = {
 };
 
 const SETUPS = {
-  'легко (200 ₴, 4 друзі, біль 2)': { money: 200, friends: 4, basePain: 2 },
-  'за замовч. (160 ₴, 3, біль 4)': {},
-  'тяжко (130 ₴, 2, біль 5)': { money: 130, friends: 2, basePain: 5 },
+  'легко (200 ₴, біль 2)': { money: 200, basePain: 2 },
+  'за замовч. (160 ₴, біль 4)': {},
+  'тяжко (130 ₴, біль 5)': { money: 130, basePain: 5 },
 };
 
 function play(strat, setup, seed) {

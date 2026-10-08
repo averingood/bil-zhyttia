@@ -79,11 +79,11 @@
   function createGame(opts) {
     opts = opts || {};
     const SU = C.setup, clampN = (v, r) => Math.max(r.min, Math.min(r.max, Math.round(v != null ? v : r.def)));
-    const basePain = clampN(opts.basePain, SU.basePain), friendsN = clampN(opts.friends, SU.friends), money = clampN(opts.money, SU.money);
+    const basePain = clampN(opts.basePain, SU.basePain), friendsN = C.friends.count, money = clampN(opts.money, SU.money);
     const seed = opts.seed != null ? opts.seed : Math.floor(Math.random() * 2 ** 31);
     const s = {
       seed, rng: seed | 0, days: opts.days || C.days, day: 1,
-      setup: { money, friends: friendsN, basePain },
+      setup: { money, basePain },
       baseStart: basePain, base: basePain, extra: SU.startExtra, relief: 0,
       courseStreak: 0, courseDrop: 0, courseToday: 0, doctorDrop: 0,
       money, people: C.start.people, body: C.start.body, soul: C.start.soul,

@@ -19,7 +19,7 @@
   let pending = null;        // дія, яку виконати, коли герой дійде до зони
   let lowIdle = 0;           // скільки герой стоїть без діла з порожньою душею
   // Міні-ігри від першої особи; вимкнено — результат рахується сам. Пам'ятаємо між сесіями.
-  let setupChoice = { money: C.setup.money.def, friends: C.setup.friends.def, basePain: C.setup.basePain.def, scenes: loadScenes() };
+  let setupChoice = { money: C.setup.money.def, basePain: C.setup.basePain.def, scenes: loadScenes() };
   function loadScenes() { try { return localStorage.getItem('zapas.scenes') !== '0'; } catch (e) { return true; } }
   function toggleScenes() {
     setupChoice.scenes = !setupChoice.scenes;
@@ -571,19 +571,18 @@
       <p class="sub">Виграти не можна: рано чи пізно якась сфера посиплеться. Вирішуєш ти — яка і коли. Біль б'є по всьому, але по-різному; на нього впливають вправи, курс ліків, лікар і те, чи береш сили наперед.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
-        ${slider('friends', 'Друзі', SU.friends, '', 'що більше, то частіше кличуть')}
         ${slider('basePain', 'Базовий біль', SU.basePain, '', 'на старті ще +' + SU.startExtra + ' тимчасового, що сам спадає')}
       </div>
       <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J — щоденник, M — міні-ігри.</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
-    for (const k of ['money', 'friends', 'basePain']) {
+    for (const k of ['money', 'basePain']) {
       const inp = $('su-' + k);
       inp.oninput = () => { $('su-' + k + '-v').textContent = inp.value + (k === 'money' ? ' ₴' : ''); };
     }
     $('startBtn').focus();
     $('startBtn').onclick = () => {
-      setupChoice = { money: +$('su-money').value, friends: +$('su-friends').value, basePain: +$('su-basePain').value, scenes: setupChoice.scenes };
+      setupChoice = { money: +$('su-money').value, basePain: +$('su-basePain').value, scenes: setupChoice.scenes };
       newGame(setupChoice);
     };
   }
