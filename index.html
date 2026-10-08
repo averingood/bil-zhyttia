@@ -263,6 +263,13 @@
   .borrow-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 10px 0; }
   .scene-tog.on { color: var(--fg); border-color: var(--accent, #d9a441); }
   .scene-tog kbd { font-size: 14px; opacity: .7; }
+  .games-menu { position: absolute; top: 44px; right: 8px; z-index: 31; background: var(--panel); border: 2px solid var(--accent, #d9a441); padding: 10px 14px; min-width: 250px; box-shadow: 0 6px 24px rgba(0,0,0,.45); font-size: 20px; }
+  .games-menu p { margin: 0 0 6px; }
+  .gm-head { color: var(--muted); }
+  .gm-row { display: flex; align-items: center; gap: 10px; padding: 3px 0; cursor: pointer; }
+  .gm-row input { width: 18px; height: 18px; accent-color: var(--accent, #d9a441); cursor: pointer; }
+  .gm-note { color: var(--muted); font-size: 17px; margin-top: 6px !important; max-width: 250px; line-height: 1.15; }
+  .gm-btns { display: flex; gap: 8px; }
   .btn.primary { background: var(--accent); color: var(--ink); border-color: var(--accent); font-weight: 400; }
   .btn.primary.pulse { animation: pulse 1.2s steps(2) infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 3px var(--fg); } }
@@ -361,13 +368,12 @@
   .tl { margin: 4px 0 0; padding-left: 16px; display: grid; gap: 3px; }
   .tl li { line-height: 1.25; }
   .skip-btn { right: auto; left: 8px; z-index: 30; }
-  /* Значок міні-гри на картці дії: Shift — запустити без гри. */
+  /* Значок міні-гри на картці дії: ця міні-гра увімкнена. */
   .act { position: relative; }
   .act .pad { position: absolute; right: 6px; bottom: 4px; font-size: 16px; opacity: .75; cursor: help; }
   .act .pad:hover { opacity: 1; }
   .act:has(.pad) { padding-right: 28px; }
   .btn .pad { cursor: help; }
-  .pad.off { opacity: .4; filter: grayscale(1); }
 </style>
 </head>
 <body>
@@ -376,7 +382,8 @@
     <div id="canvasWrap">
       <canvas id="room" aria-label="Квартира"></canvas>
       <button id="skipBtn" class="scene-tog skip-btn" type="button" hidden>Пропустити ⏭ <kbd>Esc</kbd></button>
-      <button id="sceneTog" class="scene-tog" type="button" title="Планерки, розмови, вправи й читання від першої особи. Клавіша M" hidden></button>
+      <button id="sceneTog" class="scene-tog" type="button" title="Які міні-ігри від першої особи грати самому. Клавіша M" hidden></button>
+      <div id="gamesMenu" class="games-menu" hidden></div>
       <div id="hoverLabel" hidden></div>
       <div id="cutCaption" hidden></div>
       <div id="toast" hidden></div>
@@ -388,18 +395,18 @@
 </div>
 <div id="modal" hidden></div>
 
-<script src="config.js?v=20261008194422"></script>
-<script src="logic.js?v=20261008194422"></script>
-<script src="room.js?v=20261008194422"></script>
-<script src="painfx.js?v=20261008194422"></script>
-<script src="meeting.js?v=20261008194422"></script>
-<script src="friendtalk.js?v=20261008194422"></script>
-<script src="matgame.js?v=20261008194422"></script>
-<script src="readgame.js?v=20261008194422"></script>
-<script src="cookgame.js?v=20261008194422"></script>
-<script src="synthgame.js?v=20261008194422"></script>
-<script src="rungame.js?v=20261008194422"></script>
-<script src="ui.js?v=20261008194422"></script>
+<script src="config.js?v=20261008195227"></script>
+<script src="logic.js?v=20261008195227"></script>
+<script src="room.js?v=20261008195227"></script>
+<script src="painfx.js?v=20261008195227"></script>
+<script src="meeting.js?v=20261008195227"></script>
+<script src="friendtalk.js?v=20261008195227"></script>
+<script src="matgame.js?v=20261008195227"></script>
+<script src="readgame.js?v=20261008195227"></script>
+<script src="cookgame.js?v=20261008195227"></script>
+<script src="synthgame.js?v=20261008195227"></script>
+<script src="rungame.js?v=20261008195227"></script>
+<script src="ui.js?v=20261008195227"></script>
 <div id="tipBox" hidden></div>
 </body>
 </html>
