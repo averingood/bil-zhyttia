@@ -17,6 +17,7 @@
   let lastZone = undefined;
   let lastWalking = null;
   let pending = null;        // дія, яку виконати, коли герой дійде до зони
+  let pendingNoGame = false; // …і чи без міні-гри (Shift)
   let lastPainSeen = null;    // щоб трусити картинку, щойно біль посилюється
   let lowIdle = 0;           // скільки герой стоїть без діла з порожньою душею
   // Міні-ігри від першої особи; вимкнено — результат рахується сам. Пам'ятаємо між сесіями.
@@ -384,14 +385,16 @@
     el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span><span class="ab-meta">${meta}</span></div>
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
     el.querySelectorAll('.act').forEach((b) => { b.onclick = (e) => act(b.dataset.id, e.shiftKey); });
-    // Підказка до значка 🎮 — у плаваючому вікні (рядок дій обрізає все, що виходить за край).
+    bindInvite(el);
+    fitBar(el);
+  }
+  // Підказка до значка 🎮 — у плаваючому вікні (рядок дій обрізає все, що виходить за край).
+  function bindPads(el) {
     el.querySelectorAll('.pad').forEach((ic) => {
       ic.onmouseenter = () => { const box = $('tipBox'), r = ic.getBoundingClientRect(); box.innerHTML = '<p><b>Тут є міні-гра.</b></p><p>Клік або цифра — з грою.<br><b>Shift</b>+клік чи <b>Shift</b>+цифра — без гри: результат порахується сам, як із вимкненими міні-іграми.</p>'; box.hidden = false;
         box.style.left = Math.max(12, Math.min(r.left - box.offsetWidth + r.width, window.innerWidth - box.offsetWidth - 12)) + 'px'; box.style.top = Math.max(12, r.top - box.offsetHeight - 8) + 'px'; };
       ic.onmouseleave = () => { if (tipIndex == null) $('tipBox').hidden = true; };
     });
-    bindInvite(el);
-    fitBar(el);
   }
   // Без прокрутки: якщо на вузькому екрані не влазить — блок підростає, а не ріже вміст.
   function fitBar(el) { el.style.height = ''; if (el.scrollHeight > el.clientHeight + 1) el.style.height = 'auto'; }
@@ -402,7 +405,7 @@
     const p = G.preview(game, 'friends');
     return `<div class="invite"><span class="inv-msg"><b>${esc(inv.name)}</b> пише: «${esc(G.inviteText(inv))}»</span>
       <span class="inv-btns">
-        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}</button>
+        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}${setupChoice.scenes && p.available ? ' <span class="pad" aria-label="Є міні-гра; Shift — без неї">🎮</span>' : ''}</button>
         <button class="btn" data-inv="no">Відмовити · Стосунки −${C.friends.refuse}</button>
       </span>
       ${p.available && p.borrow ? `<span class="warn">Наперед ${p.borrow}: завтра на стільки менше ресурсу</span>` : ''}
@@ -423,14 +426,15 @@
     const gy = el.querySelector('[data-gig=yes]'), gn = el.querySelector('[data-gig=no]');
     if (gy) gy.onclick = () => { if (phase === 'play') act('gig'); };
     if (gn) gn.onclick = () => { if (phase !== 'play') return; const r = G.refuseGig(game); if (r) toast(r.text); renderAll(); };
+    bindPads(el);
     const yes = el.querySelector('[data-inv=yes]'), no = el.querySelector('[data-inv=no]');
-    if (yes) yes.onclick = acceptInvite;
+    if (yes) yes.onclick = (e) => acceptInvite(e.shiftKey);
     if (no) no.onclick = declineInvite;
   }
-  function acceptInvite() {
+  function acceptInvite(noGame) {
     if (phase !== 'play') return;
-    if (room.currentZone() === 'sofa') { act('friends'); return; }
-    pending = 'friends';
+    if (room.currentZone() === 'sofa') { act('friends', noGame); return; }
+    pending = 'friends'; pendingNoGame = !!noGame;
     room.walkToZone('sofa');
   }
   function declineInvite() {
@@ -440,9 +444,9 @@
     renderAll();
   }
   room.onArrive = (z) => {
-    const id = pending;
-    pending = null;
-    if (id && G.ACTIONS[id].zone === z) act(id);
+    const id = pending, noGame = pendingNoGame;
+    pending = null; pendingNoGame = false;
+    if (id && G.ACTIONS[id].zone === z) act(id, noGame);
   };
 
   // Дії, що мають міні-гру від першої особи.
@@ -837,7 +841,7 @@
   }
 
   // Для налагодження з консолі: zapas.game.extra = 4; zapas.refresh()
-  window.zapas = { get game() { return game; }, room, refresh: renderAll };
+  window.zapas = { get game() { return game; }, get phase() { return phase; }, room, refresh: renderAll };
 
   const hot = window.claude && window.claude.hot;
   if (hot && hot.snapshot) hot.snapshot(() => ({ game, phase, hero: { x: room.hero.x, y: room.hero.y } }));
