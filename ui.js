@@ -17,6 +17,7 @@
   let lastZone = undefined;
   let lastWalking = null;
   let pending = null;        // дія, яку виконати, коли герой дійде до зони
+  let lastPainSeen = null;    // щоб трусити картинку, щойно біль посилюється
   let lowIdle = 0;           // скільки герой стоїть без діла з порожньою душею
   // Міні-ігри від першої особи; вимкнено — результат рахується сам. Пам'ятаємо між сесіями.
   let setupChoice = { money: C.setup.money.def, basePain: C.setup.basePain.def, scenes: loadScenes() };
@@ -71,6 +72,12 @@
       lowIdle += dt;
       if (lowIdle > 3) { lowIdle = 0; room.slumpToBag(); }
     } else lowIdle = 0;
+    // Біль посилився — картинка здригається. Перевіряємо, лише коли гравець бачить кімнату (без вікон зверху).
+    if (game && (phase === 'play' || phase === 'scene') && $('modal').hidden) {
+      const p = G.pain(game);
+      if (lastPainSeen != null && p > lastPainSeen) shake();
+      lastPainSeen = p;
+    }
     room.update(dt);
     room.render();
     const cap = $('cutCaption'), text = room.cut ? room.cut.caption : '';
@@ -84,6 +91,11 @@
       renderChips();
     }
     requestAnimationFrame(frame);
+  }
+
+  function shake() {
+    const w = $('canvasWrap');
+    w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
   }
 
   // ---------- миша і клавіші ----------
@@ -313,7 +325,6 @@
       phase = 'play';
       if (!r.hospital) { room.hero.x = window.Room.STAND.sofa[0]; room.hero.y = window.Room.STAND.sofa[1]; }
       room.path = [];
-      if (r.flare) { const w = $('canvasWrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); }
       toast('Ранок дня ' + game.day + '. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() +
         '. Ресурс: ' + game.spoons + (r.flare ? '. Уночі було загострення.' : '.') + inviteNote());
       renderAll();
@@ -600,6 +611,7 @@
   function newGame(opts) {
     endingPlayed = false;
     game = G.createGame(opts);
+    lastPainSeen = null;
     closeModal();
     phase = 'play';
     room.endVisit(true); room.resetHero();
