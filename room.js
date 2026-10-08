@@ -1196,7 +1196,12 @@
       if (lvl < 0.03) return;
       const col = hexOf(this.lit.patchCol);
       const x0 = this.bedOut() ? 2.7 : 1.45;
-      polyDither(ctx, [P(x0, 3.9 + shift), P(x0 + len, 4.1 + shift), P(x0 + len, 6.1 + shift), P(x0, 6.0 + shift)], col, lvl);
+      // Сонячна пляма з вікна — м'яке напівпрозоре світло, а не рідкі точки (на малому рівні вони виглядали як сміття).
+      if (lvl < 0.12) return;
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.32, lvl * 0.45);
+      poly(ctx, [P(x0, 3.9 + shift), P(x0 + len, 4.1 + shift), P(x0 + len, 6.1 + shift), P(x0, 6.0 + shift)], col);
+      ctx.restore();
     }
 
     // Диван розкладений на ніч і коли він дрімає; з гостями — складений.
