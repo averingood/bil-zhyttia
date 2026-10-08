@@ -493,7 +493,7 @@
         if (s.money > D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); parts.push('Тіло слабке — укол і відновлення: Тіло +' + D.rescue + ', −' + D.rescueCost + ' ₴'); }
         else parts.push('Тіло слабке, але на укол (' + D.rescueCost + ' ₴) не вистачає грошей');
       }
-      ev.push({ kind: active || parts.length > 1 ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
+      ev.push({ kind: active || parts.some((x) => x.startsWith('Тіло слабке — укол')) ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
     }
     // Несподіваний рахунок: сьогодні платимо той, про який дізнались учора; і, може, приходить новий.
     if (s.bill && s.bill.due === s.day) {
