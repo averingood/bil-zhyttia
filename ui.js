@@ -757,7 +757,7 @@
 
   function inviteNote() {
     const inv = G.inviteToday(game);
-    return inv ? ' ' + inv.name + ' пише, хоче зайти.' : '';
+    return inv ? ' ' + G.inviteWho(inv) + (inv.with ? ' хочуть зайти.' : ' пише, хоче зайти.') : '';
   }
 
   function journalHTML() {

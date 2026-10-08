@@ -146,7 +146,11 @@
   function addInvite(s, day) {
     if (day > s.days || s.invites[day]) return null;
     const name = pick(s, s.friendNames), v = (C.friends.voices || {})[name];
-    s.invites[day] = { name, status: 'open', line: Math.floor(rand(s) * (v ? v.invite.length : C.friends.inviteLines.length)) };
+    // Іноді просяться вдвох — тоді вдвох і приходять; інакше приходить лише той, хто писав.
+    const rest = s.friendNames.filter((n) => n !== name);
+    const withName = v && v.pair && rest.length && rand(s) < C.friends.invitePair ? pick(s, rest) : null;
+    const lines = withName ? v.pair : v ? v.invite : C.friends.inviteLines;
+    s.invites[day] = { name, with: withName, status: 'open', line: Math.floor(rand(s) * lines.length) };
     return s.invites[day];
   }
   // Підробіток від друга: пропозиція на сьогодні, як запрошення.
@@ -167,12 +171,17 @@
   // Рядок запрошення: у кожного друга свій голос; про запас — загальні рядки.
   function inviteLine(inv) {
     const v = (C.friends.voices || {})[inv.name];
+    if (v && inv.with && v.pair) return v.pair[inv.line % v.pair.length];
     return v ? v.invite[inv.line % v.invite.length] : C.friends.inviteLines[inv.line] || C.friends.inviteLines[0];
   }
   function inviteText(inv) {
     const l = inviteLine(inv);
-    return !C.friends.female.includes(inv.name) && l.textM ? l.textM : l.text;
+    const t = !C.friends.female.includes(inv.name) && l.textM ? l.textM : l.text;
+    return inv.with ? t.split('{o}').join(C.friends.instr[inv.with] || inv.with) : t;
   }
+  // Хто проситься: «Любава» чи «Любава і Дідуслав»; дієслово в числі.
+  function inviteWho(inv) { return inv.with ? inv.name + ' і ' + inv.with : inv.name; }
+  const inviteVerb = (inv, one, many) => (inv.with ? many : one);
   // Відмова: явна (кнопкою) або мовчазна (день скінчився без зустрічі).
   function refuseInvite(s) {
     const inv = inviteToday(s);
@@ -182,7 +191,7 @@
     s.stats.invitesRefused++;
     const v = (C.friends.voices || {})[inv.name];
     const line = pick(s, v ? v.refuse : C.friends.refusalLines);
-    journalFor(s, s.day).refused.push('Відмовив ' + inv.name + ': Стосунки −' + C.friends.refuse);
+    journalFor(s, s.day).refused.push('Відмовив ' + inviteWho(inv) + ': Стосунки −' + C.friends.refuse);
     return { name: inv.name, line, text: inv.name + ': «' + line + '» Стосунки −' + C.friends.refuse };
   }
 
@@ -301,9 +310,11 @@
         s.people = clampS(s.people + gain);
         s.stats.meetings++;
         // Приходять по одному або вдвох: хто кликав (чи кого покликав ти) і, буває, ще хтось за компанію.
+        // Запросився — приходить той, хто писав (удвох — якщо й просилися вдвох). Покликав сам — буває, хтось ще за компанію.
         const first = inv ? inv.name : pick(s, s.friendNames);
         const names = [first];
-        if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
+        if (inv) { if (inv.with) names.push(inv.with); }
+        else if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
         // Близькі (Стосунки високі) частіше приходять з їжею.
         const food = (inv && inviteLine(inv).food) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, ['піцу', 'борщ', 'вареники', 'пиріг']) : null);
@@ -611,7 +622,7 @@
     s.textedToday = false;
     if (rand(s) < inviteChance) {
       const inv = addInvite(s, s.day + C.friends.leadDays);
-      if (inv) ev.push({ kind: 'friends', text: inv.name + ' пропонує зайти в день ' + (s.day + C.friends.leadDays) });
+      if (inv) ev.push({ kind: 'friends', text: inviteWho(inv) + ' ' + inviteVerb(inv, 'пропонує', 'пропонують') + ' зайти в день ' + (s.day + C.friends.leadDays) });
     }
 
     // Біль 10 — лікарня: наступний день випадає.
@@ -754,7 +765,7 @@
       const inv = s.invites[d], ev = [];
       const pay = s.pending.filter((p) => p.day === d).reduce((a, p) => a + p.amount, 0);
       if (pay) ev.push({ t: '+' + pay + '₴', k: 'pay' });
-      if (inv && inv.status !== 'cancelled') ev.push({ t: '♥ ' + inv.name, k: inv.status === 'refused' ? 'inv refused' : 'inv' });
+      if (inv && inv.status !== 'cancelled') ev.push({ t: '♥ ' + inviteWho(inv), k: inv.status === 'refused' ? 'inv refused' : 'inv' });
       for (const f of s.future.filter((x) => x.day === d)) ev.push(f.kind === 'relief' ? { t: 'біль −' + f.amount, k: 'good' } : { t: 'відкат +' + f.amount, k: 'bad' });
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
       for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
@@ -779,7 +790,7 @@
     for (const d of calendar(s, 4)) {
       const w = when(d.day);
       const inv = s.invites[d.day];
-      if (inv && inv.status === 'open') out.push({ kind: 'friends', t: w + ': ' + inv.name + (d.day === s.day ? ' хоче прийти. Якщо не покличеш — Стосунки −' + C.friends.refuse + '.' : ' пропонує зайти.') });
+      if (inv && inv.status === 'open') out.push({ kind: 'friends', t: w + ': ' + inviteWho(inv) + (d.day === s.day ? ' ' + inviteVerb(inv, 'хоче', 'хочуть') + ' прийти. Якщо не покличеш — Стосунки −' + C.friends.refuse + '.' : ' ' + inviteVerb(inv, 'пропонує', 'пропонують') + ' зайти.') });
       const pay = s.pending.filter((p) => p.day === d.day).reduce((a, p) => a + p.amount, 0);
       if (pay) out.push({ kind: 'money', t: w + ': надійде оплата за роботу, +' + pay + ' ₴.' });
       for (const f of s.future.filter((x) => x.day === d.day && x.kind === 'relief')) out.push({ kind: 'good', t: w + ': ' + (f.from === 'block' ? 'процедура ще діє' : 'вправи окупляться') + ', біль −' + f.amount + '.' });
@@ -824,7 +835,7 @@
   const api = {
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
-    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText,
+    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho,
     pillsInWeek, courseActive, pain, rawPain, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },
