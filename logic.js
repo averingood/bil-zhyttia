@@ -476,10 +476,12 @@
 
     // Курс лікування.
     {
-      const was = s.courseDrop > 0, now = courseActive(s);
-      s.courseDrop = now ? C.course.drop : 0;
-      if (now && !was) ev.push({ kind: 'good', text: 'Курс подіяв: ' + pillsInWeek(s) + ' пігулок за тиждень — базовий біль −' + C.course.drop });
-      if (!now && was) ev.push({ kind: 'pain', text: 'Забагато пропусків: курс перестав діяти — базовий біль +' + C.course.drop });
+      const was = s.courseDrop > 0, prevDrop = s.courseDrop, now = courseActive(s);
+      const full = pillsInWeek(s) >= C.course.window;
+      s.courseDrop = now ? (full ? C.course.fullDrop : C.course.drop) : 0;
+      if (now && !was) ev.push({ kind: 'good', text: 'Курс подіяв: ' + pillsInWeek(s) + ' пігулок за тиждень — базовий біль −' + s.courseDrop });
+      else if (now && was && s.courseDrop !== prevDrop) ev.push({ kind: s.courseDrop > prevDrop ? 'good' : 'pain', text: s.courseDrop > prevDrop ? 'Жодного пропуску за тиждень: курс діє сильніше — базовий біль −' + s.courseDrop : 'Пропуск за тиждень: курс діє слабше — базовий біль −' + s.courseDrop });
+      if (!now && was) ev.push({ kind: 'pain', text: 'Забагато пропусків: курс перестав діяти — базовий біль +' + prevDrop });
     }
     // Лікар.
     if (C.doctor.days.includes(s.day)) {
@@ -574,7 +576,7 @@
       if (s.crisis[k] == null) {
         if (day >= s.days) { lose(k); return; }
         s.crisis[k] = day + C.grace;
-        ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! Є ' + C.grace + ' дні, щоб вибратися (до кінця дня ' + s.crisis[k] + '), інакше кінець' });
+        ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! ' + (C.grace === 1 ? 'Виправити можна лише завтра — інакше кінець' : 'Є ' + C.grace + ' дні, щоб вибратися (до кінця дня ' + s.crisis[k] + '), інакше кінець') });
       } else if (day >= s.crisis[k] || day >= s.days) { lose(k); return; }
     }
   }
@@ -624,11 +626,11 @@
     }
     if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
-    if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after), kind: 'pain' });
+    if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
-    if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' });
+    if (id === 'coffee') { fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' }); fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' }); }
     if (after.fed && !s.fed) fx.push({ t: after.foodType === 'guests' ? 'друзі нагодують' : 'їжа на день є', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
@@ -672,7 +674,7 @@
     const out = [];
     if (s.lost || s.finished) return out;
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
-    for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: SPHERES[k].name + ' на нулі: до кінця дня ' + d + ' треба підняти, інакше кінець.' });
+    for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: SPHERES[k].name + ' на нулі: ' + (d === s.day ? 'сьогодні' : 'до кінця дня ' + d) + ' треба підняти, інакше кінець.' });
     for (const d of calendar(s, 4)) {
       const w = when(d.day);
       const inv = s.invites[d.day];

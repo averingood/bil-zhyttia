@@ -221,7 +221,8 @@
     wave: ['#.#.#', '#.#.#', '#####', '.####', '..##.'],
   };
   // Вечір настолок: подушки по той бік журнального столика (сидять обличчям до столика).
-  const BOARD_SPOTS = [[4.25, 4.35], [4.25, 5.25], [3.35, 6.1]];
+  // Двоє — по той бік столика (від дивана), третій — збоку, з боку комп'ютерного столу.
+  const BOARD_SPOTS = [[3.8, 4.35], [3.8, 5.25], [2.9, 3.7]];
   const DOOR = [5.9, 9.7];        // звідки заходять гості: з глядацького боку
   const DOOR_IN = [5.9, 8.5];
   const SEATS = [[0.8, 4.15], [0.8, 5.1]];
@@ -299,7 +300,7 @@
     [0.1, 1.65, 0.7, 0.85],  // книжкова шафа
     [0.1, 6.55, 0.75, 1.7],  // синтезатор на стійці
     [0.1, 3.4, 1.25, 2.8],   // диван
-    [2.9, 4.2, 0.9, 1.2],    // журнальний столик
+    [2.45, 4.2, 0.9, 1.2],   // журнальний столик (посередині килима)
     [0.95, 7.2, 0.35, 0.35], // стільчик біля синтезатора
     [2.15, 6.6, 0.6, 0.6],   // крісло-мішок
     [9.15, 8.05, 0.6, 0.6],  // великий вазон
@@ -832,6 +833,7 @@
     updateVisit(dt) {
       const v = this.visit;
       if (!v) return;
+      if (v.board) this.view.slot = 3;   // настолки — вечір: за вікном сутінки, горить лампа
       v.t += dt;
       const sp = 2.1, SIT = 0.75;   // секунд на те, щоб сісти чи встати
       const people = [this.hero, ...v.friends];
@@ -1334,34 +1336,34 @@
       // Диван-ліжко.
       add(4.6, () => this.drawSofa(ctx), 'sofa', [0.1, 3.4, 1.25, 2.8]);
 
-      // Журнальний столик.
-      add(8.2, () => {
-        for (const [lx, ly] of [[2.95, 4.25], [3.65, 4.25], [2.95, 5.25], [3.65, 5.25]]) box(ctx, lx, ly, 0, 0.1, 0.1, 6, PAL.woodD, { outline: false });
-        box(ctx, 2.9, 4.2, 6, 0.9, 1.2, 2, PAL.wood);
-        box(ctx, 3.05, 4.4, 8, 0.4, 0.5, 1, PAL.blue, { outline: false });
+      // Журнальний столик: посередині килима, ближче до дивана.
+      add(7.75, () => {
+        for (const [lx, ly] of [[2.5, 4.25], [3.2, 4.25], [2.5, 5.25], [3.2, 5.25]]) box(ctx, lx, ly, 0, 0.1, 0.1, 6, PAL.woodD, { outline: false });
+        box(ctx, 2.45, 4.2, 6, 0.9, 1.2, 2, PAL.wood);
+        box(ctx, 2.6, 4.4, 8, 0.4, 0.5, 1, PAL.blue, { outline: false });
         // Друзі принесли поїсти: коробка на столику до кінця дня.
         if (v.food === 'guests') {
-          box(ctx, 3.0, 4.55, 9, 0.6, 0.6, 2, '#c9a36b');
-          L(ctx, P(3.15, 5.15, 11), P(3.45, 5.15, 11), PAL.red);
+          box(ctx, 2.55, 4.55, 9, 0.6, 0.6, 2, '#c9a36b');
+          L(ctx, P(2.7, 5.15, 11), P(3, 5.15, 11), PAL.red);
         }
-        box(ctx, 3.5, 4.95, 8, 0.15, 0.15, 3, '#e6e8ea', { outline: false });
+        box(ctx, 3.05, 4.95, 8, 0.15, 0.15, 3, '#e6e8ea', { outline: false });
         // Телефон: блимає, коли друзі пишуть.
-        box(ctx, 3.5, 4.4, 8, 0.2, 0.12, 1, '#1d1f26', { outline: false });
+        box(ctx, 3.05, 4.4, 8, 0.2, 0.12, 1, '#1d1f26', { outline: false });
         if (v.invite && Math.floor(t * 3) % 2 === 0) {
-          const ph = P(3.6, 4.46, 9); ctx.fillStyle = '#9ff2dc'; ctx.fillRect(ph[0] - 1, ph[1], 3, 1);
+          const ph = P(3.15, 4.46, 9); ctx.fillStyle = '#9ff2dc'; ctx.fillRect(ph[0] - 1, ph[1], 3, 1);
           ctx.fillRect(ph[0], ph[1] - 4, 1, 2);
         }
         // Настолка на столику: поле, фішки, кубик.
         if (this.visit && this.visit.board) {
-          box(ctx, 2.95, 4.45, 8, 0.8, 0.75, 1, '#e8d9a8');
-          for (const [fx, fy, c] of [[3.05, 4.55, PAL.red], [3.5, 4.6, PAL.blue], [3.2, 5.0, '#6fcf8a'], [3.55, 4.95, PAL.mustard]]) box(ctx, fx, fy, 9, 0.08, 0.08, 2, c, { outline: false });
-          box(ctx, 3.35, 4.8, 9, 0.1, 0.1, 1, '#f3f4f2', { outline: false });
+          box(ctx, 2.5, 4.45, 8, 0.8, 0.75, 1, '#e8d9a8');
+          for (const [fx, fy, c] of [[2.6, 4.55, PAL.red], [3.05, 4.6, PAL.blue], [2.75, 5.0, '#6fcf8a'], [3.1, 4.95, PAL.mustard]]) box(ctx, fx, fy, 9, 0.08, 0.08, 2, c, { outline: false });
+          box(ctx, 2.9, 4.8, 9, 0.1, 0.1, 1, '#f3f4f2', { outline: false });
         }
         if (this.guests) {
-          box(ctx, 3.1, 5.05, 8, 0.15, 0.15, 3, PAL.mustard, { outline: false });
-          box(ctx, 3.45, 4.35, 8, 0.25, 0.25, 1, '#c98a4f', { outline: false });
+          box(ctx, 2.65, 5.05, 8, 0.15, 0.15, 3, PAL.mustard, { outline: false });
+          box(ctx, 3, 4.35, 8, 0.25, 0.25, 1, '#c98a4f', { outline: false });
         }
-      }, null, [2.9, 4.2, 0.9, 1.2]);
+      }, null, [2.45, 4.2, 0.9, 1.2]);
 
       // Коробки, коли доводиться з’їжджати.
       if (this.cut && this.cut.boxes) {
@@ -1550,11 +1552,13 @@
       const img = ctx.getImageData(0, 0, W, H);
       const d = img.data;
       const tint = this.lit.tint;
-      const lamp = this.visit && this.visit.board ? Math.max(this.lit.lamp, 0.85) : this.lit.lamp;
+      const lamp = this.visit && this.visit.board ? 1 : this.lit.lamp;
       const lights = lamp > 0.02 ? [
         [...P(1.55, 0.4, 28), v.working ? 52 : 26, [0.8, 1.05, 1.05]],
         [...P(0.45, 0.35, 30), 30, [1.05, 0.95, 0.75]],
       ] : [];
+      // Настолки: тепле коло світла над столиком — гірлянда/свічки.
+      if (this.visit && this.visit.board) lights.push([...P(2.9, 4.8, 12), 58, [1.25, 1.02, 0.7]]);
       const p = this.lit.pain;
       const strong = v.state === 'strong';
       const happy = !!(this.cut && this.cut.win);   // перемога: тепло, яскраво, без тіні по краях
@@ -1584,7 +1588,7 @@
               mr = mr + (L2[3][0] - mr) * k; mg = mg + (L2[3][1] - mg) * k; mb = mb + (L2[3][2] - mb) * k;
             }
           }
-          r *= mr * bright * coolR * (happy ? 1.08 : cozy ? 1.07 : 1); g *= mg * bright * (happy ? 1.03 : cozy ? 0.99 : 1); b *= mb * bright * coolB * (happy ? 0.9 : cozy ? 0.82 : 1);
+          r *= mr * bright * coolR * (happy ? 1.08 : cozy ? 1.16 : 1); g *= mg * bright * (happy ? 1.03 : cozy ? 0.98 : 1); b *= mb * bright * coolB * (happy ? 0.9 : cozy ? 0.7 : 1);
           const l = r * 0.3 + g * 0.59 + b * 0.11;
           r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
           if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
