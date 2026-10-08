@@ -220,6 +220,8 @@
     note: ['..##.', '..#.#', '..#..', '###..', '##...'],
     wave: ['#.#.#', '#.#.#', '#####', '.####', '..##.'],
   };
+  // Вечір настолок: подушки по той бік журнального столика (сидять обличчям до столика).
+  const BOARD_SPOTS = [[4.25, 4.35], [4.25, 5.25], [3.35, 6.1]];
   const DOOR = [5.9, 9.7];        // звідки заходять гості: з глядацького боку
   const DOOR_IN = [5.9, 8.5];
   const SEATS = [[0.8, 4.15], [0.8, 5.1]];
@@ -486,6 +488,7 @@
     // onSeated — коли всі сіли: тоді починається розмова від першої особи, а візит чекає на неї.
     playAction(id, guests, onSeated) {
       if (id === 'friends') { this.startVisit(guests, onSeated); return; }
+      if (id === 'board') { this.startVisit(guests, null, true); return; }
       this.bubble = { id, t: id === 'rest' ? 2.4 : 1.6 };
       // Відпочинок — посидіти в кріслі-мішку, а не розкладати диван серед дня.
       if (id === 'rest') this.slumpToBag();
@@ -764,21 +767,25 @@
       return false;
     }
 
-    startVisit(names, onSeated) {
+    // board — вечір настолок: заходять усі, двоє на дивані, решта на подушках по той бік столика.
+    startVisit(names, onSeated, board) {
       this.speech = [];
       names = names && names.length ? names : ['Марко'];
       const one = names.length === 1;
-      const friends = names.slice(0, 2).map((name, i) => {
+      const friends = names.slice(0, board ? 5 : 2).map((name, i) => {
         const look = friendLook(name);
-        const front = one ? SEAT_ONE_FRONT : SEAT_FRONT[i];
-        const a = { name, x: DOOR[0] + i * 0.5, y: DOOR[1] + i * 0.3, pal: look.pal, long: look.long,
-          seated: false, sit: 0, sitDir: 0, path: [], seat: one ? SEAT_ONE : SEATS[i], front };
-        // Спершу — крок за поріг; решта шляху до дивана — після привітання.
-        a.path = [[DOOR_IN[0] + i * 0.5, DOOR_IN[1]]];
-        a.rest = this.findPath(front[0], front[1], DOOR_IN[0] + i * 0.5, DOOR_IN[1]);
+        const floor = board && i >= 2;
+        const spot = floor ? BOARD_SPOTS[i - 2] : null;
+        const front = floor ? spot : one ? SEAT_ONE_FRONT : SEAT_FRONT[i];
+        const inX = DOOR_IN[0] + (i % 3) * 0.45, inY = DOOR_IN[1] - Math.floor(i / 3) * 0.5;
+        const a = { name, x: DOOR[0] + (i % 3) * 0.45, y: DOOR[1] + Math.floor(i / 3) * 0.3, pal: look.pal, long: look.long,
+          seated: false, sit: 0, sitDir: 0, path: [], seat: floor ? spot : one ? SEAT_ONE : SEATS[i], front, floor };
+        // Спершу — крок за поріг; решта шляху — після привітання.
+        a.path = [[inX, inY]];
+        a.rest = this.findPath(front[0], front[1], inX, inY);
         return a;
       });
-      this.visit = { phase: 'enter', t: 0, friends, onSeated: onSeated || null, hold: false };
+      this.visit = { phase: 'enter', t: 0, friends, onSeated: onSeated || null, hold: false, board: !!board };
       // Герой іде до крісла-мішка біля входу й зустрічає гостей там — ніхто ні з ким не розминається.
       this.setHeroSit(0);
       this.path = this.findPath(BAG_FRONT[0], BAG_FRONT[1]);
@@ -869,12 +876,18 @@
           v.phase = 'talk'; v.t = 0;
           // Розмова від першої особи: візит стоїть, поки вона не скінчиться.
           if (v.onSeated) { v.hold = true; const cb = v.onSeated; v.onSeated = null; cb(); return; }
+          // Настолки: сміються й перекидаються репліками всі по колу, довше.
+          if (v.board) {
+            const who = [...v.friends.map((_, i) => i), 'hero'];
+            for (let k = 0; k < 14; k++) this.say(who[k % who.length], k % 3 === 1 ? 'heart' : 'talk', 0.3 + k * 0.75);
+            return;
+          }
           // Перемовляються по черзі, іноді хтось вклинюється.
           const order = v.friends[1] ? [0, 'hero', 1, 0, 'hero', 1, 'hero'] : [0, 'hero', 0, 'hero', 0, 'hero'];
           order.forEach((who, i) => this.say(who, 'talk', 0.3 + i * 1.15 + (i % 3 === 2 ? -0.4 : 0)));
         }
       } else if (v.phase === 'talk') {
-        if (v.t > 8.6 && !v.hold) this.leaveVisit();
+        if (v.t > (v.board ? 12 : 8.6) && !v.hold) this.leaveVisit();
       } else if (v.phase === 'standup') {
         if (people.every((a) => !a.sit)) {
           if (this.hero.sitting) this.setHeroSit(0);
@@ -1338,6 +1351,12 @@
           const ph = P(3.6, 4.46, 9); ctx.fillStyle = '#9ff2dc'; ctx.fillRect(ph[0] - 1, ph[1], 3, 1);
           ctx.fillRect(ph[0], ph[1] - 4, 1, 2);
         }
+        // Настолка на столику: поле, фішки, кубик.
+        if (this.visit && this.visit.board) {
+          box(ctx, 2.95, 4.45, 8, 0.8, 0.75, 1, '#e8d9a8');
+          for (const [fx, fy, c] of [[3.05, 4.55, PAL.red], [3.5, 4.6, PAL.blue], [3.2, 5.0, '#6fcf8a'], [3.55, 4.95, PAL.mustard]]) box(ctx, fx, fy, 9, 0.08, 0.08, 2, c, { outline: false });
+          box(ctx, 3.35, 4.8, 9, 0.1, 0.1, 1, '#f3f4f2', { outline: false });
+        }
         if (this.guests) {
           box(ctx, 3.1, 5.05, 8, 0.15, 0.15, 3, PAL.mustard, { outline: false });
           box(ctx, 3.45, 4.35, 8, 0.25, 0.25, 1, '#c98a4f', { outline: false });
@@ -1354,6 +1373,20 @@
             L(ctx, P(bx + 0.25, by + 0.45, 1), P(bx + 0.25, by + 0.45, 7), '#7a5a32');
           }, null, [bx, by, 0.5, 0.45]);
         }
+      }
+
+      // Вечір настолок: подушки на підлозі й друзі на них.
+      if (this.visit && this.visit.board) {
+        BOARD_SPOTS.forEach(([cx, cy], i) => {
+          add(cx + cy + 0.05, () => {
+            box(ctx, cx - 0.3, cy - 0.3, 0, 0.6, 0.6, 2, ['#c0605a', '#5f7fb0', '#c9a24a'][i]);
+            const f = this.visit.friends.find((x) => x.floor && x.seat === BOARD_SPOTS[i]);
+            if (f && f.sit > 0) {
+              const from = P(f.front[0], f.front[1], 0).map(Math.round), to = P(cx, cy, 2).map(Math.round);
+              this.drawSitter(ctx, f, f.pal, f.long, from, [to[0], to[1] - 1], true);
+            }
+          }, null, [cx - 0.3, cy - 0.3, 0.6, 0.6]);
+        });
       }
 
       // Крісло-мішок: тут герой сидить, коли в гостях друзі.
@@ -1430,7 +1463,7 @@
       // Гості після бильців, інакше переднє бильце розрізає їх навпіл.
       if (this.visit) {
         this.visit.friends.forEach((f) => {
-          if (!(f.sit > 0)) return;
+          if (!(f.sit > 0) || f.floor) return;
           const from = P(f.front[0], f.front[1], 0).map(Math.round), to = P(f.seat[0], f.seat[1], 12).map(Math.round);
           this.drawSitter(ctx, f, f.pal, f.long, from, [to[0], to[1] - 1], false);
         });
@@ -1517,7 +1550,7 @@
       const img = ctx.getImageData(0, 0, W, H);
       const d = img.data;
       const tint = this.lit.tint;
-      const lamp = this.lit.lamp;
+      const lamp = this.visit && this.visit.board ? Math.max(this.lit.lamp, 0.85) : this.lit.lamp;
       const lights = lamp > 0.02 ? [
         [...P(1.55, 0.4, 28), v.working ? 52 : 26, [0.8, 1.05, 1.05]],
         [...P(0.45, 0.35, 30), 30, [1.05, 0.95, 0.75]],
@@ -1525,6 +1558,7 @@
       const p = this.lit.pain;
       const strong = v.state === 'strong';
       const happy = !!(this.cut && this.cut.win);   // перемога: тепло, яскраво, без тіні по краях
+      const cozy = !!(this.visit && this.visit.board);   // настолки: лампове тепле світло
       // Біль звужує кадр: краї гаснуть дизерингом, кольори вицвітають.
       const r0 = happy ? 9 : 1.34 - p * 0.088 + (strong ? Math.sin(this.t * 1.7) * 0.035 : 0) - 0.2 * (root.PainFX ? root.PainFX.gloomOf(this.lit.joy) : 0);
       // Радість фарбує світ: мало радості — сіро й тьмяно, багато — соковито.
@@ -1550,7 +1584,7 @@
               mr = mr + (L2[3][0] - mr) * k; mg = mg + (L2[3][1] - mg) * k; mb = mb + (L2[3][2] - mb) * k;
             }
           }
-          r *= mr * bright * coolR * (happy ? 1.08 : 1); g *= mg * bright * (happy ? 1.03 : 1); b *= mb * bright * coolB * (happy ? 0.9 : 1);
+          r *= mr * bright * coolR * (happy ? 1.08 : cozy ? 1.07 : 1); g *= mg * bright * (happy ? 1.03 : cozy ? 0.99 : 1); b *= mb * bright * coolB * (happy ? 0.9 : cozy ? 0.82 : 1);
           const l = r * 0.3 + g * 0.59 + b * 0.11;
           r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
           if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;

@@ -49,7 +49,6 @@
     // Зв'язки між сферами — по одному на кожну.
     links: {
       bodyFlare: [[7, 0.10], [4, 0.20], [0, 0.32]],   // Тіло ≥ поріг → шанс загострення
-      peopleHelp: 7,        // Стосунки ≥ — зранку ресурс +1 (є на кого спертися)
       soulHigh: 7,          // Емоції ≥ — ресурс +1 зранку
       strongSoul: 1,        // день у сильному болю — Емоції ще −1 уночі
     },
@@ -75,7 +74,7 @@
     // Дії. spoons — ціна; число або { light, medium, strong } (null — недоступно в цьому стані).
     // perDay — скільки разів на день. Сфера й віддача описані в logic.js, числа — тут.
     actions: {
-      work:     { spoons: 2, payDelay: 2, pay: { light: 46, medium: 38, strong: 24 } },
+      work:     { spoons: 2, payDelay: 2, pay: { light: 40, medium: 33, strong: 21 } },   // не більше 40 ₴ за день
       games:    { spoons: 1, perDay: 1, soul: 3, perJumps: 2, tomorrow: 1, jumps: 4,
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
       create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 6 },
@@ -94,9 +93,11 @@
       read:     { spoons: 1, soul: 1, maxPain: 6, finishSoul: 3 },
       // Різке покращення, але дороге: платна процедура (блокада). Біль −3 сьогодні, −2 завтра, −1 післязавтра; Тіло +1.
       block:    { spoons: 1, money: 80, cooldown: 6, reliefToday: 3, reliefNext: [2, 1], body: 1 },
+      // Вечір настолок: кличеш усіх друзів. Дорого (ресурс і гроші на частування), раз на тиждень, але Стосунки — найбільше.
+      board:    { spoons: 3, money: 15, cooldown: 7, people: 6, soul: 1 },
       // Борг: позичити в друзів. Просити незручно (Стосунки −1). Через dueIn днів віддаєш сам, якщо є гроші;
       // нема — друг ображається (Стосунки −late), і він нагадає ще через again днів.
-      loan:     { spoons: 0, amount: 40, people: 1, dueIn: 6, late: 3, again: 3 },
+      loan:     { spoons: 0, amount: 40, people: 1, dueIn: 6, late: 3, again: 3, minPeople: 3 },   // зі Стосунками нижче minPeople позичати нема в кого
     },
 
     // Друзі.
@@ -120,7 +121,7 @@
         { text: 'Можна до тебе?' },
         { text: 'Ми з піцою. Відчиниш?', food: 'піцу' },
         { text: 'Давно не бачились. Заскочу ввечері?' },
-        { text: 'Є настрій на настолки. Ти як?' },
+        { text: 'Може, просто посидимо, поговоримо?' },
         { text: 'Наварила борщу, занесу тобі?', textM: 'Наварив борщу, занесу тобі?', food: 'борщ' },   // textM — коли пише хлопець
       ],
       refusalLines: [
@@ -135,7 +136,7 @@
 
     // Робота — планерка: директорка двічі питає про деталь зі своєї фрази.
     work: {
-      meeting: { questions: 2, answerSeconds: 7, payRight: 23, payWrong: 0, payRepeat: 12 },
+      meeting: { questions: 2, answerSeconds: 7, payRight: 20, payWrong: 0, payRepeat: 10 },
     },
 
     // Біль на ключовому слові: як часто ядро накриває те, що треба почути.

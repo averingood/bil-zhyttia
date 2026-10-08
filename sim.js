@@ -16,6 +16,7 @@ function careful(s, opt = {}) {
   if (opt.loan !== false && ok(s, 'loan') && s.money < L.dailyCost(s.day) * 2 && !s.pending.length) return 'loan';
   if (opt.block && ok(s, 'block') && L.pain(s) >= 7 && s.money > 140) return 'block';
   if (L.inviteToday(s) && free(s, 'friends')) return 'friends';
+  if (ok(s, 'board') && free(s, 'board') && s.people <= 6 && s.money > 70) return 'board';
   if (!s.fed) { if (free(s, 'cook')) return 'cook'; if (ok(s, 'delivery') && s.money > 40) return 'delivery'; }
   // Гроші: скільки днів протримаємось.
   const incoming = s.pending.reduce((a, p) => a + p.amount, 0);

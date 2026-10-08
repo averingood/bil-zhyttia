@@ -29,6 +29,7 @@
     course:   { zone: 'shelf',   label: 'Пігулка з курсу', sphere: 'body' },
     meds:     { zone: 'shelf',   label: 'Знеболювальне', sphere: null },
     block:    { zone: 'shelf',   label: 'Платна процедура', sphere: null },
+    board:    { zone: 'sofa',    label: 'Покликати на настолки', sphere: 'people' },
     loan:     { zone: 'sofa',    label: 'Позичити в друзів', sphere: 'money' },
     read:     { zone: 'books',   label: 'Почитати', sphere: 'soul' },
   };
@@ -121,7 +122,6 @@
     let sp = C.spoons[Math.max(0, Math.min(10, pain(s)))];
     if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Емоції в нормі: ресурс +1' }); }
     if (s.spoonTomorrow) { sp -= s.spoonTomorrow; ev.push({ kind: 'bad', text: 'Учора взяв наперед: ресурс −' + s.spoonTomorrow }); s.spoonTomorrow = 0; }
-    if (s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Є на кого спертися: ресурс +1' }); }
     s.spoons = s.spoonsMorning = Math.max(1, sp);
     const st = stateKey(s);
     if (st === 'strong') s.stats.strongDays++;
@@ -186,7 +186,11 @@
       case 'block':
         if (s.day - s.blockDay < a.cooldown) return no('Наступна процедура — не раніше дня ' + (s.blockDay + a.cooldown));
         break;
+      case 'board':
+        if (s.day - (s.boardDay != null ? s.boardDay : -99) < a.cooldown) return no('Настолки — раз на тиждень: наступні з дня ' + (s.boardDay + a.cooldown));
+        break;
       case 'loan':
+        if (s.people < a.minPeople) return no('Стосунки на межі — позичити нема в кого');
         if (s.loan) return no('Спершу поверни борг (' + s.loan.amount + ' ₴ ' + s.loan.from + ')');
         break;
     }
@@ -337,6 +341,15 @@
         s.stats.blocks = (s.stats.blocks || 0) + 1;
         note = 'біль −' + a.reliefToday + ' сьогодні, −' + a.reliefNext.join(' і −') + ' наступні дні, Тіло +' + a.body + ', −' + a.money + ' ₴';
         break;
+      case 'board': {
+        s.boardDay = s.day;
+        s.people = clampS(s.people + a.people);
+        s.soul = clampS(s.soul + a.soul);
+        s.stats.meetings++; s.stats.boards = (s.stats.boards || 0) + 1;
+        guests = s.friendNames.slice();
+        note = 'вечір настолок: прийшли всі — ' + guests.join(', ') + '; Стосунки +' + a.people + ', Емоції +' + a.soul + ', −' + a.money + ' ₴ на частування';
+        break;
+      }
       case 'loan': {
         const from = pick(s, s.friendNames);
         s.money += a.amount;
