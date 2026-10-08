@@ -119,7 +119,6 @@
     const L = C.links;
     let sp = C.spoons[Math.max(0, Math.min(10, pain(s)))];
     if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Емоції в нормі: ресурс +1' }); }
-    if (s.soul <= L.soulLow) { sp--; ev.push({ kind: 'bad', text: 'На душі порожньо: ресурс −1' }); }
     if (s.spoonTomorrow) { sp -= s.spoonTomorrow; ev.push({ kind: 'bad', text: 'Учора взяв наперед: ресурс −' + s.spoonTomorrow }); s.spoonTomorrow = 0; }
     if (sp <= 3 && s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Друг підхопив у поганий ранок: ресурс +1' }); }
     s.spoons = s.spoonsMorning = Math.max(1, sp);
@@ -424,14 +423,15 @@
     ev.push({ kind: 'info', text: 'Сфери тануть самі собою: Стосунки, Тіло, Емоції −' + C.decay });
     const pr = pressureOf(s.day);
     if (pr) {
+      // Пощада: сфери на межі (≤ mercy) тиск обходить, поки є інші — щоб було з чого виплутатись.
       let pool = []; const hit = [];
       for (let i = 0; i < pr; i++) {
-        if (!pool.length) pool = SOFT.slice();
+        if (!pool.length) { pool = SOFT.filter((k) => s[k] > C.mercy); if (!pool.length) pool = SOFT.slice(); }
         const k = pool.splice(Math.floor(rand(s) * pool.length), 1)[0]; s[k] = clampS(s[k] - 1); hit.push(SPHERES[k].name);
       }
       ev.push({ kind: 'bad', text: 'Життя тисне: ' + hit.join(', ') + ' ще −1' });
     }
-    if (st === 'strong') { s.soul = clampS(s.soul - L.strongSoul); ev.push({ kind: 'pain', text: 'День у сильному болю пригнічує: Емоції −' + L.strongSoul }); }
+    if (st === 'strong' && s.soul > C.mercy) { s.soul = clampS(s.soul - L.strongSoul); ev.push({ kind: 'pain', text: 'День у сильному болю пригнічує: Емоції −' + L.strongSoul }); }
 
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
