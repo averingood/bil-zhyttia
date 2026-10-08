@@ -17,7 +17,7 @@
   let lastZone = undefined;
   let lastWalking = null;
   let pending = null;        // дія, яку виконати, коли герой дійде до зони
-  let pendingNoGame = false; // …і чи без міні-гри (Shift)
+  let pendingFlip = false;   // …і чи з Shift (навпаки до перемикача міні-ігор)
   let lastPainSeen = null;    // щоб трусити картинку, щойно біль посилюється
   let lowIdle = 0;           // скільки герой стоїть без діла з порожньою душею
   // Міні-ігри від першої особи; вимкнено — результат рахується сам. Пам'ятаємо між сесіями.
@@ -159,7 +159,7 @@
       const z = room.currentZone();
       if (!z) return;
       const a = G.zoneActions(game, z)[Number(e.code.slice(5)) - 1];
-      if (a) act(a.id, e.shiftKey);   // Shift+цифра — без міні-гри
+      if (a) act(a.id, e.shiftKey);   // Shift+цифра — навпаки до перемикача міні-ігор
       return;
     }
     if (e.code === 'KeyE') endDayClick();
@@ -205,8 +205,8 @@
     if (phase === 'scene' && sceneAbort) { sceneSkipped = true; sceneAbort(); }
   }
 
-  // noGame — запустити без міні-гри (Shift+клік чи Shift+цифра), результат рахується автоматично.
-  function act(id, noGame) {
+  // flip — Shift+клік чи Shift+цифра: навпаки до перемикача міні-ігор (увімкнені — без гри, вимкнені — з грою).
+  function act(id, flip) {
     if (phase !== 'play') return;
     const p = G.preview(game, id);
     if (!p.available) {
@@ -222,13 +222,13 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
-    const sc = setupChoice.scenes && !noGame;
+    const sc = withGame(flip);
     if (sc && id === 'create' && window.SynthGame) return runScene(window.SynthGame, { title: G.songTitle(game) }, (r) => ({ synth: r }), id, p);
     if (sc && id === 'games' && window.RunGame) return runScene(window.RunGame, { jumps: C.actions.games.jumps, painChance: C.actions.games.painChance }, (r) => ({ runner: r }), id, p);
     if (sc && id === 'cook' && window.CookGame) return runScene(window.CookGame, {}, (r) => ({ cook: r }), id, p);
     if (sc && id === 'exercise' && window.MatGame) return runScene(window.MatGame, {}, (r) => ({ mat: r }), id, p);
     if (sc && id === 'work' && window.Meeting) return runScene(window.Meeting, { canvas, payDay: game.day + C.actions.work.payDelay }, (r) => ({ score: r.score }), id, p);
-    if (id === 'friends') { finishAction(id, p, null, noGame); return; }
+    if (id === 'friends') { finishAction(id, p, null, flip); return; }
     if (sc && id === 'read' && window.ReadGame) {
       const b = G.bookNow(game);
       return runScene(window.ReadGame, { book: b ? b[0] : '', session: game.book.done + 1, sessions: b ? b[1] : 0 }, () => ({}), id, p);
@@ -264,8 +264,9 @@
     setTimeout(() => el.remove(), 3600);
   }
 
-  function finishAction(id, p, opts, noGame) {
-    const talk = id === 'friends' && setupChoice.scenes && window.FriendTalk && !noGame;
+  function withGame(flip) { return setupChoice.scenes !== !!flip; }
+  function finishAction(id, p, opts, flip) {
+    const talk = id === 'friends' && window.FriendTalk && withGame(flip);
     const before = snap();
     const r = G.doAction(game, id, Object.assign({}, opts, talk ? { deferTalk: true } : null));
     if (r.ok) showDelta(before);
@@ -391,7 +392,9 @@
   // Підказка до значка 🎮 — у плаваючому вікні (рядок дій обрізає все, що виходить за край).
   function bindPads(el) {
     el.querySelectorAll('.pad').forEach((ic) => {
-      ic.onmouseenter = () => { const box = $('tipBox'), r = ic.getBoundingClientRect(); box.innerHTML = '<p><b>Тут є міні-гра.</b></p><p>Клік або цифра — з грою.<br><b>Shift</b>+клік чи <b>Shift</b>+цифра — без гри: результат порахується сам, як із вимкненими міні-іграми.</p>'; box.hidden = false;
+      ic.onmouseenter = () => { const box = $('tipBox'), r = ic.getBoundingClientRect(); box.innerHTML = setupChoice.scenes
+          ? '<p><b>Тут є міні-гра.</b></p><p>Клік або цифра — з грою.<br><b>Shift</b>+клік чи <b>Shift</b>+цифра — без гри: результат порахується сам.</p>'
+          : '<p><b>Тут є міні-гра</b> — зараз вимкнена.</p><p>Клік або цифра — без гри, результат порахується сам.<br><b>Shift</b>+клік чи <b>Shift</b>+цифра — зіграти саме цю.</p>'; box.hidden = false;
         box.style.left = Math.max(12, Math.min(r.left - box.offsetWidth + r.width, window.innerWidth - box.offsetWidth - 12)) + 'px'; box.style.top = Math.max(12, r.top - box.offsetHeight - 8) + 'px'; };
       ic.onmouseleave = () => { if (tipIndex == null) $('tipBox').hidden = true; };
     });
@@ -405,7 +408,7 @@
     const p = G.preview(game, 'friends');
     return `<div class="invite"><span class="inv-msg"><b>${esc(inv.name)}</b> пише: «${esc(G.inviteText(inv))}»</span>
       <span class="inv-btns">
-        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}${setupChoice.scenes && p.available ? ' <span class="pad" aria-label="Є міні-гра; Shift — без неї">🎮</span>' : ''}</button>
+        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}${p.available ? ' ' + padIcon() : ''}</button>
         <button class="btn" data-inv="no">Відмовити · Стосунки −${C.friends.refuse}</button>
       </span>
       ${p.available && p.borrow ? `<span class="warn">Наперед ${p.borrow}: завтра на стільки менше ресурсу</span>` : ''}
@@ -431,10 +434,10 @@
     if (yes) yes.onclick = (e) => acceptInvite(e.shiftKey);
     if (no) no.onclick = declineInvite;
   }
-  function acceptInvite(noGame) {
+  function acceptInvite(flip) {
     if (phase !== 'play') return;
-    if (room.currentZone() === 'sofa') { act('friends', noGame); return; }
-    pending = 'friends'; pendingNoGame = !!noGame;
+    if (room.currentZone() === 'sofa') { act('friends', flip); return; }
+    pending = 'friends'; pendingFlip = !!flip;
     room.walkToZone('sofa');
   }
   function declineInvite() {
@@ -444,13 +447,17 @@
     renderAll();
   }
   room.onArrive = (z) => {
-    const id = pending, noGame = pendingNoGame;
-    pending = null; pendingNoGame = false;
-    if (id && G.ACTIONS[id].zone === z) act(id, noGame);
+    const id = pending, flip = pendingFlip;
+    pending = null; pendingFlip = false;
+    if (id && G.ACTIONS[id].zone === z) act(id, flip);
   };
 
   // Дії, що мають міні-гру від першої особи.
   const GAME_ACTIONS = ['work', 'games', 'create', 'cook', 'exercise', 'read', 'friends'];
+  // Міні-ігри вимкнені — значок блідий, але Shift усе одно запускає гру.
+  function padIcon() {
+    return `<span class="pad${setupChoice.scenes ? '' : ' off'}" aria-label="${setupChoice.scenes ? 'Є міні-гра; Shift — без неї' : 'Міні-ігри вимкнені; Shift — з грою'}">🎮</span>`;
+  }
   function actionButton(a, i) {
     const cost = a.cost == null ? '' : a.cost === 0 ? 'без ресурсу' : 'ресурс ' + a.cost;
     let body;
@@ -460,7 +467,7 @@
       if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра.'}</span>`;
     }
     const cls = ['act', a.available ? '' : 'off', armed === a.id ? 'armed' : ''].join(' ');
-    const pad = setupChoice.scenes && GAME_ACTIONS.includes(a.id) && a.available ? '<span class="pad" aria-label="Є міні-гра; Shift — без неї">🎮</span>' : '';
+    const pad = GAME_ACTIONS.includes(a.id) && a.available ? padIcon() : '';
     return `<button class="${cls}" data-id="${a.id}" aria-disabled="${!a.available}">
       <kbd>${i + 1}</kbd><span class="a-name">${esc(a.label)}</span><span class="a-cost">${cost}</span>${body}${pad}</button>`;
   }
