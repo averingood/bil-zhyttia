@@ -96,7 +96,7 @@
       games:    { spoons: 1, perDay: 1, soul: 3, perJumps: 2, ease: 1, tomorrow: 1, tomorrowChance: 0.3, jumps: 4,   // відволікає: тимчасовий біль −1; 30% засидітись
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
       create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 6 },
-      friends:  { spoons: 2, inviteSpoons: 1, perDay: 1, people: { light: 3, medium: 3, strong: 2 }, invited: 1 },   // зустріч вигідніша за «написати» навіть у сильному болю
+      friends:  { spoons: 2, inviteSpoons: 2, perDay: 1, money: 10, people: { light: 2, medium: 2, strong: 2 }, invited: 0 },   // зустріч: завжди Стосунки +2, ресурс 2 і 10 ₴ на частування — і коли кличеш сам, і коли просяться
       text:     { spoons: 1, perDay: 1, people: 1, inviteBoost: 0.15 },
       exercise: { spoons: { light: 2, medium: 2, strong: 3 }, perDay: 1, body: 2, partialBody: 1, reliefIn: 2, relief: 1,
         // Килимок від першої особи: повтор рухів за тренером.
@@ -112,7 +112,7 @@
       // Різке покращення, але дороге: платна процедура (блокада). Біль −3 сьогодні, −2 завтра, −1 післязавтра; Тіло +1.
       block:    { spoons: 1, money: 80, cooldown: 6, reliefToday: 3, reliefNext: [2, 1], body: 1 },
       // Вечір настолок: кличеш усіх друзів. Дорого (ресурс і гроші на частування), раз на тиждень, але Стосунки — найбільше.
-      board:    { spoons: 3, money: 30, cooldown: 7, people: 4, soul: 1 },
+      board:    { spoons: 3, money: 30, cooldown: 7, people: 3, soul: 2 },
       // Підробіток від друга: з'являється, коли Стосунки високі (див. links.gig). Платять одразу.
       gig:      { spoons: 1, money: 0, pay: 20, refuse: 1 },
       repay:    { spoons: 0 },   // відмовився (чи не відповів) — Настрій −1

@@ -70,7 +70,7 @@
 
   // Ціна дії в ресурсі за сьогоднішнім станом; null — у цьому стані недоступно.
   function spoonCost(s, id) {
-    // Друзі, що прийшли самі, — менше клопоту: ресурс inviteSpoons.
+    // Друзі, що просяться самі: ресурс inviteSpoons (зараз стільки ж, як покликати).
     if (id === 'friends' && inviteToday(s)) return C.actions.friends.inviteSpoons;
     const c = C.actions[id].spoons;
     return typeof c === 'number' ? c : c[stateKey(s)];
@@ -321,7 +321,7 @@
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
-        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (st === 'strong' ? ' (з болем ти «не тут»)' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
+        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (a.money ? ', −' + a.money + ' ₴ на частування' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама — за тими ж правилами, що й міні-гра.
@@ -755,7 +755,7 @@
       const b = bookNow(s), n = s.book.done + 1;
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
-    if (id === 'friends') fx.push(inviteToday(s) ? { t: inviteToday(s).name + ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' просить — дешевше', kind: 'good' } : { t: 'кличеш сам — ресурс ' + C.actions.friends.spoons, kind: 'info' });
+    if (id === 'friends' && inviteToday(s)) fx.push({ t: inviteWho(inviteToday(s)) + (inviteToday(s).with ? ' самі просяться' : ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' проситься'), kind: 'info' });
     if (id === 'repay') fx.push({ t: 'борг ' + s.loan.from + ' закрито', kind: 'good' });
     if (id === 'loan') fx.push({ t: 'віддати ' + after.loan.amount + ' ₴ до дня ' + after.loan.due + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
     if (id === 'course') fx.push({ t: 'пігулок за тиждень: ' + (pillsInWeek(s) + 1) + ' з ' + C.course.need, kind: 'info' });
