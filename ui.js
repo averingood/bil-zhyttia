@@ -868,6 +868,11 @@
   }
 
   // Для налагодження з консолі: zapas.game.extra = 4; zapas.refresh()
+  // Якщо щось упало — показати текст помилки, щоб її можна було сфотографувати й надіслати.
+  window.addEventListener('error', (e) => {
+    const where = e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '';
+    toast('Помилка: ' + (e.message || e.error) + where);
+  });
   window.zapas = { get game() { return game; }, get phase() { return phase; }, room, refresh: renderAll };
 
   const hot = window.claude && window.claude.hot;
