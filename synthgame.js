@@ -180,6 +180,8 @@
     });
 
     let closed = false, raf = 0;
+    // «Пропустити»: ui може закрити сцену — результат тоді рахується автоматично.
+    if (o.registerAbort) o.registerAbort(() => close());
     function close(fake) {
       if (closed) return;
       closed = true; cancelAnimationFrame(raf);

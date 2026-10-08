@@ -686,7 +686,15 @@
           break;
         case 'out': {
           // Медики підлаштовуються під його крок.
-          const done = c.medics.map((m) => this.moveActor(m, dt, c.final ? 1.6 : Math.min(2.2, this.speed()))).every(Boolean);
+          let done;
+          if (c.final && c.medics.length === 2) {
+            // Несуть ноші: передній медик іде шляхом, задній тримає ноші на сталій відстані позаду.
+            const [m0, m1] = c.medics;
+            done = this.moveActor(m0, dt, 1.4);
+            const vx = m0.x - m1.x, vy = m0.y - m1.y, d = Math.hypot(vx, vy) || 1, gap = 1.35;
+            m1.x = m0.x - (vx / d) * gap; m1.y = m0.y - (vy / d) * gap;
+            m1.moving = m0.moving; m1.walkT = m0.walkT; m1.dir = m0.dir; m1.back = m0.back;
+          } else done = c.medics.map((m) => this.moveActor(m, dt, Math.min(2.2, this.speed()))).every(Boolean);
           if (done && !this.path.length) {
             this.heroAway = true; c.medics = []; c.flash = 0;
             go('away');
@@ -984,6 +992,11 @@
       const actors = [];
       if (!(this.hero.sit > 0) && !this.heroAway) actors.push({ a: this.hero, draw: () => this.drawHero(ctx) });
       if (this.cut) for (const m of this.cut.medics) actors.push({ a: m, draw: () => this.drawWalker(ctx, m, m.pal, m.long) });
+      // Ноші між медиками — окремий «актор» посередині, щоб правильно ховатись за меблями.
+      if (this.cut && this.cut.stretcher && this.cut.medics.length === 2) {
+        const [m0, m1] = this.cut.medics;
+        actors.push({ a: { x: (m0.x + m1.x) / 2, y: (m0.y + m1.y) / 2 + 0.01 }, draw: () => this.drawStretcher(ctx, m0, m1) });
+      }
       if (this.visit) for (const f of this.visit.friends) if (!(f.sit > 0)) actors.push({ a: f, draw: () => this.drawWalker(ctx, f, f.pal, f.long) });
       const placed = actors.map((ac) => {
         let at = 0;
@@ -1482,6 +1495,30 @@
       this.drawWalker(ctx, this.hero, this.heroPal());
     }
 
+    // Ноші в ізометрії: рама з ручками, матрац, ти під синьою ковдрою, голова на подушці.
+    drawStretcher(ctx, m0, m1) {
+      const dx = m1.x - m0.x, dy = m1.y - m0.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len, px = -uy, py = ux;          // уздовж і впоперек нош
+      const cx = (m0.x + m1.x) / 2, cy = (m0.y + m1.y) / 2;
+      const L = 0.62, Wd = 0.24, Z = 7;                              // половина довжини, половина ширини, висота
+      const pt = (a, b, z) => P(cx + ux * a + px * b, cy + uy * a + py * b, z);
+      const quad = (a0, a1, b0, b1, z, col) => poly(ctx, [pt(a0, b0, z), pt(a1, b0, z), pt(a1, b1, z), pt(a0, b1, z)], col);
+      // Ручки й рама.
+      for (const b of [-Wd, Wd]) { const p0 = pt(-L - 0.18, b, Z), p1 = pt(L + 0.18, b, Z); line(ctx, p0[0], p0[1], p1[0], p1[1], '#3a3d45'); line(ctx, p0[0], p0[1] + 1, p1[0], p1[1] + 1, '#2a2d33'); }
+      // Бокова стінка матраца й верх.
+      poly(ctx, [pt(-L, Wd, Z - 1), pt(L, Wd, Z - 1), pt(L, Wd, Z + 1), pt(-L, Wd, Z + 1)], '#b9c2cc');
+      quad(-L, L, -Wd, Wd, Z + 1, '#e8ecef');
+      // Ковдра: від ніг до грудей, з горбиком тіла.
+      quad(-L + 0.05, L - 0.28, -Wd + 0.04, Wd - 0.04, Z + 2, '#5f86b8');
+      quad(-L + 0.2, L - 0.4, -Wd + 0.08, Wd - 0.08, Z + 3, '#7aa0cf');
+      // Голова на подушці біля переднього краю.
+      quad(L - 0.26, L - 0.04, -Wd + 0.06, Wd - 0.06, Z + 2, '#f3f4f2');
+      const hp = pt(L - 0.15, 0, Z + 4).map(Math.round);
+      ctx.fillStyle = '#24160f'; ctx.fillRect(hp[0] - 3, hp[1] - 3, 7, 6);
+      ctx.fillStyle = '#e0ac84'; ctx.fillRect(hp[0] - 2, hp[1] - 2, 5, 4);
+      ctx.fillStyle = '#3a2a20'; ctx.fillRect(hp[0] - 2, hp[1] - 3, 5, 2);
+    }
+
     drawWalker(ctx, h, pal, long) {
       const [fx, fy] = P(h.x, h.y, 0).map(Math.round);
       ctx.fillStyle = 'rgba(10,10,20,0.28)';
@@ -1608,20 +1645,6 @@
         }
       }
       ctx.putImageData(img, 0, 0);
-      // Ноші: між двома медиками, на них — ти під простирадлом.
-      if (this.cut && this.cut.stretcher && this.cut.medics.length === 2) {
-        const [a, b] = this.cut.medics.map((m) => P(m.x, m.y, 7).map(Math.round));
-        const steps = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 1);
-        for (let k = 0; k <= steps; k++) {
-          const x = Math.round(a[0] + (b[0] - a[0]) * k / steps), y = Math.round(a[1] + (b[1] - a[1]) * k / steps);
-          ctx.fillStyle = '#2b2f3a'; ctx.fillRect(x, y + 2, 1, 1);
-          ctx.fillStyle = '#e8ecef'; ctx.fillRect(x, y - 1, 1, 3);
-          ctx.fillStyle = '#9fb8d9'; ctx.fillRect(x, y - 2, 1, 1);
-        }
-        const hx = Math.round(a[0] + (b[0] - a[0]) * 0.15), hy = Math.round(a[1] + (b[1] - a[1]) * 0.15);
-        ctx.fillStyle = '#e0ac84'; ctx.fillRect(hx - 1, hy - 4, 3, 3);
-        ctx.fillStyle = '#3a2a20'; ctx.fillRect(hx - 1, hy - 5, 3, 1);
-      }
       if (this.cut && this.cut.win) {
         for (const p of this.cut.confetti) {
           ctx.fillStyle = p.col;

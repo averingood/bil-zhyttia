@@ -132,6 +132,8 @@
     $q('.run-jump').onclick = jump;
 
     let closed = false, raf = 0;
+    // «Пропустити»: ui може закрити сцену — результат тоді рахується автоматично.
+    if (o.registerAbort) o.registerAbort(() => close());
     function close(pain) {
       if (closed) return;
       closed = true; cancelAnimationFrame(raf);

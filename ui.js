@@ -174,11 +174,21 @@
       pain: G.pain(game), state: G.stateKey(game), painkiller: game.painkiller, joy: game.soul * 10,
     }, extra);
   }
+  // «Пропустити»: закриває сцену, і результат рахується так, ніби міні-ігри вимкнені.
+  let sceneAbort = null, sceneSkipped = false;
   function runScene(Scene, extra, toOpts, id, p) {
     phase = 'scene';
     held.clear(); applyKeys();
-    Scene.start(sceneOpts(Object.assign({}, extra, { onDone: (res) => { phase = 'play'; finishAction(id, p, toOpts(res)); } })));
+    sceneSkipped = false;
+    Scene.start(sceneOpts(Object.assign({}, extra, {
+      registerAbort: (fn) => { sceneAbort = fn; },
+      onDone: (res) => { sceneAbort = null; phase = 'play'; finishAction(id, p, sceneSkipped ? null : toOpts(res)); },
+    })));
     renderAll();
+  }
+  function skipNow() {
+    if (phase === 'cut') { room.skipCut(); return; }
+    if (phase === 'scene' && sceneAbort) { sceneSkipped = true; sceneAbort(); }
   }
 
   function act(id) {
@@ -258,11 +268,16 @@
   function startTalk(names) {
     phase = 'scene';
     held.clear(); applyKeys();
+    sceneSkipped = false;
     window.FriendTalk.start(sceneOpts({
       canvas, names, invited: !!game.lastVisitInvited, missedLast: !!game.lastTalkMissed,
+      registerAbort: (fn) => { sceneAbort = fn; },
       onDone: (res) => {
+        sceneAbort = null;
         const before = snap();
-        const note = G.applyTalk(game, res.kinds);
+        // Пропущено: розмова «сама» — біль іноді не дає почути суть.
+        const kinds = sceneSkipped ? [Math.random() < (C.painCover[G.stateKey(game)] || 0) * 0.7 ? 'silent' : 'right'] : res.kinds;
+        const note = G.applyTalk(game, kinds);
         showDelta(before);
         const j = game.journal.find((e) => e.day === game.day);
         if (j && j.did.length && note) j.did[j.did.length - 1] = j.did[j.did.length - 1].replace(/\)$/, '; ' + note + ')');
@@ -619,12 +634,15 @@
   function renderAll() { renderPanel(); renderActions(); renderChips(); renderSceneToggle(); }
 
   function renderSceneToggle() {
+    const sk = $('skipBtn');
+    if (sk) sk.hidden = !game || !((phase === 'scene' && sceneAbort) || phase === 'cut');
     const b = $('sceneTog');
     b.hidden = !game || phase === 'setup' || phase === 'scene' || phase === 'cut';
     b.classList.toggle('on', setupChoice.scenes);
     b.innerHTML = 'Міні-ігри: ' + (setupChoice.scenes ? 'увімк.' : 'вимк.') + ' <kbd>M</kbd>';
   }
   $('sceneTog').onclick = () => { if (phase === 'play') toggleScenes(); };
+  $('skipBtn').onclick = () => { skipNow(); renderAll(); };
 
   // ---------- вікна ----------
   let modalClosable = false;

@@ -168,6 +168,8 @@
     window.addEventListener('keydown', kd, true);
 
     let closed = false, raf = 0;
+    // «Пропустити»: ui може закрити сцену — результат тоді рахується автоматично.
+    if (o.registerAbort) o.registerAbort(() => close());
     function close(misses) {
       if (closed) return;
       closed = true; cancelAnimationFrame(raf);
