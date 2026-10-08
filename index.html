@@ -122,9 +122,10 @@
     padding: 6px 12px; max-width: min(90%, 520px); text-align: center;
   }
 
+  /* Висота стала: інакше полотно над ним стрибає, коли змінюється кількість дій. */
   #actionBar {
     background: var(--panel); border: 2px solid var(--line);
-    padding: 10px 12px; min-height: 92px;
+    padding: 10px 12px; height: var(--bar-h, 236px); overflow-y: auto;
   }
   .ab-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
   .ab-zone { color: var(--accent); font-weight: 400; letter-spacing: .04em; text-transform: uppercase; font-size: 20px; }
@@ -314,11 +315,13 @@
   .setup-row small { grid-column: 1 / -1; }
   .setup-row input[type=range] { width: 100%; accent-color: var(--joy, #e8c25a); }
   .setup-row b { text-align: right; }
-  /* Ложки й сфери (переробка ядра). */
-  .spoons { display: flex; flex-wrap: wrap; gap: 3px; }
-  .spoon { width: 14px; height: 26px; fill: #cfd3dc; }
-  .spoon.used { fill: #3b4263; }
-  .spoon.borrow { fill: var(--fatal); }
+  /* Ресурс і сфери (переробка ядра). */
+  /* Ресурс: трикутники. Рябі червоні — з'їдене болем. */
+  .tris { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tri { width: 22px; height: 19px; clip-path: polygon(50% 0, 100% 100%, 0 100%); background: var(--energy); }
+  .tri.used { background: #3b4263; }
+  .tri.borrow { background: var(--fatal); }
+  .tri.eaten { background: repeating-linear-gradient(135deg, var(--strong) 0 3px, #4a2230 3px 6px); }
   .sph .lbl { color: var(--c); }
   .meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
   .meter i { height: 12px; border: 2px solid var(--line); }
@@ -352,18 +355,18 @@
 </div>
 <div id="modal" hidden></div>
 
-<script src="config.js?v=20261008024103"></script>
-<script src="logic.js?v=20261008024103"></script>
-<script src="room.js?v=20261008024103"></script>
-<script src="painfx.js?v=20261008024103"></script>
-<script src="meeting.js?v=20261008024103"></script>
-<script src="friendtalk.js?v=20261008024103"></script>
-<script src="matgame.js?v=20261008024103"></script>
-<script src="readgame.js?v=20261008024103"></script>
-<script src="cookgame.js?v=20261008024103"></script>
-<script src="synthgame.js?v=20261008024103"></script>
-<script src="rungame.js?v=20261008024103"></script>
-<script src="ui.js?v=20261008024103"></script>
+<script src="config.js?v=20261008025914"></script>
+<script src="logic.js?v=20261008025914"></script>
+<script src="room.js?v=20261008025914"></script>
+<script src="painfx.js?v=20261008025914"></script>
+<script src="meeting.js?v=20261008025914"></script>
+<script src="friendtalk.js?v=20261008025914"></script>
+<script src="matgame.js?v=20261008025914"></script>
+<script src="readgame.js?v=20261008025914"></script>
+<script src="cookgame.js?v=20261008025914"></script>
+<script src="synthgame.js?v=20261008025914"></script>
+<script src="rungame.js?v=20261008025914"></script>
+<script src="ui.js?v=20261008025914"></script>
 <div id="tipBox" hidden></div>
 </body>
 </html>

@@ -32,7 +32,6 @@
   const SPH_COLOR = { money: 'var(--money)', people: 'var(--joy)', body: 'var(--light)', soul: 'var(--soul)' };
   const SPH_HEX = { money: '#e6c35a', people: '#e58fa8', body: '#8fcf7e', soul: '#8fb4ff', pain: '#df5b4f' };
   const dayWord = (n) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'день' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'дні' : 'днів'; };
-  const spoonWord = (n) => (n === 1 ? 'ложка' : n >= 2 && n <= 4 ? 'ложки' : 'ложок');
 
   // ---------- розмір полотна ----------
   function fit() {
@@ -212,7 +211,7 @@
     if (a.pending > b.pending) parts.push({ t: '+' + (a.pending - b.pending) + ' ₴ через ' + C.actions.work.payDelay + ' дні', k: 'good' });
     if (a.money !== b.money) parts.push({ t: sg(a.money - b.money) + ' ₴', k: a.money > b.money ? 'good' : 'bad' });
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
-    if (a.tomorrow > b.tomorrow) parts.push({ t: 'завтра −' + (a.tomorrow - b.tomorrow) + ' ' + spoonWord(a.tomorrow - b.tomorrow), k: 'bad' });
+    if (a.tomorrow > b.tomorrow) parts.push({ t: 'завтра ресурс −' + (a.tomorrow - b.tomorrow), k: 'bad' });
     if (a.future > b.future) { const f = game.future[game.future.length - 1]; parts.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, k: 'good' } : { t: 'завтра відкат +' + f.amount, k: 'bad' }); }
     if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
@@ -238,7 +237,7 @@
       $('actionBar').innerHTML = `<div class="sc-head"><span class="ab-zone">У гостях</span><span class="ab-meta">${esc(r.guests.join(' і '))} ${r.guests.length > 1 ? 'заходять' : 'заходить'}…</span></div>`;
     }
     if (id === 'work' || id === 'games') workingT = 1.8;   // монітор світиться лише від роботи й ігор
-    if (r.borrowed) toast('Узяв наперед ' + r.borrowed + ' ' + spoonWord(r.borrowed) + ': завтра на стільки менше, і вичерпаний день — біль +' + C.night.exhausted + '.');
+    if (r.borrowed) toast('Узяв наперед ресурс ' + r.borrowed + ': завтра на стільки менше, і вичерпаний день — біль +' + C.night.exhausted + '.');
     renderAll();
   }
 
@@ -269,7 +268,7 @@
       const text = fc.lost ? esc(fc.lost.text) + '.' : `Біль дійде до 10, приїде швидка: день випаде, −${C.hospital.cost} ₴.`;
       openModal(`
         <h2>${title}</h2>
-        <p>${text} Можна ще щось змінити, якщо лишилися ложки.</p>
+        <p>${text} Можна ще щось змінити, якщо лишився ресурс.</p>
         <div class="row">
           <button class="btn" data-k="back">Повернутися</button>
           <button class="btn primary" data-k="go">Завершити день</button>
@@ -301,7 +300,7 @@
     const items = r.events.length ? r.events : [{ kind: '', text: 'Тиха ніч.' }];
     openModal(`
       <h2>${r.hospital ? 'Швидка і лікарня' : 'Ніч після дня ' + dayWas}</h2>
-      ${left > 0 ? `<p class="sub">Лишилося ложок: ${left}.</p>` : ''}
+      ${left > 0 ? `<p class="sub">Лишився ресурс: ${left}.</p>` : ''}
       <ul class="night-list">${items.map((e) => `<li class="${e.kind}">${esc(e.text)}</li>`).join('')}</ul>
       <div class="row"><button class="btn primary" data-k="go">${game.lost || game.finished ? 'Підсумок' : 'Ранок дня ' + game.day}</button></div>
     `, false);
@@ -315,7 +314,7 @@
       room.path = [];
       if (r.flare) { const w = $('canvasWrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); }
       toast('Ранок дня ' + game.day + '. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() +
-        '. Ложок: ' + game.spoons + (r.flare ? '. Уночі було загострення.' : '.') + inviteNote());
+        '. Ресурс: ' + game.spoons + (r.flare ? '. Уночі було загострення.' : '.') + inviteNote());
       renderAll();
     };
     renderAll();
@@ -328,11 +327,11 @@
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
     const z = room.currentZone();
     const banner = inviteBanner();
-    const meta = 'Ложок: ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
+    const meta = 'Ресурс ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
     if (!z) {
       el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${room.walking ? 'Іде…' : 'Квартира'}</span><span class="ab-meta">${meta}</span></div>
         <p class="ab-empty">Клікни на меблі або йди стрілками. Біля зони з'являться дії, клавіші 1–9 їх обирають.
-        ${game.spoons === 0 ? '<br>Ложки скінчились. Можна взяти наперед — або лягти (E).' : ''}</p>`;
+        ${game.spoons === 0 ? '<br>Ресурс скінчився. Можна взяти наперед — або лягти (E).' : ''}</p>`;
       bindInvite(el);
       return;
     }
@@ -349,10 +348,10 @@
     const p = G.preview(game, 'friends');
     return `<div class="invite"><span class="inv-msg"><b>${esc(inv.name)}</b> пише: «${esc(G.inviteText(inv))}»</span>
       <span class="inv-btns">
-        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ' + p.cost + ' ' + spoonWord(p.cost) : ''}</button>
+        <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}</button>
         <button class="btn" data-inv="no">Відмовити · Люди −${C.friends.refuse}</button>
       </span>
-      ${p.available && p.borrow ? `<span class="warn">Наперед ${p.borrow}: завтра на стільки менше ложок</span>` : ''}
+      ${p.available && p.borrow ? `<span class="warn">Наперед ${p.borrow}: завтра на стільки менше ресурсу</span>` : ''}
       ${!p.available ? `<span class="warn">${esc(p.reason)}</span>` : ''}</div>`;
   }
   function bindInvite(el) {
@@ -379,12 +378,12 @@
   };
 
   function actionButton(a, i) {
-    const cost = a.cost == null ? '' : a.cost === 0 ? 'без ложок' : a.cost + ' ' + spoonWord(a.cost);
+    const cost = a.cost == null ? '' : a.cost === 0 ? 'без ресурсу' : 'ресурс ' + a.cost;
     let body;
     if (!a.available) body = `<span class="a-why">${esc(a.reason)}</span>`;
     else {
       body = `<span class="a-fx">${a.effects.map((f) => `<span class="${f.kind}">${esc(f.t)}</span>`).join(' · ')}</span>`;
-      if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ложок: доведеться взяти ' + a.borrow + ' з завтра.'}</span>`;
+      if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра.'}</span>`;
     }
     const cls = ['act', a.available ? '' : 'off', armed === a.id ? 'armed' : ''].join(' ');
     return `<button class="${cls}" data-id="${a.id}" aria-disabled="${!a.available}">
@@ -401,9 +400,7 @@
   }
 
   // ---------- бокова панель ----------
-  const spoonSvg = (cls) => `<svg class="spoon ${cls}" viewBox="0 0 9 17" shape-rendering="crispEdges" aria-hidden="true">
-    <rect x="2" y="0" width="5" height="1"/><rect x="1" y="1" width="7" height="4"/><rect x="2" y="5" width="5" height="1"/>
-    <rect x="4" y="6" width="1" height="10"/><rect x="3" y="16" width="3" height="1"/></svg>`;
+  const triSvg = (cls) => `<i class="tri ${cls}"></i>`;
 
   // Гроші показуємо в ₴, а шкалу — по 20 ₴ на поділку.
   function sphereSec(s, k, tip) {
@@ -422,21 +419,16 @@
     if (!game) { el.innerHTML = ''; return; }
     const s = game, st = G.stateKey(s), p = G.pain(s), col = STATE_COLOR[st], L = C.links;
 
-    // Ложки: повні — що лишилося, бліді — витрачені, червоні — узяті наперед.
-    let spoons = '';
-    for (let i = 0; i < s.spoons; i++) spoons += spoonSvg('on');
-    for (let i = 0; i < Math.max(0, s.spoonsMorning - s.spoons - s.borrowed + (s.coffeeToday ? C.actions.coffee.gain : 0)); i++) spoons += spoonSvg('used');
-    for (let i = 0; i < s.borrowed; i++) spoons += spoonSvg('borrow');
-
-    const full = Math.min(C.painMax, s.base + s.extra);
-    let cells = '';
-    for (let i = 1; i <= C.painMax; i++) {
-      let c = 'pc';
-      if (i <= p) c += i > s.base ? ' extra' : ' on';
-      else if (i <= full) c += ' relief';
-      if (i === s.base) c += ' base';
-      cells += `<div class="${c}" style="--c:${col}"></div>`;
-    }
+    // Ресурс і біль — одна шкала: повні трикутники — що лишилося, бліді — витрачене,
+    // червоні — узяте наперед, рябі червоні — те, що зранку з'їв біль.
+    const morningPain = (s.history[s.history.length - 1] || {}).pain || p;
+    const eaten = Math.max(0, C.spoons[0] - C.spoons[Math.min(10, morningPain)]);
+    const used = Math.max(0, s.spoonsMorning + s.coffeeToday * C.actions.coffee.gain - s.spoons);
+    let tri = '';
+    for (let i = 0; i < s.spoons; i++) tri += triSvg('on');
+    for (let i = 0; i < used; i++) tri += triSvg('used');
+    for (let i = 0; i < s.borrowed; i++) tri += triSvg('borrow');
+    for (let i = 0; i < eaten; i++) tri += triSvg('eaten');
 
     const cal = G.calendar(s, 5).map((d, i) => `<div class="cd ${i === 0 ? 'today' : ''}"><span class="n">${d.day}</span>
       <span class="e-cost">−${d.cost}₴</span>${d.events.map((e) => `<span class="e-${e.k.split(' ')[0]} ${e.k.split(' ')[1] || ''}">${esc(e.t)}</span>`).join('')}</div>`).join('');
@@ -455,33 +447,26 @@
       </div>
 
       <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Ложки</span><span class="val">${s.spoons}</span></div>
-        <div class="spoons">${spoons}</div>
+        <div class="sec-h"><span class="lbl">Ресурс</span><span><span class="state-tag" style="--c:${col}">біль ${p}</span> <span class="val">${s.spoons}</span></span></div>
+        <div class="tris">${tri}</div>
         <div class="tip">
-          <p>Зранку ${s.spoonsMorning}${s.coffeeToday ? ', +' + C.actions.coffee.gain + ' від кави' : ''}${s.borrowed ? ', узято наперед ' + s.borrowed : ''}.</p>
-          <p class="why">Ложки — сили на день. Кожна справа коштує ложки. Скільки їх зранку, вирішує біль: ${C.spoons.slice(1).join(' / ')} для болю 1…10.
-          Душа ${L.soulHigh}+ дає ще +1, Душа ${L.soulLow} і нижче — −1. Люди ${L.peopleHelp}+ підхоплюють у поганий ранок: +1.
-          Бракує — можна взяти до ${C.maxBorrow} із завтра. Ліг без жодної ложки — завтра біль +${C.night.exhausted}; лишив ${C.night.earlyRest}+ — завтра біль −1.</p>
-        </div>
-      </div>
-
-      <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${C.states[st].name}</span> <span class="val">${p}</span></span></div>
-        <div class="painbar">${cells}</div>
-        <div class="tip">
-          <p>Базовий ${s.base} · тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ' · знято сьогодні −' + s.relief : ''}. Шанс загострення вночі ${flareP}%.</p>
-          <p class="why"><b>Біль б'є по всьому, але по-різному:</b> менше ложок; робота дає менше грошей; з друзями ти «не тут» — зустріч дає менше; вправи дорожчі; з болем 7+ не пишеться і не читається, не встояти біля плити; день у сильному болю гнітить Душу.</p>
-          <p class="why"><b>Знижують:</b> курс ліків (${C.course.steps.join(' і ')} днів поспіль — по −${C.course.drop}), лікар на днях ${C.doctor.days.join(' і ')} (якщо Тіло ${C.doctor.good}+), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка й знеболювальне (сьогодні), лягти з запасом ложок. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.</p>
-          <p class="why"><b>Підвищують:</b> загострення (шанс тримає Тіло), вичерпаний день, слабке Тіло, відкат знеболювального.</p>
+          <p>Зранку ресурс ${s.spoonsMorning}${eaten ? ', біль з\'їв ' + eaten : ''}${s.coffeeToday ? ', +' + C.actions.coffee.gain + ' від кави' : ''}${s.borrowed ? ', узято наперед ' + s.borrowed : ''}.
+          Біль зараз ${p} (${C.states[st].name.toLowerCase()}): базовий ${s.base}, тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ', знято сьогодні −' + s.relief : ''}. Шанс загострення вночі ${flareP}%.</p>
+          <p class="why"><b>Ресурс</b> — сили на день, кожна справа коштує ресурсу. Біль з'їдає частину: для болю 1…10 лишається ${C.spoons.slice(1).join(' / ')}.
+          Душа ${L.soulHigh}+ дає ще +1, Душа ${L.soulLow} і нижче — −1. Люди ${L.peopleHelp}+ підхоплюють у поганий ранок: +1. Бракує — можна взяти до ${C.maxBorrow} із завтра.
+          Ліг з нулем — завтра біль +${C.night.exhausted}; лишив ${C.night.earlyRest}+ — завтра біль −1.</p>
+          <p class="why"><b>Біль б'є по всьому, але по-різному:</b> менше ресурсу; робота дає менше грошей; з друзями ти «не тут» — зустріч дає менше; вправи дорожчі; з болем 7+ не пишеться і не читається, не встояти біля плити; день у сильному болю гнітить Душу.</p>
+          <p class="why"><b>Знижують біль:</b> курс ліків (${C.course.steps.join(' і ')} днів поспіль — по −${C.course.drop}), лікар на днях ${C.doctor.days.join(' і ')} (якщо Тіло ${C.doctor.good}+), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка й знеболювальне (сьогодні), лягти з запасом. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.
+          <b>Підвищують:</b> загострення (шанс тримає Тіло), вичерпаний день, слабке Тіло, відкат знеболювального.</p>
         </div>
       </div>
 
       ${sphereSec(s, 'money', `<p>Гроші: ${s.money} ₴. Очікується: ${incoming}.</p>
-        <p class="why">Щоночі витрати на життя: ${C.costs.join(' / ')} ₴ за тижнями. Робота — ${C.actions.work.spoons} ложки, гроші через ${C.actions.work.payDelay} дні; з болем заробляєш менше. Гроші тримають тіло: їжа, ліки. На нулі — кінець.</p>`)}
-      ${sphereSec(s, 'people', `<p class="why">Друзі. Зустріч — ${C.actions.friends.spoons} ложки: +3 при легкому болю, +2 при помітному, +1 при сильному; на їхнє запрошення ще +${C.actions.friends.invited}. Написати — ${C.actions.text.spoons} ложка, +1, і кличуть частіше. Відмова чи пропущена зустріч — −${C.friends.refuse}. Люди ${L.peopleHelp}+ підхоплюють у поганий ранок.</p>`)}
+        <p class="why">Щоночі витрати на життя: ${C.costs.join(' / ')} ₴ за тижнями. Робота — ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; з болем заробляєш менше. Гроші тримають тіло: їжа, ліки. На нулі — кінець.</p>`)}
+      ${sphereSec(s, 'people', `<p class="why">Друзі. Зустріч — ресурс ${C.actions.friends.spoons}: +3 при легкому болю, +2 при помітному, +1 при сильному; на їхнє запрошення ще +${C.actions.friends.invited}. Написати — ресурс ${C.actions.text.spoons}, +1, і кличуть частіше. Відмова чи пропущена зустріч — −${C.friends.refuse}. Люди ${L.peopleHelp}+ підхоплюють у поганий ранок.</p>`)}
       ${sphereSec(s, 'body', `<p>Шанс загострення вночі зараз ${flareP}%.</p><p class="why">Вправи (+${C.actions.exercise.body}, через ${C.actions.exercise.reliefIn} дні біль −1), розтяжка (+1), своя їжа (+1). Без їжі — −${C.hungry.body}. Тіло тримає біль: 7+ — загострення рідко, ${L.bodyWeak} і нижче — завтра біль +1. Лікар дивиться саме на Тіло.</p>`)}
       ${sphereSec(s, 'soul', `<p>${s.song.title ? 'Пісня «' + esc(s.song.title) + '»: ' + s.song.done + ' з ' + C.actions.create.songSessions + '.' : 'Нова пісня ще не розпочата.'} ${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + '.' : 'Усі книжки прочитані.'; })()}</p>
-        <p class="why">Пісні, книжки, ігри, чистий дім, смачна їжа. Дописана пісня чи дочитана книжка — ще бонус. Душа ${L.soulHigh}+ — зранку +1 ложка, ${L.soulLow} і нижче — −1. Сильний біль гнітить: −1 за ніч.</p>`)}
+        <p class="why">Пісні, книжки, ігри, чистий дім, смачна їжа. Дописана пісня чи дочитана книжка — ще бонус. Душа ${L.soulHigh}+ — зранку ресурс +1, ${L.soulLow} і нижче — −1. Сильний біль гнітить: −1 за ніч.</p>`)}
 
       <div class="sec">
         <span class="lbl">Календар</span>
@@ -491,7 +476,7 @@
       <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Курс лікування</span><span class="val">${s.courseStreak}${s.courseToday === s.day ? '+1' : ''}</span></div>
         <div class="tip"><p>${s.courseStreak ? s.courseStreak + ' днів поспіль' + (s.courseToday === s.day ? ', сьогодні випито' : ', сьогодні ще ні') : 'Курс не розпочато'}${need ? '. До ефекту: ' + (need - s.courseStreak - (s.courseToday === s.day ? 1 : 0)) + ' дн.' : ''}${s.courseDrop ? ' Діє: базовий біль −' + s.courseDrop + '.' : ''}</p>
-        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ложок. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар — уночі після днів ${C.doctor.days.join(' і ')}: Тіло ${C.doctor.good}+ — базовий −1, ${C.doctor.bad} і нижче — +1.</p></div>
+        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ресурсу. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар — уночі після днів ${C.doctor.days.join(' і ')}: Тіло ${C.doctor.good}+ — базовий −1, ${C.doctor.bad} і нижче — +1.</p></div>
       </div>
 
       <div class="sec">
@@ -580,8 +565,8 @@
         <b id="su-${key}-v">${setupChoice[key]}${unit}</b><small>${note}</small></label>`;
     openModal(`
       <h1>Біль життя</h1>
-      <p>Ти живеш із хронічним болем і проходиш ${C.days}-денний курс лікування. Щоранку біль вирішує, скільки в тебе <b>ложок</b> — сил на день.
-      Кожна справа коштує ложки. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Люди</b>, <b>Тіло</b> і <b>Душа</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
+      <p>Ти живеш із хронічним болем і проходиш ${C.days}-денний курс лікування. Щоранку біль вирішує, скільки в тебе <b>ресурсу</b> — сил на день; решту з'їдає біль.
+      Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Люди</b>, <b>Тіло</b> і <b>Душа</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
       <p class="sub">Виграти не можна: рано чи пізно якась сфера посиплеться. Вирішуєш ти — яка і коли. Біль б'є по всьому, але по-різному; на нього впливають вправи, курс ліків, лікар і те, чи береш сили наперед.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
@@ -611,7 +596,7 @@
     $('cutCaption').hidden = true;
     lastZone = undefined;
     renderAll();
-    toast('День 1. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() + '. Ложок: ' + game.spoons + '.' + inviteNote());
+    toast('День 1. Біль ' + G.pain(game) + ', ' + C.states[G.stateKey(game)].name.toLowerCase() + '. Ресурс: ' + game.spoons + '.' + inviteNote());
   }
 
   function inviteNote() {
@@ -691,9 +676,30 @@
     renderAll();
   }
 
+  // Перегляд усіх чотирьох фіналів підряд: адреса з ?endings (щоб подивитися, не граючи).
+  function demoEndings() {
+    const list = [['money', 'Гроші'], ['friends', 'Люди'], ['body', 'Тіло'], ['joy', 'Душа']];
+    game = G.createGame({});
+    game.soul = 3;
+    let i = 0;
+    const next = () => {
+      if (i >= list.length) { $('cutCaption').hidden = true; toast('Це всі чотири фінали.'); showSetup(); return; }
+      const [kind, name] = list[i++];
+      room.resetHero(); room.endVisit(true);
+      room.setView({ joy: 30 });
+      phase = 'cut';
+      toast('Фінал ' + i + ' з ' + list.length + ': ' + name + ' (клік чи пробіл — пропустити)');
+      room.playEnding(kind, () => setTimeout(next, 900));
+      renderAll();
+    };
+    closeModal();
+    next();
+  }
+
   // ---------- старт ----------
   function start(data) {
     fit();
+    if (/[?&]endings\b/.test(location.search)) { demoEndings(); requestAnimationFrame((t) => { prev = t; frame(t); }); return; }
     if (data && data.game && data.game.spoonsMorning != null) {
       game = data.game; phase = ['night', 'scene', 'cut', 'report'].includes(data.phase) ? 'play' : data.phase || 'play';
       if (data.hero) Object.assign(room.hero, data.hero);

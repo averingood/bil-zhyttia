@@ -1,4 +1,4 @@
-// Правила гри без графіки: ложки, біль, чотири сфери. Працює і в браузері, і в node (sim.js).
+// Правила гри без графіки: ресурс, біль, чотири сфери. Працює і в браузері, і в node (sim.js).
 // Стан змінюється лише тут; ui.js тільки показує і передає рішення гравця.
 (function (root) {
   'use strict';
@@ -52,7 +52,6 @@
   const pick = (s, arr) => arr[Math.floor(rand(s) * arr.length)];
   const clampS = (v) => Math.max(0, Math.min(C.sphereMax, v));
   const signed = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
-  const spoonWord = (n) => (n === 1 ? 'ложка' : n >= 2 && n <= 4 ? 'ложки' : 'ложок');
 
   // ---------- біль ----------
   const rawPain = (s) => s.base + s.extra;
@@ -63,7 +62,7 @@
   }
   const stateKey = (s) => stateOfPain(pain(s));
 
-  // Ціна дії в ложках за сьогоднішнім станом; null — у цьому стані недоступно.
+  // Ціна дії в ресурсі за сьогоднішнім станом; null — у цьому стані недоступно.
   function spoonCost(s, id) {
     const c = C.actions[id].spoons;
     return typeof c === 'number' ? c : c[stateKey(s)];
@@ -97,13 +96,16 @@
       stats: { meetings: 0, invitesAccepted: 0, invitesRefused: 0, earned: 0, songs: 0, songTitles: [], booksRead: 0,
         flares: 0, hospital: 0, exercise: 0, hungry: 0, borrowed: 0, strongDays: 0, coursePills: 0, talkHeard: 0, talkMissed: 0 },
     };
+    // Книжки на полиці — у випадковому порядку, щоб не щоразу «Тигролови».
+    s.bookOrder = C.books.map((_, i) => i);
+    for (let i = s.bookOrder.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [s.bookOrder[i], s.bookOrder[k]] = [s.bookOrder[k], s.bookOrder[i]]; }
     // Перша пропозиція від друзів — на 3-й день, щоб календар не був порожнім.
     addInvite(s, 3);
     startDay(s, []);
     return s;
   }
 
-  // Ранок: те, що настало з календаря, ложки з болю, зв'язки сфер.
+  // Ранок: те, що настало з календаря, ресурс з болю, зв'язки сфер.
   function startDay(s, ev) {
     s.relief = 0; s.spent = 0; s.borrowed = 0; s.used = {};
     s.fed = false; s.foodType = null; s.painkiller = false; s.coffeeToday = 0;
@@ -114,10 +116,10 @@
     s.future = s.future.filter((x) => x.day > s.day);
     const L = C.links;
     let sp = C.spoons[Math.max(0, Math.min(10, pain(s)))];
-    if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Душа на місці: +1 ложка' }); }
-    if (s.soul <= L.soulLow) { sp--; ev.push({ kind: 'bad', text: 'На душі порожньо: −1 ложка' }); }
-    if (s.spoonTomorrow) { sp -= s.spoonTomorrow; ev.push({ kind: 'bad', text: 'Учора взяв наперед: −' + s.spoonTomorrow + ' ' + spoonWord(s.spoonTomorrow) }); s.spoonTomorrow = 0; }
-    if (sp <= 3 && s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Друг підхопив у поганий ранок: +1 ложка' }); }
+    if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Душа на місці: ресурс +1' }); }
+    if (s.soul <= L.soulLow) { sp--; ev.push({ kind: 'bad', text: 'На душі порожньо: ресурс −1' }); }
+    if (s.spoonTomorrow) { sp -= s.spoonTomorrow; ev.push({ kind: 'bad', text: 'Учора взяв наперед: ресурс −' + s.spoonTomorrow }); s.spoonTomorrow = 0; }
+    if (sp <= 3 && s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Друг підхопив у поганий ранок: ресурс +1' }); }
     s.spoons = s.spoonsMorning = Math.max(1, sp);
     const st = stateKey(s);
     if (st === 'strong') s.stats.strongDays++;
@@ -159,7 +161,7 @@
     if (a.perDay && (s.used[id] || 0) >= a.perDay) return no('Сьогодні вже було');
     const price = (a.money || 0) + (id === 'course' ? C.course.money : 0);
     if (price && s.money < price) return no('Не вистачає грошей');
-    if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ложок, навіть якщо взяти наперед');
+    if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ресурсу, навіть якщо взяти наперед');
     const p = pain(s);
     switch (id) {
       case 'cook': case 'delivery':
@@ -192,7 +194,7 @@
       return { ok: false, reason: chk.reason };
     }
     const st = stateKey(s);
-    // Ложки: бракує — беремо в завтра.
+    // Ресурс: бракує — беремо в завтра.
     const cost = spoonCost(s, id);
     let borrowedNow = 0;
     if (cost > s.spoons) { borrowedNow = cost - s.spoons; s.spoons = 0; s.borrowed += borrowedNow; s.spoonTomorrow += borrowedNow; s.stats.borrowed += borrowedNow; }
@@ -214,7 +216,7 @@
         const gain = a.soul + Math.floor(run.cleared / a.perJumps) - 1;
         s.soul = clampS(s.soul + gain);
         s.spoonTomorrow += a.tomorrow;
-        note = 'Душа +' + gain + ', засидівся — завтра −' + a.tomorrow + ' ложка';
+        note = 'Душа +' + gain + ', засидівся — завтра ресурс −' + a.tomorrow;
         break;
       }
       case 'create': {
@@ -298,7 +300,7 @@
         break;
       case 'coffee':
         s.spoons += a.gain; s.coffeeToday++;
-        note = '+' + a.gain + ' ложка, загострення вночі ймовірніше (' + Math.round(flareChanceTonight(s) * 100) + '%)';
+        note = 'ресурс +' + a.gain + ', загострення вночі ймовірніше (' + Math.round(flareChanceTonight(s) * 100) + '%)';
         break;
       case 'course': {
         s.money -= C.course.money;
@@ -331,7 +333,7 @@
         break;
       }
     }
-    if (borrowedNow) note += '; взяв наперед ' + borrowedNow + ' ' + spoonWord(borrowedNow);
+    if (borrowedNow) note += '; взяв наперед ресурс ' + borrowedNow;
     j.did.push(ACTIONS[id].label + ' (' + note + ')');
     return { ok: true, note, borrowed: borrowedNow, guests };
   }
@@ -407,7 +409,7 @@
 
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
-    if (s.spoons === 0 || s.borrowed > 0) { s.extra += N.exhausted; ev.push({ kind: 'pain', text: 'Вичерпав усі ложки: завтра біль +' + N.exhausted }); }
+    if (s.spoons === 0 || s.borrowed > 0) { s.extra += N.exhausted; ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: завтра біль +' + N.exhausted }); }
     else if (s.spoons >= N.earlyRest) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
     if (s.body <= L.bodyWeak) { s.extra += 1; ev.push({ kind: 'pain', text: 'Тіло слабке: завтра біль +1' }); }
     s.extra = Math.max(-2, s.extra);
@@ -490,9 +492,9 @@
     }
     return s.song.title;
   }
-  function bookNow(s) { return C.books[(s.book || { i: 0 }).i] || null; }
+  function bookNow(s) { const i = (s.book || { i: 0 }).i; return C.books[s.bookOrder ? s.bookOrder[i] : i] || null; }
 
-  // Частина дня для освітлення кімнати: за тим, скільки ложок уже витрачено.
+  // Частина дня для освітлення кімнати: за тим, скільки ресурсу вже витрачено.
   function dayPhase(s) { return Math.min(3, Math.floor((s.spent / Math.max(1, s.spoonsMorning)) * 4)); }
 
   const clone = (s) => JSON.parse(JSON.stringify(s));
@@ -522,11 +524,11 @@
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after) + ' сьогодні', kind: 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
-    if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow) + ' ложка', kind: 'pain' });
-    if (id === 'coffee') fx.push({ t: '+' + C.actions.coffee.gain + ' ложка; загострення ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
+    if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
+    if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; загострення ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (after.fed && !s.fed) fx.push({ t: 'їжа на день є', kind: 'info' });
     if (id === 'course') fx.push({ t: 'курс ' + (s.courseStreak + 1) + '-й день', kind: 'info' });
-    if (out.borrow) fx.push({ t: 'наперед ' + out.borrow + ': завтра −' + out.borrow + ' ' + spoonWord(out.borrow) + ' і біль +' + C.night.exhausted, kind: 'pain' });
+    if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ' і біль +' + C.night.exhausted, kind: 'pain' });
     return out;
   }
 
@@ -565,8 +567,8 @@
     const nd = C.doctor.days.find((d) => d >= s.day);
     if (nd && nd - s.day <= 3) out.push({ kind: 'info', t: 'Лікар уночі після дня ' + nd + ': Тіло ' + C.doctor.good + '+ — базовий біль −1, ' + C.doctor.bad + ' і нижче — +1. Зараз ' + s.body + '.' });
     out.push({ kind: 'pain', t: 'Шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '% — що міцніше Тіло, то менше.' });
-    if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ложок не лишилося: завтра біль +' + C.night.exhausted + '.' });
-    else if (s.spoons >= C.night.earlyRest) out.push({ kind: 'good', t: 'Лягти, лишивши ' + C.night.earlyRest + '+ ложки, — завтра біль −1.' });
+    if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ресурс на нулі: завтра біль +' + C.night.exhausted + '.' });
+    else if (s.spoons >= C.night.earlyRest) out.push({ kind: 'good', t: 'Лягти, лишивши ресурс ' + C.night.earlyRest + '+, — завтра біль −1.' });
     return out;
   }
 
@@ -581,7 +583,7 @@
     if (st.exercise) kept.push('Днів із вправами: ' + st.exercise);
     if (st.coursePills) kept.push('Курсових пігулок: ' + st.coursePills);
     if (st.songs) kept.push('Пісні: ' + st.songTitles.map((t) => '«' + t + '»').join(', '));
-    const read = C.books.slice(0, s.book.i);
+    const read = (s.bookOrder || C.books.map((_, i) => i)).slice(0, s.book.i).map((i) => C.books[i]);
     if (read.length) kept.push('Книжки прочитано: ' + read.map((x) => '«' + x[0] + '»').join(', '));
     kept.push('Наприкінці: ' + s.money + ' ₴, Люди ' + s.people + ', Тіло ' + s.body + ', Душа ' + s.soul + ', біль ' + pain(s));
     if (st.flares) lostItems.push('Загострень: ' + st.flares);
@@ -589,7 +591,7 @@
     if (st.hospital) lostItems.push('Лікарня: ' + st.hospital + ' р.');
     if (st.invitesRefused) lostItems.push('Відмов друзям: ' + st.invitesRefused);
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
-    if (st.borrowed) lostItems.push('Ложок узято наперед: ' + st.borrowed);
+    if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
     if (st.talkMissed) lostItems.push('Не почув друзів: ' + st.talkMissed + ' р.');
     return { lost: s.lost ? Object.assign({}, s.lost) : null, daysLived: s.lost ? s.lost.day : s.days, days: s.days, kept, lostItems, history: s.history };
   }
