@@ -290,6 +290,18 @@
     sofa: [2.05, 3.95], mat: [6.6, 5.1], books: [1.1, 2.35], synth: [1.7, 7.95],
   };
 
+  // Де можна стояти, щоб користуватися зоною: прямокутник підлоги біля меблів [x, y, ширина, глибина].
+  // Підходиш стрілками з будь-якого боку — зона відкривається, а не лише в одній точці STAND.
+  const REACH = {
+    desk: [1.2, 1.3, 2.0, 1.5],      // перед столом з компом, аж до правого краю стільниці
+    books: [0.35, 1.3, 0.85, 1.6],   // біля книжкової шафи
+    shelf: [3.3, 0.35, 2.05, 1.4],   // перед комодом з ліками
+    kitchen: [5.35, 0.35, 4.3, 1.75],
+    sofa: [1.35, 3.3, 2.5, 3.1],     // між диваном і столиком, біля столика
+    mat: [5.0, 4.3, 3.2, 1.6],
+    synth: [0.35, 6.2, 1.8, 2.45],   // біля синтезатора — і збоку, і спереду
+  };
+
   const BLOCKS = [
     [0.2, 0.1, 2.7, 1.25],   // стіл
     [3.6, 0.1, 1.4, 0.7],    // комод під ліками
@@ -411,10 +423,12 @@
     currentZone() {
       if (this.hero.sitting) return 'sofa';
       if (this.walking) return null;
-      let best = null, bd = 0.8;
+      const { x, y } = this.hero;
+      let best = null, bd = Infinity;
       for (const z in STAND) {
-        const d = Math.hypot(this.hero.x - STAND[z][0], this.hero.y - STAND[z][1]);
-        if (d < bd) { bd = d; best = z; }
+        const r = REACH[z], d = Math.hypot(x - STAND[z][0], y - STAND[z][1]);
+        const inside = r ? x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3] : false;
+        if ((inside || d < 0.8) && d < bd) { bd = d; best = z; }   // кілька зон поруч — ближча за точкою STAND
       }
       return best;
     }
