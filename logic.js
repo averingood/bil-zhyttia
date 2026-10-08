@@ -325,10 +325,8 @@
         s.stats.meetings++;
         // Приходять по одному або вдвох: хто кликав (чи кого покликав ти) і, буває, ще хтось за компанію.
         // Запросився — приходить той, хто писав (удвох — якщо й просилися вдвох). Покликав сам — буває, хтось ще за компанію.
-        const first = inv ? inv.name : pick(s, freeFriends(s));
-        const names = [first];
-        if (inv) { if (inv.with) names.push(inv.with); }
-        else if (rand(s) < C.friends.pairChance) { const rest = freeFriends(s).filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
+        const names = inv ? [inv.name].concat(inv.with ? [inv.with] : []) : (s.callGuests || callGuests(s));
+        s.callGuests = null;
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
         // Близькі (Стосунки високі) частіше приходять з їжею.
         // Покликав сам — частуєш (з шансом treatChance прийдуть голодні: −treat ₴).
@@ -501,7 +499,14 @@
   function rollHungry(s) {
     const a = C.actions.friends;
     s.hungryNow = !inviteToday(s) && !!a.treat && rand(s) < a.treatChance;
+    if (s.hungryNow) s.callGuests = callGuests(s);   // хто саме голодний — знаємо наперед, щоб і репліка була від них
     return s.hungryNow;
+  }
+  // Покликав сам: хтось один, а буває, ще хтось за компанію.
+  function callGuests(s) {
+    const first = pick(s, freeFriends(s)), names = [first];
+    if (rand(s) < C.friends.pairChance) { const rest = freeFriends(s).filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
+    return names;
   }
   // Розмова без міні-гри: кожну тему біль може накрити (coverOf) — тоді вгадуєш навпіл.
   function autoTalkKinds(s) {

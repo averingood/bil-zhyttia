@@ -257,13 +257,18 @@
     };
   }
   // tags — що саме сталося (з логіки): «гості прийшли голодні: −10 ₴». Те, що вони пояснюють, не дублюємо голою цифрою.
-  const HUNGRY_LINES = ['Ми голодні як вовки. Нагодуєш?', 'Йдемо просто з роботи, нічого не їли. Є щось у холодильнику?', 'Слухай, а в тебе є що поїсти? Ми ще не обідали.'];
+  // Голодні гості: удвох — «ми», сам — від себе, у своєму роді.
+  const HUNGRY_PAIR = ['Ми голодні як вовки. Нагодуєш?', 'Йдемо просто з роботи, нічого не їли. Є щось у холодильнику?', 'Слухай, а в тебе є що поїсти? Ми ще не обідали.'];
+  const HUNGRY_ONE = [(f) => 'Я голодн' + (f ? 'а як вовчиця' : 'ий як вовк') + '. Нагодуєш?', (f) => 'Іду просто з роботи, нічого не ' + (f ? 'їла' : 'їв') + '. Є щось у холодильнику?',
+    (f) => 'Слухай, а в тебе є що поїсти? Я ще не ' + (f ? 'обідала' : 'обідав') + '.'];
   // Друзі голодні: нагодувати за гроші чи лишити голодними (Стосунки −1).
   function askFeed(p) {
     const F = C.actions.friends, can = game.money >= F.treat;
     phase = 'ask';
-    openModal(`<h2>Друзі голодні</h2>
-      <p>«${esc(HUNGRY_LINES[Math.floor(Math.random() * HUNGRY_LINES.length)])}»</p>
+    const who = game.callGuests || [], one = who.length === 1, fem = one && C.friends.female.includes(who[0]);
+    const line = one ? HUNGRY_ONE[Math.floor(Math.random() * HUNGRY_ONE.length)](fem) : HUNGRY_PAIR[Math.floor(Math.random() * HUNGRY_PAIR.length)];
+    openModal(`<h2>${one ? esc(who[0]) + ' ' + (fem ? 'голодна' : 'голодний') : esc(who.join(' і ')) + ' голодні'}</h2>
+      <p>${esc(who.join(' і '))} ${one ? 'пише' : 'пишуть'}: «${esc(line)}»</p>
       <div class="row"><button class="btn primary" data-feed="yes" ${can ? '' : 'disabled'}>Нагодувати · −${F.treat} ₴</button>
       <button class="btn" data-feed="no">Нічим пригостити · Стосунки −1</button></div>
       ${can ? '' : '<p class="sub">Грошей на їжу немає.</p>'}`, false);
