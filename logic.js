@@ -813,7 +813,8 @@
       fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' });
       fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' });
     }
-    if (after.fed && !s.fed) fx.push({ t: after.foodType === 'guests' ? 'друзі нагодують' : 'їжа на день є', kind: 'info' });
+    // Про власну їжу не пишемо (приготував чи замовив — і так ясно); лише коли годують друзі.
+    if (after.fed && !s.fed && after.foodType === 'guests') fx.push({ t: 'друзі нагодують', kind: 'info' });
     if (id === 'cook' && s.foodType === 'guests') fx.push({ t: 'друзі вже погодували', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
