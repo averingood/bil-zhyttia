@@ -340,7 +340,7 @@
     if (phase === 'scene' || phase === 'cut') return;
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
     const z = room.currentZone();
-    const banner = inviteBanner();
+    const banner = gigBanner() + inviteBanner();
     const meta = 'Ресурс ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
     if (!z) {
       el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${room.walking ? 'Іде…' : 'Квартира'}</span><span class="ab-meta">${meta}</span></div>
@@ -371,7 +371,21 @@
       ${p.available && p.borrow ? `<span class="warn">Наперед ${p.borrow}: завтра на стільки менше ресурсу</span>` : ''}
       ${!p.available ? `<span class="warn">${esc(p.reason)}</span>` : ''}</div>`;
   }
+  // Підробіток від друга — пропозиція, як запрошення: взятися чи відмовитись.
+  function gigBanner() {
+    const g = G.gigToday(game);
+    if (!g || phase !== 'play') return '';
+    const p = G.preview(game, 'gig'), A = C.actions.gig;
+    return `<div class="invite"><span class="inv-msg"><b>${esc(g.from)}</b> пропонує підробіток на сьогодні: +${A.pay} ₴ одразу.</span>
+      <span class="inv-btns">
+        <button class="btn primary" data-gig="yes" ${p.available ? '' : 'aria-disabled="true"'}>Взятися · ресурс ${A.spoons}</button>
+        <button class="btn" data-gig="no">Відмовитись · Настрій −${A.refuse}</button>
+      </span>${!p.available ? `<span class="warn">${esc(p.reason)}</span>` : ''}</div>`;
+  }
   function bindInvite(el) {
+    const gy = el.querySelector('[data-gig=yes]'), gn = el.querySelector('[data-gig=no]');
+    if (gy) gy.onclick = () => { if (phase === 'play') act('gig'); };
+    if (gn) gn.onclick = () => { if (phase !== 'play') return; const r = G.refuseGig(game); if (r) toast(r.text); renderAll(); };
     const yes = el.querySelector('[data-inv=yes]'), no = el.querySelector('[data-inv=no]');
     if (yes) yes.onclick = acceptInvite;
     if (no) no.onclick = declineInvite;
@@ -476,18 +490,18 @@
         <div class="tip">
           <p><b>Зараз:</b> ресурс ${s.spoons} з ${s.spoonsMorning}${eaten ? ', біль з\'їв ' + eaten : ''}${s.borrowed ? ', узято наперед ' + s.borrowed : ''}. Біль ${p}: базовий ${s.base}, тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
-            <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Емоції ${L.soulHigh}+ — ще +1.</li>
+            <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
             <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра (шанс загострення +${Math.round(C.night.exhausted * 100)}%). Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
             <li><b>Біль заважає:</b> менше ресурсу й заробітку, зустрічі слабші; з болем 7+ не пишеш, не читаєш, не готуєш.</li>
             <li><b>Знижують:</b> курс ліків, лікар, вправи (через ${C.actions.exercise.reliefIn} дні), розтяжка, знеболювальне, процедура.</li>
-            <li><b>Загострення частіші</b> від кави, знеболювального, перевтоми, слабкого Тіла й поганих Емоцій.</li>
+            <li><b>Загострення частіші</b> від кави, знеболювального, перевтоми, слабкого Тіла й поганого настрою.</li>
           </ul>
         </div>
       </div>
 
       ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loan ? ' Борг ' + s.loan.amount + ' ₴ ' + esc(s.loan.from) + ' — до дня ' + s.loan.due + '.' : ''}</p>
         <ul class="tl">
-          <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; біль і Емоції змінюють суму), підробіток від друга.</li>
+          <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; біль і настрій змінюють суму), підробіток від друга.</li>
           <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; раз на тиждень — несподіваний рахунок.</li>
           <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів (близькі — ${C.actions.loan.close.amount} на ${C.actions.loan.close.dueIn}), Стосунки −${C.actions.loan.people}; не віддав — −${C.actions.loan.late}.</li>
         </ul>`)}
@@ -633,7 +647,7 @@
     openModal(`
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і проходиш ${C.days}-денний курс лікування. Щоранку біль вирішує, скільки в тебе <b>ресурсу</b> — сил на день; решту з'їдає біль.
-      Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b> і <b>Емоції</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
+      Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b> і <b>Настрій</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
         ${slider('basePain', 'Базовий біль', SU.basePain, '', 'на старті ще +' + SU.startExtra + ' тимчасового, що сам спадає')}
@@ -723,7 +737,7 @@
     const head = sm.lost
       ? `<h2>${esc(sm.lost.text)} на ${sm.lost.day}-й день</h2><p class="lost-line">Курс лікування — ${sm.days} ${dayWord(sm.days)}. Ти протримався ${sm.lost.day} ${dayWord(sm.lost.day)}.</p>`
       : `<h2>Курс лікування завершено</h2><p>Усі ${sm.days} ${dayWord(sm.days)} позаду. Жодна сфера не посипалась — таке трапляється рідко.</p>`;
-    // Фінал «Емоції згасли» — про найтемніше. Поруч — куди звернутися, якщо так зараз і в житті.
+    // Фінал «Настрій згас» — про найтемніше. Поруч — куди звернутися, якщо так зараз і в житті.
     const support = sm.lost && sm.lost.sphere === 'soul'
       ? `<p class="sub">Якщо тобі зараз так само порожньо — ти не сам. Lifeline Ukraine: 7333 (цілодобово, безкоштовно з мобільного).</p>` : '';
     openModal(`
@@ -747,7 +761,7 @@
 
   // Перегляд усіх чотирьох фіналів підряд: адреса з ?endings (щоб подивитися, не граючи).
   function demoEndings() {
-    const list = [['money', 'Гроші'], ['friends', 'Стосунки'], ['body', 'Тіло'], ['joy', 'Емоції'], ['win', 'перемога (дожив до кінця)']];
+    const list = [['money', 'Гроші'], ['friends', 'Стосунки'], ['body', 'Тіло'], ['joy', 'Настрій'], ['win', 'перемога (дожив до кінця)']];
     game = G.createGame({});
     game.soul = 3;
     let i = 0;

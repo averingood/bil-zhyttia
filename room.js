@@ -601,10 +601,10 @@
         // Пуф → підвестися → вікно над диваном → світло заливає кімнату. Кімната тим часом вицвітає.
         c.drain = Math.min(1, c.drain + dt / 6);
         if (c.phase === 'walk') {
-          c.caption = 'Емоції згасли';
+          c.caption = 'Настрій згас';
           if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('sit'); }
         } else if (c.phase === 'sit') {
-          c.caption = 'Емоції згасли';
+          c.caption = 'Настрій згас';
           if (c.t > 2.4) { this.setHeroSit(0); this.path = this.findPath(STAND.sofa[0], STAND.sofa[1]); go('towin'); }
         } else if (c.phase === 'towin') {
           // Підвестися й підійти до вікна над диваном.
