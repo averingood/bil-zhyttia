@@ -136,6 +136,15 @@
     for (const k of held) { x += DIRS[k][0]; y += DIRS[k][1]; }
     room.setKeys(Math.sign(x), Math.sign(y));
   }
+  // Esc — «Пропустити»: сцену від першої особи, анімацію чи фінал. Слухаємо першими (capture),
+  // щоб сцени не перехопили клавішу.
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Escape' || !game || !$('modal').hidden) return;
+    if ((phase === 'scene' && sceneAbort) || phase === 'cut' || canSkipAnim()) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      skipNow(); renderAll();
+    }
+  }, true);
   window.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (!$('modal').hidden) {
