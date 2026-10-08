@@ -203,7 +203,8 @@
     const cost = spoonCost(s, id);
     if (cost == null) return no('При сильному болю (' + C.states.strong.min + '+) на це немає сил');
     if (a.perDay && (s.used[id] || 0) >= a.perDay) return no('Сьогодні вже було');
-    const price = (a.money || 0) + (id === 'course' ? C.course.money : 0);
+    // Покликати друзів — треба мати чим пригостити, якщо прийдуть голодні.
+    const price = (a.money || 0) + (id === 'course' ? C.course.money : 0) + (id === 'friends' && !inviteToday(s) ? a.treat || 0 : 0);
     if (price && s.money < price) return no('Не вистачає грошей');
     if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ресурсу, навіть якщо взяти наперед');
     const p = pain(s);
@@ -317,11 +318,16 @@
         else if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
         // Близькі (Стосунки високі) частіше приходять з їжею.
-        const food = (inv && inviteLine(inv).food) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, ['піцу', 'борщ', 'вареники', 'пиріг']) : null);
+        // Покликав сам — частуєш (з шансом treatChance прийдуть голодні: −treat ₴).
+        // Просяться самі — приходять з їжею (invitedFood).
+        const DISHES = ['піцу', 'борщ', 'вареники', 'пиріг'];
+        const treat = !inv && a.treat && rand(s) < a.treatChance ? a.treat : 0;
+        if (treat) s.money -= treat;
+        const food = (inv && (inviteLine(inv).food || (a.invitedFood ? pick(s, DISHES) : null))) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, DISHES) : null);
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
-        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (a.money ? ', −' + a.money + ' ₴ на частування' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
+        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (treat ? (a.treatChance < 1 ? ', прийшли голодні — −' : ', −') + treat + ' ₴ на частування' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама — за тими ж правилами, що й міні-гра.
@@ -736,7 +742,10 @@
       if (id === 'games' && k === 'soul') { const g = C.actions.games; txt = SPHERES[k].name + ' +' + (g.soul - 1) + '…+' + (after[k] - s[k]) + ' (що далі пробіжиш)'; }
       fx.push({ t: txt, kind: k });
     }
-    if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
+    // Друзі: чи прийдуть голодні — випадок, тож показуємо шанс, а не наперед відомий результат.
+    const fa = C.actions.friends, hungry = id === 'friends' && !inviteToday(s) && fa.treat && fa.treatChance < 1;
+    if (hungry) fx.push({ t: Math.round(fa.treatChance * 100) + '%: прийдуть голодні, −' + fa.treat + ' ₴', kind: 'money' });
+    else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });

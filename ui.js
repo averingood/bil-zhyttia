@@ -559,7 +559,7 @@
         </ul>`)}
       ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people >= L.peopleGood ? ' Близькі поруч — діють бонуси нижче.' : s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> покликати друзів +${C.actions.friends.people.light} (ресурс ${C.actions.friends.spoons}, ${C.actions.friends.money} ₴), написати +${C.actions.text.people}, настолки раз на тиждень +${C.actions.board.people}.</li>
+          <li><b>Підняти:</b> покликати друзів +${C.actions.friends.people.light} (ресурс ${C.actions.friends.spoons}; покликав сам — ${Math.round(C.actions.friends.treatChance * 100)}%, що прийдуть голодні: −${C.actions.friends.treat} ₴), написати +${C.actions.text.people}, настолки раз на тиждень +${C.actions.board.people}.</li>
           <li><b>Втрати:</b> відмова −${C.friends.refuse}, позика −${C.actions.loan.people}, щоночі тане.</li>
           <li><b>${L.peopleGood}+ дає:</b> підробіток (${Math.round(L.gigChance * 100)}% щоночі, +${C.actions.gig.pay} ₴), позика ${C.actions.loan.close.amount} ₴, гості з їжею (${Math.round(L.foodChance * 100)}%).</li>
         </ul>`)}
