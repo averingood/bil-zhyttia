@@ -105,6 +105,10 @@
     for (let i = s.bookOrder.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [s.bookOrder[i], s.bookOrder[k]] = [s.bookOrder[k], s.bookOrder[i]]; }
     // Перша пропозиція від друзів — на 3-й день, щоб календар не був порожнім.
     addInvite(s, 3);
+    // Несподівані витрати: по одній на тиждень, у випадковий день (звістка вночі, платити — наступної ночі).
+    s.surpriseDays = [];
+    for (let w = 0; w * 7 + 2 < s.days; w++) s.surpriseDays.push(Math.min(s.days - 1, w * 7 + 2 + Math.floor(rand(s) * 5)));
+    s.bill = null;
     startDay(s, []);
     return s;
   }
@@ -417,7 +421,7 @@
     return t[t.length - 1][0];
   }
   const weekOf = (d) => Math.max(0, Math.floor((d - 1) / 7));
-  const pressureOf = (d) => Math.min(C.maxPressure, Math.floor(((d - 1) * (d - 1)) / C.pressureK));
+  const pressureOf = (d) => C.pressure[Math.min(C.pressure.length - 1, Math.max(0, d))];
   const dailyCost = (d) => C.costs[Math.min(C.costs.length - 1, weekOf(d))];
 
   // ---------- ніч ----------
@@ -449,10 +453,15 @@
     const pr = pressureOf(s.day);
     if (pr) {
       // Пощада: сфери на межі (≤ mercy) тиск обходить, поки є інші — щоб було з чого виплутатись.
-      let pool = []; const hit = [];
+      // Не більше perSphere ударів на одну сферу за ніч; сфери на межі (≤ mercy) — обходить, поки є інші.
+      let pool = []; const hit = [], got = {};
       for (let i = 0; i < pr; i++) {
-        if (!pool.length) { pool = SOFT.filter((k) => s[k] > C.mercy); if (!pool.length) pool = SOFT.slice(); }
-        const k = pool.splice(Math.floor(rand(s) * pool.length), 1)[0]; s[k] = clampS(s[k] - 1); hit.push(SPHERES[k].name);
+        if (!pool.length) {
+          pool = SOFT.filter((k) => s[k] > C.mercy && (got[k] || 0) < C.perSphere);
+          if (!pool.length) pool = SOFT.filter((k) => (got[k] || 0) < C.perSphere);
+          if (!pool.length) break;
+        }
+        const k = pool.splice(Math.floor(rand(s) * pool.length), 1)[0]; s[k] = clampS(s[k] - 1); hit.push(SPHERES[k].name); got[k] = (got[k] || 0) + 1;
       }
       const by = {}; hit.forEach((n) => { by[n] = (by[n] || 0) + 1; });
       ev.push({ kind: 'bad', text: 'Життя тисне: ' + Object.entries(by).sort((a, b) => b[1] - a[1]).map(([n, c]) => n + ' −' + c).join(', ') });
@@ -483,6 +492,17 @@
         else parts.push('Тіло слабке, але на укол (' + D.rescueCost + ' ₴) не вистачає грошей');
       }
       ev.push({ kind: active || parts.length > 1 ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
+    }
+    // Несподіваний рахунок: сьогодні платимо той, про який дізнались учора; і, може, приходить новий.
+    if (s.bill && s.bill.due === s.day) {
+      s.money -= s.bill.amount; s.stats.surprises = (s.stats.surprises || 0) + s.bill.amount;
+      ev.push({ kind: 'money', text: s.bill.name + ': −' + s.bill.amount + ' ₴' });
+      s.bill = null;
+    }
+    if (s.surpriseDays.includes(s.day) && s.day < s.days) {
+      const [name, amount] = pick(s, C.surprises);
+      s.bill = { name, amount, due: s.day + 1 };
+      ev.push({ kind: 'bad', text: 'Несподівано: ' + name.toLowerCase() + ' — завтра треба заплатити ' + amount + ' ₴' });
     }
     // Борг: настав день — віддаєш, якщо є з чого; нема — друг ображається.
     if (s.loan && s.day >= s.loan.due) {
@@ -639,6 +659,7 @@
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
       for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
       if (s.loan && s.loan.due === d) ev.push({ t: 'борг −' + s.loan.amount + '₴', k: 'bad' });
+      if (s.bill && s.bill.due === d) ev.push({ t: '−' + s.bill.amount + '₴', k: 'bad' });
       if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
       out.push({ day: d, cost: dailyCost(d), events: ev });
     }
@@ -660,6 +681,7 @@
       if (pay) out.push({ kind: 'money', t: w + ': надійде оплата за роботу, +' + pay + ' ₴.' });
       for (const f of s.future.filter((x) => x.day === d.day && x.kind === 'relief')) out.push({ kind: 'good', t: w + ': ' + (f.from === 'block' ? 'процедура ще діє' : 'вправи окупляться') + ', біль −' + f.amount + '.' });
       if (C.doctor.days.includes(d.day)) out.push({ kind: 'info', t: w + ': увечері прийом у лікаря.' });
+      if (s.bill && s.bill.due === d.day) out.push({ kind: 'money', t: w + ': ' + s.bill.name.toLowerCase() + ' — заплатити ' + s.bill.amount + ' ₴ (знімуть уночі).' });
       if (s.loan && s.loan.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + s.loan.from + ', ' + s.loan.amount + ' ₴.' });
       if (d.day > s.day && pressureOf(d.day) > pressureOf(d.day - 1)) out.push({ kind: 'bad', t: w + ': життя тисне сильніше.' });
       if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': витрати на життя зростуть до ' + dailyCost(d.day) + ' ₴ за ніч.' });
@@ -688,6 +710,7 @@
     if (st.invitesRefused) lostItems.push('Відмов друзям: ' + st.invitesRefused);
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
     if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
+    if (st.surprises) lostItems.push('Несподівані витрати: ' + st.surprises + ' ₴');
     if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loan ? ', не повернуто ' + s.loan.amount + ' ₴' : ''));
     if (st.blocks) kept.push('Платних процедур: ' + st.blocks);
     if (st.talkMissed) lostItems.push('Не почув друзів: ' + st.talkMissed + ' р.');
