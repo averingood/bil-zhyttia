@@ -235,6 +235,10 @@
     { H: '#1d1a1f', S: '#a8754f', E: '#1d1d24', B: '#91623f', G: '#eef2f3', D: '#c9d4d9', J: '#2f8f9a', K: '#15161b' },
   ];
   const MEDIC_SPOTS = [[2.55, 3.75], [2.4, 6.1]];   // біля розкладеного дивана
+  // Госпіталізація з ношами: медики стають у проході між диваном і столиком (передній — ближче до виходу)
+  // і несуть коридором під столиком, повз крісло-мішок, до дверей — ноші не проходять крізь меблі.
+  const STRETCHER_SPOTS = [[1.9, 5.0], [1.9, 3.65]];
+  const STRETCHER_OUT = [[1.9, 5.95], [3.85, 5.95], [3.85, 8.5], DOOR_IN, DOOR];
   const BAG = [2.45, 6.9];        // крісло-мішок ліворуч від килима
   const BAG_FRONT = [3.35, 6.9];
   // Крісло-мішок: висока м'яка спинка ззаду, вм'ятина для сидіння, складки тканини.
@@ -676,9 +680,10 @@
           c.flash = 1;
           c.caption = c.final ? 'Тіло здалося' : 'Біль дійшов до 10. Викликали швидку';
           if (c.t > 1.6) {
+            const spots = c.final ? STRETCHER_SPOTS : MEDIC_SPOTS;
             c.medics = MEDICS.map((pal, i) => {
               const m = { x: DOOR[0] + i * 0.5, y: DOOR[1] + i * 0.3, pal, path: [] };
-              m.path = [[DOOR_IN[0] + i * 0.5, DOOR_IN[1]], ...this.findPath(MEDIC_SPOTS[i][0], MEDIC_SPOTS[i][1], DOOR_IN[0] + i * 0.5, DOOR_IN[1])];
+              m.path = [[DOOR_IN[0] + i * 0.5, DOOR_IN[1]], ...this.findPath(spots[i][0], spots[i][1], DOOR_IN[0] + i * 0.5, DOOR_IN[1])];
               return m;
             });
             go('enter');
@@ -690,14 +695,19 @@
         case 'lift':
           if (c.final) {
             // Фінал: не встає — кладуть на ноші.
-            if (c.t > 0.5 && !c.stretcher) { c.sleeping = false; c.stretcher = true; this.heroAway = true; }
+            if (c.t > 0.5 && !c.stretcher) { c.sleeping = false; c.stretcher = true; this.heroAway = true; c.slot = 3; }   // медики вмикають світло
           } else if (c.sleeping && c.t > 0.5) {
             c.sleeping = false;
             this.hero.x = 2.15; this.hero.y = 4.9; this.hero.back = false;
           }
           c.caption = c.final ? 'Госпіталізація' : 'Тебе забирають у лікарню';
           if (c.t > 1.4) {
-            c.medics.forEach((m, i) => { m.path = [...this.findPath(DOOR_IN[0] + i * 0.5, DOOR_IN[1], m.x, m.y), [DOOR[0] + i * 0.5, DOOR[1] + i * 0.3]]; });
+            if (c.final && c.medics.length === 2) {
+              // Ноші: передній іде коридором, задній — слідом тим самим шляхом.
+              const [m0, m1] = c.medics;
+              m0.path = STRETCHER_OUT.map((q) => q.slice());
+              c.trail = [[m1.x, m1.y], [m0.x, m0.y]];
+            } else c.medics.forEach((m, i) => { m.path = [...this.findPath(DOOR_IN[0] + i * 0.5, DOOR_IN[1], m.x, m.y), [DOOR[0] + i * 0.5, DOOR[1] + i * 0.3]]; });
             if (!c.final) this.path = [...this.findPath(DOOR_IN[0] + 0.25, DOOR_IN[1] - 0.4), [DOOR[0] + 0.25, DOOR[1]]];
             go('out');
           }
@@ -709,9 +719,21 @@
             // Несуть ноші: передній медик іде шляхом, задній тримає ноші на сталій відстані позаду.
             const [m0, m1] = c.medics;
             done = this.moveActor(m0, dt, 1.4);
-            const vx = m0.x - m1.x, vy = m0.y - m1.y, d = Math.hypot(vx, vy) || 1, gap = 1.35;
-            m1.x = m0.x - (vx / d) * gap; m1.y = m0.y - (vy / d) * gap;
-            m1.moving = m0.moving; m1.walkT = m0.walkT; m1.dir = m0.dir; m1.back = m0.back;
+            // Задній — на відстані gap позаду вздовж сліду переднього (не навпростець через стіл).
+            const tr = c.trail || (c.trail = [[m1.x, m1.y]]);
+            const last = tr[tr.length - 1];
+            if (Math.hypot(m0.x - last[0], m0.y - last[1]) > 0.02) tr.push([m0.x, m0.y]);
+            let left = 1.35, k = tr.length - 1, px = m0.x, py = m0.y;
+            while (k > 0) {
+              const [ax, ay] = tr[k - 1], seg = Math.hypot(px - ax, py - ay);
+              if (seg >= left) { px += (ax - px) * (left / seg); py += (ay - py) * (left / seg); left = 0; break; }
+              left -= seg; px = ax; py = ay; k--;
+            }
+            const dx = m0.x - px, dy = m0.y - py;
+            m1.x = px; m1.y = py;
+            if (Math.abs(dx - dy) > 0.05) m1.dir = dx - dy > 0 ? 1 : -1;
+            m1.back = dx + dy < -0.1;
+            m1.moving = m0.moving; m1.walkT = m0.walkT;
           } else done = c.medics.map((m) => this.moveActor(m, dt, Math.min(2.2, this.speed()))).every(Boolean);
           if (done && !this.path.length) {
             this.heroAway = true; c.medics = []; c.flash = 0;
@@ -1037,7 +1059,9 @@
       // Ноші між медиками — окремий «актор» посередині, щоб правильно ховатись за меблями.
       if (this.cut && this.cut.stretcher && this.cut.medics.length === 2) {
         const [m0, m1] = this.cut.medics;
-        actors.push({ a: { x: (m0.x + m1.x) / 2, y: (m0.y + m1.y) / 2 + 0.01 }, draw: () => this.drawStretcher(ctx, m0, m1) });
+        // Ноші — поверх обох медиків (вони тримають їх у руках), інакше передній закриває їх повністю.
+        const front = m0.x + m0.y > m1.x + m1.y ? m0 : m1;
+        actors.push({ a: { x: front.x + 0.02, y: front.y + 0.02 }, draw: () => this.drawStretcher(ctx, m0, m1) });
       }
       if (this.visit) for (const f of this.visit.friends) if (!(f.sit > 0)) actors.push({ a: f, draw: () => this.drawWalker(ctx, f, f.pal, f.long) });
       const placed = actors.map((ac) => {
@@ -1560,10 +1584,15 @@
       quad(-L + 0.2, L - 0.4, -Wd + 0.08, Wd - 0.08, Z + 3, '#7aa0cf');
       // Голова на подушці біля переднього краю.
       quad(L - 0.26, L - 0.04, -Wd + 0.06, Wd - 0.06, Z + 2, '#f3f4f2');
-      const hp = pt(L - 0.15, 0, Z + 4).map(Math.round);
-      ctx.fillStyle = '#24160f'; ctx.fillRect(hp[0] - 3, hp[1] - 3, 7, 6);
-      ctx.fillStyle = '#e0ac84'; ctx.fillRect(hp[0] - 2, hp[1] - 2, 5, 4);
-      ctx.fillStyle = '#3a2a20'; ctx.fillRect(hp[0] - 2, hp[1] - 3, 5, 2);
+      // Герой: голова більша, з волоссям, очима й плечима над ковдрою — щоб було видно, кого несуть.
+      const hp = pt(L - 0.15, 0, Z + 4).map(Math.round), sp = pt(L - 0.36, 0, Z + 4).map(Math.round);
+      ctx.fillStyle = '#24160f'; ctx.fillRect(sp[0] - 5, sp[1] - 2, 11, 4);
+      ctx.fillStyle = PAL.hood; ctx.fillRect(sp[0] - 4, sp[1] - 1, 9, 2);                    // плечі в худі
+      ctx.fillStyle = '#24160f'; ctx.fillRect(hp[0] - 4, hp[1] - 5, 9, 9);
+      ctx.fillStyle = PAL.skin; ctx.fillRect(hp[0] - 3, hp[1] - 3, 7, 6);
+      ctx.fillStyle = PAL.hair; ctx.fillRect(hp[0] - 3, hp[1] - 4, 7, 2); ctx.fillRect(hp[0] - 3, hp[1] - 2, 1, 2);
+      ctx.fillStyle = '#1d1d24'; ctx.fillRect(hp[0] - 1, hp[1], 1, 1); ctx.fillRect(hp[0] + 2, hp[1], 1, 1);   // заплющені очі
+      ctx.fillStyle = PAL.skinD; ctx.fillRect(hp[0], hp[1] + 2, 2, 1);
     }
 
     drawWalker(ctx, h, pal, long) {

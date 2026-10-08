@@ -682,15 +682,22 @@
       </div>
       <div class="sub">Якщо лягти зараз: ${esc(G.sleepGainText(s))}.</div>
       <button class="btn ghost" id="restartBtn">Почати заново</button>
-      ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально): скинути до нуля, потім завершити день</span>
-        <div class="row">${['money', 'people', 'body', 'soul'].map((k) => `<button class="btn" data-zero="${k}">${G.SPHERES[k].name} → 0</button>`).join('')}</div></div>` : ''}
+      ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально): постав значення, потім заверши день</span>
+        <div class="dbg-grid">
+          <span>Біль</span><button class="btn" data-dbg="pain:min">1</button><button class="btn" data-dbg="pain:max">10</button>
+          ${['people', 'body', 'soul'].map((k) => `<span>${G.SPHERES[k].name}</span><button class="btn" data-dbg="${k}:min">0</button><button class="btn" data-dbg="${k}:max">10</button>`).join('')}
+          <span>Гроші</span><input type="range" id="dbgMoney" min="0" max="400" step="10" value="${Math.max(0, Math.min(400, s.money))}"><b id="dbgMoneyV">${s.money} ₴</b>
+        </div>
+        <div class="row"><button class="btn primary" data-dbg="win">Перескочити до кінця 21-го дня</button></div></div>` : ''}
       ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost, fc))}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
     $('endBtn').onclick = endDayClick;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
-    document.querySelectorAll('[data-zero]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; game[b.dataset.zero] = 0; toast(G.SPHERES[b.dataset.zero].name + ' → 0. Заверши день, щоб побачити, що буде.'); renderAll(); }; });
+    document.querySelectorAll('[data-dbg]').forEach((b) => { b.onclick = () => debugSet(b.dataset.dbg); });
+    const dm = $('dbgMoney');
+    if (dm) { dm.oninput = () => { $('dbgMoneyV').textContent = dm.value + ' ₴'; }; dm.onchange = () => { if (phase !== 'play') return; game.money = +dm.value; renderAll(); }; }
   }
 
   // Попередження про кінець — чесно: що саме станеться і чи ще можна встигнути щось зробити сьогодні.
@@ -715,6 +722,23 @@
     if (crisis != null) return name + ' зараз ' + now + ', але вночі знову впаде до нуля' + because + '. Учора воно вже було на нулі, тож другий нуль поспіль' + end;
     if (game.day >= game.days) return 'Останній день: ' + name.toLowerCase() + ' зараз ' + now + ', уночі впаде до нуля' + because + ', а порятунку вже не буде.';
     return name + ' зараз ' + now + ', уночі впаде до нуля' + because + end;
+  }
+
+  // Налагодження: виставити сферу чи біль на край; або перескочити в останній вечір курсу й подивитись фінал.
+  function debugSet(cmd) {
+    if (phase !== 'play') return;
+    if (cmd === 'win') {
+      // Останній день, усе живе — завершуєш день і бачиш перемогу (лікар, друзі, фінальний огляд).
+      game.day = game.days; game.people = Math.max(game.people, 6); game.body = Math.max(game.body, 6); game.soul = Math.max(game.soul, 6);
+      game.money = Math.max(game.money, 200); game.crisis = {}; game.extra = 0; game.fed = true;
+      toast('День ' + game.days + '. Заверши день — побачиш фінал.');
+      renderAll();
+      return;
+    }
+    const [k, v] = cmd.split(':');
+    if (k === 'pain') { const want = v === 'max' ? 10 : 1; game.extra = want - game.base; toast('Біль → ' + G.pain(game)); }
+    else { game[k] = v === 'max' ? C.sphereMax : 0; toast(G.SPHERES[k].name + ' → ' + game[k] + '. Заверши день, щоб побачити, що буде.'); }
+    renderAll();
   }
 
   // ---------- підказки секцій ----------
