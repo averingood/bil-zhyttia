@@ -417,7 +417,7 @@
       <p>Вам прописано:</p>
       <ul class="tl">
         <li><b>Пігулки з курсу</b> (аптечка): 1 в день</li>
-        <li><b>ЛФК</b> (килимок): ${D.lfk.good}+ рази на тиждень</li>
+        <li><b>ЛФК</b> (килимок): ${D.lfk.good} рази на тиждень</li>
       </ul>
       <div class="row"><button class="btn primary" id="wkOk">Зрозуміло</button></div>`, true);
     $('wkOk').onclick = closeModal;

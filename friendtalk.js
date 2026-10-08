@@ -16,11 +16,12 @@
   // ---------- друзі ----------
   // Характери й зовнішність: аксесуари малюються поверх загального силуету.
   const FRIENDS = {
-    'Дідуслав': { f: false, H: '#c9c6c0', S: '#e2b48c', G: '#7a6247', beard: '#bdb9b2', brows: '#9a968f' },
-    'Ковбасій': { f: false, H: '#8a3f1c', S: '#e8b892', G: '#c8463a', check: '#8f2a22', blush: true },
-    'Любава':   { f: true,  H: '#5a1830', S: '#f0c8a8', G: '#b8326e', lips: '#c0243a', lashes: true },
-    'Одарка':   { f: true,  H: '#e8c25a', S: '#f0c8a8', G: '#efe8dc', stitch: '#c0392b', wreath: true },
-    'Андрій':   { f: false, H: '#1d1a1f', S: '#c99573', G: '#2a2a30', shades: true },
+    // outfit — що вдягнено: кардиган поверх сорочки, фланелева сорочка в клітинку, сукня з намистом, вишиванка з намистом, шкірянка.
+    'Дідуслав': { f: false, H: '#c9c6c0', S: '#e2b48c', G: '#7a6247', beard: '#bdb9b2', brows: '#9a968f', outfit: 'cardigan' },
+    'Ковбасій': { f: false, H: '#8a3f1c', S: '#e8b892', G: '#c8463a', blush: true, outfit: 'flannel' },
+    'Любава':   { f: true,  H: '#5a1830', S: '#f0c8a8', G: '#b8326e', lips: '#c0243a', lashes: true, outfit: 'dress' },
+    'Одарка':   { f: true,  H: '#e8c25a', S: '#f0c8a8', G: '#efe8dc', wreath: true, outfit: 'vyshyvanka' },
+    'Андрій':   { f: false, H: '#1d1a1f', S: '#c99573', G: '#2a2a30', shades: true, outfit: 'leather' },
   };
   const NAMES = Object.keys(FRIENDS);
   // Слово за родом друга: g('чекала', 'чекав').
@@ -296,6 +297,67 @@
   }
   let BACKDROP = null;   // рахується при першому показі
 
+  // Одяг від першої особи: тулуб уже залитий кольором p.G (ширина ±17 від cx, з ty+6), тут — деталі.
+  function outfit(cx, ty, p, GD, GL, skinD) {
+    const vee = (rows, w0, k, col) => { for (let r = 1; r <= rows; r++) { const w = Math.max(1, Math.round(w0 - r * k)); R(cx - w, ty + r, w * 2, 1, col); } };
+    switch (p.outfit) {
+      case 'cardigan': {   // Дідуслав: в'язаний кардиган поверх кремової сорочки, ґудзики, кишеня з олівцем
+        const knit = shade(p.G, -0.1);
+        for (let x = -15; x <= 15; x += 3) if (Math.abs(x) > 4) R(cx + x, ty + 8, 1, 28, knit);   // в'язка рубчиком
+        vee(13, 7, 0.45, '#e9e2cf');                                                             // сорочка у вирізі
+        for (let r = 1; r <= 13; r++) { const w = Math.max(1, Math.round(7 - r * 0.45)); R(cx - w - 1, ty + r, 1, 1, GD); R(cx + w, ty + r, 1, 1, GD); }
+        R(cx - 6, ty + 1, 4, 3, '#f4efe2'); R(cx + 2, ty + 1, 4, 3, '#f4efe2'); R(cx - 3, ty + 4, 1, 1, '#c9c0a8'); R(cx + 2, ty + 4, 1, 1, '#c9c0a8');   // комірець
+        R(cx, ty + 14, 1, 22, GD);                                                               // планка
+        for (const y of [16, 22, 28, 34]) { R(cx - 1, ty + y, 3, 2, '#d8c39a'); R(cx, ty + y, 1, 1, '#a88a5a'); }
+        R(cx - 14, ty + 19, 8, 1, GD); R(cx - 14, ty + 19, 1, 7, GD); R(cx - 7, ty + 19, 1, 7, GD);   // кишеня
+        R(cx - 12, ty + 15, 1, 5, '#e0b84a'); R(cx - 12, ty + 14, 1, 1, '#3a2a20');               // олівець
+        break;
+      }
+      case 'flannel': {    // Ковбасій: фланель у велику клітинку, розстебнутий комір над сірою футболкою, кишені й ковбаска
+        const dark = '#8f2a22', thin = '#e2876e';
+        for (let x = -16; x < 17; x += 7) { R(cx + x, ty + 6, 2, 30, dark); R(cx + x + 4, ty + 6, 1, 30, thin); }
+        for (let y = 7; y < 36; y += 7) { R(cx - 17, ty + y, 34, 2, dark); R(cx - 17, ty + y + 4, 34, 1, thin); }
+        vee(8, 5, 0.5, '#4a4f5c');                                                               // футболка
+        R(cx - 8, ty + 1, 4, 5, '#d85a48'); R(cx + 4, ty + 1, 4, 5, '#d85a48'); R(cx - 8, ty + 5, 4, 1, dark); R(cx + 4, ty + 5, 4, 1, dark);   // комір
+        R(cx, ty + 9, 1, 27, dark);
+        for (const y of [12, 19, 26, 33]) R(cx - 1, ty + y, 2, 2, '#f4efe2');
+        for (const px of [-14, 7]) { R(cx + px, ty + 14, 7, 6, '#b83c30'); R(cx + px, ty + 14, 7, 2, dark); }   // кишені з клапаном
+        R(cx - 12, ty + 9, 3, 6, '#9c4a3a'); R(cx - 12, ty + 9, 3, 1, '#c26a52'); R(cx - 11, ty + 8, 1, 1, '#7a3226');   // ковбаска з кишені
+        break;
+      }
+      case 'dress': {      // Любава: сукня з вирізом сердечком, золоте намисто з кулоном, рюш, дрібний візерунок, пояс із бантом
+        for (let y = 11; y < 34; y += 5) for (let x = -14 + (y % 2) * 3; x < 15; x += 6) { R(cx + x, ty + y, 1, 1, '#e98ab4'); R(cx + x + 1, ty + y + 1, 1, 1, '#9a2458'); }
+        vee(8, 9, 0.75, p.S);                                                                    // виріз
+        R(cx - 1, ty + 6, 2, 3, p.G);                                                            // «сердечко»
+        for (let r = 1; r <= 8; r++) { const w = Math.max(1, Math.round(9 - r * 0.75)); R(cx - w - 1, ty + r, 1, 1, GL); R(cx + w, ty + r, 1, 1, GL); }   // рюш
+        for (let x = -5; x <= 5; x++) R(cx + x, ty + 2 + Math.round((25 - x * x) / 12), 1, 1, '#e8c35a');   // ланцюжок
+        R(cx - 1, ty + 5, 2, 3, '#d22a4a'); R(cx - 1, ty + 5, 1, 1, '#ff8a9a');                 // кулон
+        R(cx - 17, ty + 29, 34, 3, shade(p.G, -0.4)); R(cx + 7, ty + 28, 4, 5, shade(p.G, -0.25)); R(cx + 8, ty + 32, 1, 3, shade(p.G, -0.4));   // пояс і бант
+        break;
+      }
+      case 'vyshyvanka': { // Одарка: вишиванка — орнамент на комірі, дві смуги на грудях, на рукавах; коралове намисто й червоні китиці
+        const red = '#c0392b', blk = '#2a1a14';
+        R(cx, ty + 4, 1, 10, '#cfc6b6');                                                         // розріз
+        for (const bx of [-6, 4]) for (let y = 7; y < 34; y += 4) { R(cx + bx + 1, ty + y, 1, 1, red); R(cx + bx, ty + y + 1, 3, 1, red); R(cx + bx + 1, ty + y + 2, 1, 1, blk); }
+        for (const sx of [-16, 13]) for (let y = 8; y < 34; y += 3) { R(cx + sx, ty + y, 3, 1, (y / 3) % 2 ? red : blk); R(cx + sx + 1, ty + y + 1, 1, 1, red); }
+        for (let k = 0; k < 7; k++) { const x = cx - 7 + k * 2, y = ty + 2 + Math.round((9 - (k - 3) * (k - 3)) / 4); R(x, y, 2, 2, '#d42a2a'); R(x, y, 1, 1, '#ff8a7a'); }   // намисто
+        for (let k = 0; k < 9; k++) { const x = cx - 9 + k * 2, y = ty + 5 + Math.round((16 - (k - 4) * (k - 4)) / 4); R(x, y, 2, 2, '#b8202a'); R(x, y, 1, 1, '#f07060'); }
+        R(cx - 2, ty + 13, 1, 4, red); R(cx + 2, ty + 13, 1, 4, red); R(cx - 2, ty + 17, 1, 1, blk); R(cx + 2, ty + 17, 1, 1, blk);   // китиці
+        break;
+      }
+      case 'leather': {    // Андрій: шкірянка — лацкани, блискавка, відблиск шкіри, кишені на блискавках, світла футболка
+        const hi = shade(p.G, 0.3), zip = '#9aa0a8';
+        vee(10, 6, 0.5, '#c9c9cf');
+        for (let r = 0; r < 13; r++) { R(cx - 9 + Math.round(r * 0.45), ty + 1 + r, 2, 1, hi); R(cx + 7 - Math.round(r * 0.45), ty + 1 + r, 2, 1, hi); }   // лацкани
+        R(cx - 1, ty + 12, 1, 24, zip); R(cx - 2, ty + 15, 3, 2, '#c8ccd2');                    // блискавка
+        R(cx - 13, ty + 8, 1, 20, shade(p.G, 0.35)); R(cx - 12, ty + 11, 1, 9, shade(p.G, 0.5));   // відблиск шкіри
+        for (let k = 0; k < 6; k++) { R(cx - 14 + k, ty + 22 + Math.floor(k / 2), 1, 1, zip); R(cx + 8 + k, ty + 24 - Math.floor(k / 2), 1, 1, zip); }   // кишені
+        R(cx - 16, ty + 7, 6, 1, shade(p.G, -0.4)); R(cx + 10, ty + 7, 6, 1, shade(p.G, -0.4));  // шви на плечах
+        break;
+      }
+    }
+  }
+
   // Людина по пояс: волосся, обличчя з очима, бровами, носом і ротом, кофта з тінню, руки на колінах.
   function person(cx, base, p, o) {
     cx = Math.round(cx);
@@ -321,9 +383,8 @@
       R(cx + half - 4, ty + r, 4, 1, GD);                                   // тінь
     }
     R(cx - 5, ty + 1, 10, 3, GD); R(cx - 3, ty + 1, 6, 2, skinD);           // комір
-    // Одяг за характером: картата сорочка, вишиванка.
-    if (p.check) for (let r = 4; r < rows - 6; r += 6) for (let x = -14; x < 14; x += 6) R(cx + x, ty + r, 3, 3, p.check);
-    if (p.stitch) { for (let x = -4; x <= 4; x += 2) R(cx + x, ty + 5 + (x % 4 ? 1 : 0), 1, 1, p.stitch); for (let r = 12; r < 36; r += 3) { R(cx - 15, ty + r, 2, 1, p.stitch); R(cx + 13, ty + r, 2, 1, p.stitch); } }
+    // Одяг за характером.
+    outfit(cx, ty, p, GD, GL, skinD);
     R(cx - 15, ty + 10, 1, 26, GD); R(cx + 14, ty + 10, 1, 26, GD);         // лінія рукавів
     // Руки на колінах.
     R(cx - 15, base - 13, 30, 7, OL); R(cx - 14, base - 12, 28, 5, GD);
