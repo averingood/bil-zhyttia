@@ -330,11 +330,8 @@
         vee(8, 9, 0.75, p.S);                                                                    // виріз
         for (let r = 1; r <= 3; r++) R(cx - 3 + r, ty + r, 6 - r * 2, 1, shade(p.S, -0.08));     // м'яка тінь від шиї, без різкого краю
         R(cx - 1, ty + 6, 2, 3, p.G);                                                            // «сердечко»
-        // Груди: світло зверху, м'яка тінь знизу.
-        for (const bx of [-6, 6]) {
-          R(cx + bx - 3, ty + 10, 6, 1, GL); R(cx + bx - 4, ty + 11, 2, 1, GL);
-          R(cx + bx - 4, ty + 15, 2, 1, GD); R(cx + bx - 2, ty + 16, 4, 1, GD); R(cx + bx + 2, ty + 15, 2, 1, GD);
-        }
+        // Груди: лише м'яка тінь знизу.
+        for (const bx of [-6, 6]) { R(cx + bx - 4, ty + 15, 2, 1, GD); R(cx + bx - 2, ty + 16, 4, 1, GD); R(cx + bx + 2, ty + 15, 2, 1, GD); }
         for (let r = 1; r <= 8; r++) { const w = Math.max(1, Math.round(9 - r * 0.75)); R(cx - w - 1, ty + r, 1, 1, GL); R(cx + w, ty + r, 1, 1, GL); }   // рюш
         for (let x = -5; x <= 5; x++) R(cx + x, ty + 2 + Math.round((25 - x * x) / 12), 1, 1, '#e8c35a');   // ланцюжок
         R(cx - 1, ty + 5, 2, 3, '#d22a4a'); R(cx - 1, ty + 5, 1, 1, '#ff8a9a');                 // кулон
