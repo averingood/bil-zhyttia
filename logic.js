@@ -88,7 +88,7 @@
       seed, rng: seed | 0, days: opts.days || C.days, day: 1,
       setup: { money, basePain },
       baseStart: basePain, base: basePain, extra: SU.startExtra, relief: 0,
-      courseStreak: 0, courseDrop: 0, courseToday: 0, doctorDrop: 0, pillDays: [], blockDay: -99, loan: null,
+      courseDrop: 0, courseToday: 0, doctorDrop: 0, pillDays: [], blockDay: -99, loan: null,
       money, people: C.start.people, body: C.start.body, soul: C.start.soul,
       spoons: 0, spoonsMorning: 0, spent: 0, borrowed: 0, spoonTomorrow: 0,
       friendNames: C.friends.names.slice(0, friendsN),
@@ -315,8 +315,7 @@
         s.courseToday = s.day;
         s.pillDays.push(s.day);
         s.stats.coursePills++;
-        const n = s.courseStreak + 1, next = C.course.steps.find((x) => x >= n);
-        note = 'курс: ' + n + '-й день поспіль, −' + C.course.money + ' ₴' + (next === n ? '; уночі базовий біль −' + C.course.drop : next ? ' (до ефекту ' + (next - n) + ' дн.)' : '');
+        note = 'пігулок за ' + C.course.window + ' днів: ' + pillsInWeek(s) + ' з ' + C.course.need + ' потрібних, −' + C.course.money + ' ₴';
         break;
       }
       case 'meds': {
@@ -379,6 +378,10 @@
   // Зняти тимчасовий біль: не «до ночі», а насправді — він далі спадає вже з нового рівня.
   // Нижче базового опускається щонайбільше на 2.
   function ease(s, n) { s.extra = Math.max(-2, s.extra - n); }
+
+  // Курсові пігулки за останні window днів (включно з сьогодні) і чи діє курс.
+  function pillsInWeek(s) { return s.pillDays.filter((d) => d > s.day - C.course.window).length; }
+  function courseActive(s) { return pillsInWeek(s) >= C.course.need; }
 
   function recalcBase(s) {
     s.base = Math.max(C.painMin, s.baseStart - Math.min(C.maxRelief, s.courseDrop + s.doctorDrop));
@@ -447,22 +450,20 @@
     s.extra = Math.max(-2, s.extra);
 
     // Курс лікування.
-    if (s.courseToday === s.day) {
-      s.courseStreak++;
-      if (C.course.steps.includes(s.courseStreak)) { s.courseDrop += C.course.drop; ev.push({ kind: 'good', text: s.courseStreak + ' днів курсу поспіль: базовий біль −' + C.course.drop }); }
-    } else if (s.courseStreak > 0) {
-      ev.push({ kind: 'pain', text: 'Пропустив пігулку: курс з нуля' + (s.courseDrop ? ', дія ліків минає — базовий біль +' + s.courseDrop : '') });
-      s.courseStreak = 0; s.courseDrop = 0;
+    {
+      const was = s.courseDrop > 0, now = courseActive(s);
+      s.courseDrop = now ? C.course.drop : 0;
+      if (now && !was) ev.push({ kind: 'good', text: 'Курс подіяв: ' + pillsInWeek(s) + ' пігулок за тиждень — базовий біль −' + C.course.drop });
+      if (!now && was) ev.push({ kind: 'pain', text: 'Забагато пропусків: курс перестав діяти — базовий біль +' + C.course.drop });
     }
     // Лікар.
     if (C.doctor.days.includes(s.day)) {
       // Лікар лікує: хто пив курс — біль слабшає; кому зле — відновлення для Тіла. Гірше не робить.
-      const D = C.doctor, pills = s.pillDays.filter((d) => d > s.day - 7).length;
-      const parts = [];
-      if (pills >= D.adherence) { s.doctorDrop++; parts.push('ти не пропускав ліки — біль слабшає (базовий −1)'); }
-      else parts.push('пігулок за тиждень ' + pills + ' з 7 — лікування не встигло подіяти');
+      const D = C.doctor, active = courseActive(s), parts = [];
+      if (active) { s.doctorDrop++; parts.push('курс діє — лікар підсилює лікування, біль слабшає (базовий −1)'); }
+      else parts.push('курс не діє (пігулок за тиждень ' + pillsInWeek(s) + ' з ' + C.course.need + ') — підсилювати нічого');
       if (s.body <= D.rescueBody) { s.body = clampS(s.body + D.rescue); parts.push('Тіло слабке — призначив відновлення: Тіло +' + D.rescue); }
-      ev.push({ kind: pills >= D.adherence || s.body <= D.rescueBody + D.rescue ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
+      ev.push({ kind: active || parts.length > 1 ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
     }
     // Борг: настав день — віддаєш, якщо є з чого; нема — друг ображається.
     if (s.loan && s.day >= s.loan.due) {
@@ -588,7 +589,7 @@
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
     if (id === 'loan') fx.push({ t: 'віддати ' + C.actions.loan.amount + ' ₴ до дня ' + (s.day + C.actions.loan.dueIn) + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
-    if (id === 'course') fx.push({ t: 'курс ' + (s.courseStreak + 1) + '-й день', kind: 'info' });
+    if (id === 'course') fx.push({ t: 'пігулок за тиждень: ' + (pillsInWeek(s) + 1) + ' з ' + C.course.need, kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі вищий', kind: 'pain' });
     return out;
   }
@@ -598,8 +599,6 @@
   // Календар: що вже відомо на найближчі дні.
   function calendar(s, len) {
     const out = [];
-    const need = C.course.steps.find((x) => x > s.courseStreak);
-    const courseDay = need && s.courseStreak > 0 ? s.day + (need - s.courseStreak) - 1 : null;
     for (let d = s.day; d < s.day + (len || 5) && d <= s.days; d++) {
       const inv = s.invites[d], ev = [];
       const pay = s.pending.filter((p) => p.day === d).reduce((a, p) => a + p.amount, 0);
@@ -609,7 +608,6 @@
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
       if (s.loan && s.loan.due === d) ev.push({ t: 'борг −' + s.loan.amount + '₴', k: 'bad' });
       if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
-      if (courseDay === d) ev.push({ t: 'курс ' + need, k: 'good' });
       out.push({ day: d, cost: dailyCost(d), events: ev });
     }
     return out;
@@ -667,7 +665,7 @@
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
     forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText,
-    pain, rawPain, stateKey, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
+    pillsInWeek, courseActive, pain, rawPain, stateKey, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },
   };

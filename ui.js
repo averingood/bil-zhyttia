@@ -438,7 +438,7 @@
     const fc = G.forecastNight(s);
     const flareP = Math.round(G.flareChanceTonight(s) * 100);
     const incoming = s.pending.slice().sort((a, b) => a.day - b.day).map((x) => `д.${x.day} +${x.amount}`).join(', ') || 'немає';
-    const need = C.course.steps.find((x) => x > s.courseStreak);
+    const pills = G.pillsInWeek(s), active = G.courseActive(s);
 
     el.style.boxShadow = `inset 0 0 ${Math.max(0, p - 3) * 9}px ${Math.max(0, p - 3) * 3}px rgba(5,5,12,.75)`;
     el.innerHTML = `
@@ -457,7 +457,7 @@
           Емоції ${L.soulHigh}+ дають ще +1. Стосунки ${L.peopleHelp}+ підхоплюють у поганий ранок: +1. Бракує — можна взяти до ${C.maxBorrow} із завтра.
           Ліг з нулем чи взяв наперед — шанс загострення вночі вищий на ${Math.round(C.night.exhausted * 100)}%; лишив ${C.night.earlyRest}+ — завтра біль −1.</p>
           <p class="why"><b>Біль б'є по всьому, але по-різному:</b> менше ресурсу; робота дає менше грошей; з друзями ти «не тут» — зустріч дає менше; вправи дорожчі; з болем 7+ не пишеться і не читається, не встояти біля плити; день у сильному болю пригнічує емоції.</p>
-          <p class="why"><b>Знижують біль:</b> курс ліків (${C.course.steps.join(' і ')} днів поспіль — по −${C.course.drop}), лікар на днях ${C.doctor.days.join(' і ')} (якщо не пропускав ліки), платна процедура (різко, але дорого), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка, знеболювальне й процедура (знімають тимчасовий біль), лягти з запасом. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.
+          <p class="why"><b>Знижують біль:</b> курс ліків (−${C.course.drop}, поки за ${C.course.window} днів випито ${C.course.need}+ пігулок), лікар на днях ${C.doctor.days.join(' і ')} (якщо курс діє), платна процедура (різко, але дорого), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка, знеболювальне й процедура (знімають тимчасовий біль), лягти з запасом. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.
           <b>Підвищують:</b> загострення (шанс тримає Тіло; перевтома, кава й знеболювальне його підвищують), а ще кава й знеболювальне.</p>
         </div>
       </div>
@@ -486,9 +486,9 @@
       </div>
 
       <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Курс лікування</span><span class="val">${s.courseStreak}${s.courseToday === s.day ? '+1' : ''}</span></div>
-        <div class="tip"><p>${s.courseStreak ? s.courseStreak + ' днів поспіль' + (s.courseToday === s.day ? ', сьогодні випито' : ', сьогодні ще ні') : 'Курс не розпочато'}${need ? '. До ефекту: ' + (need - s.courseStreak - (s.courseToday === s.day ? 1 : 0)) + ' дн.' : ''}${s.courseDrop ? ' Діє: базовий біль −' + s.courseDrop + '.' : ''}</p>
-        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ресурсу. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар приймає ввечері днів ${C.doctor.days.join(' і ')}. Якщо за тиждень випив хоча б ${C.doctor.adherence} курсових пігулок — зменшує біль. Якщо Тіло слабке (${C.doctor.rescueBody} і нижче) — призначає відновлення, Тіло +${C.doctor.rescue}. Гірше лікар не робить.</p></div>
+        <div class="sec-h"><span class="lbl">Курс лікування</span><span class="val">${pills}/${C.course.window}</span></div>
+        <div class="tip"><p>Пігулок за останні ${C.course.window} днів: ${pills}${s.courseToday === s.day ? ' (сьогоднішня теж)' : ''}. ${active ? 'Курс діє: базовий біль −' + C.course.drop + '.' : 'Курс не діє: треба ' + C.course.need + ' з ' + C.course.window + '.'}</p>
+        <p class="why">Пігулка — ${C.course.money} ₴, без ресурсу, раз на день. Курс діє, поки за останні ${C.course.window} днів випито хоча б ${C.course.need} пігулок: базовий біль −${C.course.drop}. Пропускати можна, але не часто — інакше курс перестане діяти. Лікар приймає ввечері днів ${C.doctor.days.join(' і ')}: якщо курс діє — підсилює лікування, біль слабшає ще на 1. Якщо Тіло слабке (${C.doctor.rescueBody} і нижче) — призначає відновлення, Тіло +${C.doctor.rescue}. Гірше лікар не робить.</p></div>
       </div>
 
       <div class="sec">
