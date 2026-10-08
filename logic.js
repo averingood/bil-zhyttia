@@ -225,7 +225,7 @@
         s.soul = clampS(s.soul + gain);
         songTitle(s);
         s.song.done++;
-        note = 'Емоції +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions + (s.song.done < a.songSessions ? ', до кінця ще ' + (a.songSessions - s.song.done) : '');
+        note = 'Емоції +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions;
         if (s.song.done >= a.songSessions) {
           s.soul = clampS(s.soul + a.songSoul);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
@@ -323,7 +323,7 @@
         const b = bookNow(s);
         s.soul = clampS(s.soul + a.soul);
         s.book.done++;
-        note = '«' + b[0] + '»: сесія ' + s.book.done + ' з ' + b[1] + (s.book.done < b[1] ? ', до кінця ще ' + (b[1] - s.book.done) : '') + ', Емоції +' + a.soul;
+        note = '«' + b[0] + '»: сесія ' + s.book.done + ' з ' + b[1] + ', Емоції +' + a.soul;
         if (s.book.done >= b[1]) {
           s.soul = clampS(s.soul + a.finishSoul);
           s.stats.booksRead++; s.lastBookDone = b[0];
@@ -424,9 +424,9 @@
     }
     // Лікар.
     if (C.doctor.days.includes(s.day)) {
-      if (s.body >= C.doctor.good) { s.doctorDrop++; ev.push({ kind: 'good', text: 'Прийом у лікаря: тіло тримається — базовий біль −1' }); }
-      else if (s.body <= C.doctor.bad) { s.doctorDrop--; ev.push({ kind: 'pain', text: 'Прийом у лікаря: тіло слабке, стало гірше — базовий біль +1' }); }
-      else ev.push({ kind: 'info', text: 'Прийом у лікаря: без змін (Тіло ' + s.body + ')' });
+      if (s.body >= C.doctor.good) { s.doctorDrop++; ev.push({ kind: 'good', text: 'Прийом у лікаря: Тіло тримається, лікування працює — біль слабшає (базовий −1)' }); }
+      else if (s.body <= C.doctor.bad) { s.doctorDrop--; ev.push({ kind: 'pain', text: 'Прийом у лікаря: Тіло слабке, стало гірше — біль сильнішає (базовий +1)' }); }
+      else ev.push({ kind: 'info', text: 'Прийом у лікаря: без змін — для покращення треба Тіло ' + C.doctor.good + '+ (було ' + s.body + ')' });
     }
     recalcBase(s);
 
@@ -576,7 +576,14 @@
     if (s.money + incoming - cost <= 0) out.push({ kind: 'fatal', t: 'Уночі витрати ' + cost + ' ₴, а грошей ' + s.money + ' ₴' + (incoming ? ' (+' + incoming + ' надійде)' : '') + ' — не вистачить.' });
     if (s.courseStreak > 0 && s.courseToday !== s.day) out.push({ kind: 'pain', t: 'Курсова пігулка ще не випита: пропуск — курс з нуля' + (s.courseDrop ? ' і базовий біль +' + s.courseDrop : '') + '.' });
     const nd = C.doctor.days.find((d) => d >= s.day);
-    if (nd && nd - s.day <= 3) out.push({ kind: 'info', t: 'Лікар уночі після дня ' + nd + ': Тіло ' + C.doctor.good + '+ — базовий біль −1, ' + C.doctor.bad + ' і нижче — +1. Зараз ' + s.body + '.' });
+    if (nd && nd - s.day <= 3) {
+      // Простими словами: коли прийом і що лікар зробить з таким Тілом, як зараз.
+      const D = C.doctor, when = nd === s.day ? 'Сьогодні ввечері' : nd - s.day === 1 ? 'Завтра ввечері' : 'Через ' + (nd - s.day) + ' дні, ввечері дня ' + nd + ',';
+      const verdict = s.body >= D.good ? 'Тіло зараз ' + s.body + ' з 10 — лікар побачить, що лікування працює, і біль стане слабшим (−1). Тримай Тіло ' + D.good + ' або вище.'
+        : s.body <= D.bad ? 'Тіло зараз лише ' + s.body + ' з 10 — лікар побачить погіршення, і біль стане сильнішим (+1). Підтягни Тіло: вправи, розтяжка, своя їжа.'
+        : 'Тіло зараз ' + s.body + ' з 10 — лікар нічого не змінить. Якщо підтягнеш Тіло до ' + D.good + ' (вправи, розтяжка, своя їжа), біль стане слабшим.';
+      out.push({ kind: 'info', t: when + ' — прийом у лікаря. ' + verdict });
+    }
     out.push({ kind: 'pain', t: 'Шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '% — що міцніше Тіло, то менше.' });
     if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ресурс на нулі: завтра біль +' + C.night.exhausted + '.' });
     else if (s.spoons >= C.night.earlyRest) out.push({ kind: 'good', t: 'Лягти, лишивши ресурс ' + C.night.earlyRest + '+, — завтра біль −1.' });

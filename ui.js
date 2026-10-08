@@ -488,7 +488,7 @@
       <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Курс лікування</span><span class="val">${s.courseStreak}${s.courseToday === s.day ? '+1' : ''}</span></div>
         <div class="tip"><p>${s.courseStreak ? s.courseStreak + ' днів поспіль' + (s.courseToday === s.day ? ', сьогодні випито' : ', сьогодні ще ні') : 'Курс не розпочато'}${need ? '. До ефекту: ' + (need - s.courseStreak - (s.courseToday === s.day ? 1 : 0)) + ' дн.' : ''}${s.courseDrop ? ' Діє: базовий біль −' + s.courseDrop + '.' : ''}</p>
-        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ресурсу. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар — уночі після днів ${C.doctor.days.join(' і ')}: Тіло ${C.doctor.good}+ — базовий −1, ${C.doctor.bad} і нижче — +1.</p></div>
+        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ресурсу. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар приймає ввечері днів ${C.doctor.days.join(' і ')} і дивиться на Тіло: ${C.doctor.good} і вище — лікування працює, біль слабшає; ${C.doctor.bad} і нижче — стало гірше, біль сильнішає; між ними — без змін.</p></div>
       </div>
 
       <div class="sec">
