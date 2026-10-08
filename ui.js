@@ -411,13 +411,14 @@
     const D = C.doctor, w = Math.floor((game.day - 1) / D.week) + 1, docDay = D.days[w - 1];
     if (!docDay || (game.day - 1) % D.week) return;
     const final = docDay === D.days[D.days.length - 1];
+    // Лише призначення — без наслідків: з ними гравець стикається на прийомі.
     openModal(`<h2>Тиждень ${w} з ${D.days.length}</h2>
-      <p>Увечері ${docDay}-го дня — ${final ? '<b>фінальний огляд</b> у лікаря: він підсумує весь курс' : 'прийом у лікаря'}. Він подивиться, як минув тиждень:</p>
+      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень.</p>
+      <p>Вам прописано:</p>
       <ul class="tl">
-        <li><b>Пігулки з курсу</b> (аптечка): ${D.pills.full} з ${D.week} — базовий біль −1; ${D.pills.keep} — без змін; менше — +1.</li>
-        <li><b>ЛФК</b> (килимок): ${D.lfk.good}+ рази — −1; 1–2 — без змін; жодного — +1.</li>
+        <li><b>Пігулки з курсу</b> (аптечка): 1 в день</li>
+        <li><b>ЛФК</b> (килимок): ${D.lfk.good}+ рази на тиждень</li>
       </ul>
-      <p class="sub">Гра не нагадуватиме й не рахуватиме за тебе — тримай у голові.</p>
       <div class="row"><button class="btn primary" id="wkOk">Зрозуміло</button></div>`, true);
     $('wkOk').onclick = closeModal;
     $('wkOk').focus();
