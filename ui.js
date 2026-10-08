@@ -235,7 +235,12 @@
     if (gameOn('cook') && id === 'cook' && window.CookGame) return runScene(window.CookGame, {}, (r) => ({ cook: r }), id, p);
     if (gameOn('exercise') && id === 'exercise' && window.MatGame) return runScene(window.MatGame, {}, (r) => ({ mat: r }), id, p);
     if (gameOn('work') && id === 'work' && window.Meeting) return runScene(window.Meeting, { canvas, payDay: game.day + C.actions.work.payDelay }, (r) => ({ score: r.score }), id, p);
-    if (id === 'friends') { finishAction(id, p); return; }
+    if (id === 'friends') {
+      // Покликав сам — друзі можуть прийти голодні: вибір, чим пригостити.
+      if (!G.inviteToday(game) && game.hungryNow == null && G.rollHungry(game)) { askFeed(p); return; }
+      finishAction(id, p);
+      return;
+    }
     if (gameOn('read') && id === 'read' && window.ReadGame) {
       const b = G.bookNow(game);
       return runScene(window.ReadGame, { book: b ? b[0] : '', session: game.book.done + 1, sessions: b ? b[1] : 0 }, () => ({}), id, p);
@@ -251,16 +256,32 @@
       tomorrow: game.spoonTomorrow, future: game.future.length,
     };
   }
-  function showDelta(b, title) {
+  // tags — що саме сталося (з логіки): «гості прийшли голодні: −10 ₴». Те, що вони пояснюють, не дублюємо голою цифрою.
+  const HUNGRY_LINES = ['Ми голодні як вовки. Нагодуєш?', 'Йдемо просто з роботи, нічого не їли. Є щось у холодильнику?', 'Слухай, а в тебе є що поїсти? Ми ще не обідали.'];
+  // Друзі голодні: нагодувати за гроші чи лишити голодними (Стосунки −1).
+  function askFeed(p) {
+    const F = C.actions.friends, can = game.money >= F.treat;
+    phase = 'ask';
+    openModal(`<h2>Друзі голодні</h2>
+      <p>«${esc(HUNGRY_LINES[Math.floor(Math.random() * HUNGRY_LINES.length)])}»</p>
+      <div class="row"><button class="btn primary" data-feed="yes" ${can ? '' : 'disabled'}>Нагодувати · −${F.treat} ₴</button>
+      <button class="btn" data-feed="no">Нічим пригостити · Стосунки −1</button></div>
+      ${can ? '' : '<p class="sub">Грошей на їжу немає.</p>'}`, false);
+    $('modal').querySelectorAll('[data-feed]').forEach((b) => { b.onclick = () => { closeModal(); phase = 'play'; finishAction('friends', p, { feed: b.dataset.feed === 'yes' }); }; });
+    $('modal').querySelector(can ? '[data-feed=yes]' : '[data-feed=no]').focus();
+  }
+  function showDelta(b, title, tags) {
     const a = snap(), parts = title ? [{ t: title, k: 'ttl' }] : [];
+    const covered = new Set();
+    for (const tg of tags || []) { parts.push({ t: tg.t, k: tg.k || '' }); (tg.covers || []).forEach((c) => covered.add(c)); }
     const sg = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
-    for (const k of ['people', 'body', 'soul']) if (a[k] !== b[k]) parts.push({ t: G.SPHERES[k].name + ' ' + sg(a[k] - b[k]), k: a[k] > b[k] ? 'good' : 'bad' });
+    for (const k of ['people', 'body', 'soul']) if (a[k] !== b[k] && !covered.has(k)) parts.push({ t: G.SPHERES[k].name + ' ' + sg(a[k] - b[k]), k: a[k] > b[k] ? 'good' : 'bad' });
     if (a.pending > b.pending) parts.push({ t: '+' + (a.pending - b.pending) + ' ₴ через ' + C.actions.work.payDelay + ' дні', k: 'good' });
-    if (a.money !== b.money) parts.push({ t: sg(a.money - b.money) + ' ₴', k: a.money > b.money ? 'good' : 'bad' });
+    if (a.money !== b.money && !covered.has('money')) parts.push({ t: sg(a.money - b.money) + ' ₴', k: a.money > b.money ? 'good' : 'bad' });
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
     if (a.tomorrow > b.tomorrow) parts.push({ t: 'завтра ресурс −' + (a.tomorrow - b.tomorrow), k: 'bad' });
     if (a.future > b.future) { const f = game.future[game.future.length - 1]; parts.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, k: 'good' } : { t: 'завтра відкат +' + f.amount, k: 'bad' }); }
-    if (a.fed && !b.fed) parts.push({ t: game.foodType === 'guests' ? 'друзі нагодували' : 'їжа на день є', k: game.foodType === 'guests' ? 'good' : '' });
+    if (a.fed && !b.fed && !covered.has('fed')) parts.push({ t: game.foodType === 'guests' ? 'друзі нагодували' : 'їжа на день є', k: game.foodType === 'guests' ? 'good' : '' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
     if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '»!', k: 'good' });
     if (parts.length <= (title ? 1 : 0)) return;
@@ -275,7 +296,7 @@
     const talk = id === 'friends' && window.FriendTalk && gameOn('friends');
     const before = snap();
     const r = G.doAction(game, id, Object.assign({}, opts, talk ? { deferTalk: true } : null));
-    if (r.ok) showDelta(before);
+    if (r.ok) showDelta(before, null, r.tags);
     // Друзі: зайшли, сіли — і тоді розмова від першої особи; після неї прощаються.
     room.playAction(id, r.guests, talk ? () => startTalk(r.guests) : null);
     if (talk) {
@@ -432,7 +453,7 @@
   function bindInvite(el) {
     const gy = el.querySelector('[data-gig=yes]'), gn = el.querySelector('[data-gig=no]');
     if (gy) gy.onclick = () => { if (phase === 'play') act('gig'); };
-    if (gn) gn.onclick = () => { if (phase !== 'play') return; const r = G.refuseGig(game); if (r) toast(r.text); renderAll(); };
+    if (gn) gn.onclick = () => { if (phase !== 'play') return; const b = snap(); const r = G.refuseGig(game); if (r) { toast(r.text); showDelta(b, 'Відмовився від підробітку:'); } renderAll(); };
     bindPads(el);
     const yes = el.querySelector('[data-inv=yes]'), no = el.querySelector('[data-inv=no]');
     if (yes) yes.onclick = acceptInvite;
@@ -446,8 +467,9 @@
   }
   function declineInvite() {
     if (phase !== 'play') return;
+    const b = snap();
     const r = G.refuseInvite(game);
-    if (r) toast(r.text);
+    if (r) { toast(r.text); showDelta(b, 'Відмовив ' + r.name + ':'); }
     renderAll();
   }
   room.onArrive = (z) => {

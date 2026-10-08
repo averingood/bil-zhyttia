@@ -1392,7 +1392,7 @@
         box(ctx, 2.45, 4.2, 6, 0.9, 1.2, 2, PAL.wood);
         box(ctx, 2.6, 4.4, 8, 0.4, 0.5, 1, PAL.blue, { outline: false });
         // Друзі принесли поїсти: коробка на столику до кінця дня.
-        if (v.food === 'guests') {
+        if (v.food === 'guests' || v.food === 'shared') {
           box(ctx, 2.55, 4.55, 9, 0.6, 0.6, 2, '#c9a36b');
           L(ctx, P(2.7, 5.15, 11), P(3, 5.15, 11), PAL.red);
         }

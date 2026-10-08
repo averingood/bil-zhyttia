@@ -203,8 +203,7 @@
     const cost = spoonCost(s, id);
     if (cost == null) return no('При сильному болю (' + C.states.strong.min + '+) на це немає сил');
     if (a.perDay && (s.used[id] || 0) >= a.perDay) return no('Сьогодні вже було');
-    // Покликати друзів — треба мати чим пригостити, якщо прийдуть голодні.
-    const price = (a.money || 0) + (id === 'course' ? C.course.money : 0) + (id === 'friends' && !inviteToday(s) ? a.treat || 0 : 0);
+    const price = (a.money || 0) + (id === 'course' ? C.course.money : 0);
     if (price && s.money < price) return no('Не вистачає грошей');
     if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ресурсу, навіть якщо взяти наперед');
     const p = pain(s);
@@ -214,7 +213,7 @@
         if (s.fed && s.foodType !== 'guests') return no('Їжа на сьогодні вже є');
         break;
       case 'delivery':
-        if (s.fed) return no(s.foodType === 'guests' ? 'Друзі вже погодували' : 'Їжа на сьогодні вже є');
+        if (s.fed) return no(s.foodType === 'guests' ? 'Друзі вже погодували' : s.foodType === 'shared' ? 'Ви вже поїли з друзями' : 'Їжа на сьогодні вже є');
         break;
       case 'create':
         if (p > a.maxPain) return no('З болем ' + (a.maxPain + 1) + '+ пісня не пишеться');
@@ -269,6 +268,7 @@
     if (a.money) s.money -= a.money;
     s.used[id] = (s.used[id] || 0) + 1;
     let note = '', guests = null;
+    const tags = [];   // що сталося — для плашки над кімнатою: { t, k, covers: ['money'|'people'|…] }
 
     switch (id) {
       case 'work': {
@@ -321,13 +321,24 @@
         // Покликав сам — частуєш (з шансом treatChance прийдуть голодні: −treat ₴).
         // Просяться самі — приходять з їжею (invitedFood).
         const DISHES = ['піцу', 'борщ', 'вареники', 'пиріг'];
-        const treat = !inv && a.treat && rand(s) < a.treatChance ? a.treat : 0;
-        if (treat) s.money -= treat;
-        const food = (inv && (inviteLine(inv).food || (a.invitedFood ? pick(s, DISHES) : null))) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, DISHES) : null);
+        // Голодні: гравець обирає — нагодувати (−treat ₴) чи ні (Стосунки −1). Без вибору — годуємо, якщо є гроші.
+        if (!inv && s.hungryNow == null) rollHungry(s);
+        let treat = 0, unfed = false;
+        if (!inv && s.hungryNow) {
+          if (opts.feed !== false && s.money >= a.treat) {
+            treat = a.treat; s.money -= treat;
+            const ateToo = !s.fed; if (ateToo) { s.fed = true; s.foodType = 'shared'; }   // поїли разом
+            tags.push({ t: 'гості прийшли голодні: −' + treat + ' ₴ на їжу' + (ateToo ? ', поїли разом' : ''), k: 'bad', covers: ['money', 'fed'] });
+          }
+          else { unfed = true; s.people = clampS(s.people - 1); tags.push({ t: 'гості лишились голодні: Стосунки +' + gain + ' −1', k: 'bad', covers: ['people'] }); }
+        }
+        s.hungryNow = null;
+        const hungry = !!s.hungryNow || treat > 0 || unfed;
+        const food = hungry ? null : (inv && (inviteLine(inv).food || (a.invitedFood ? pick(s, DISHES) : null))) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, DISHES) : null);
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
-        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (treat ? (a.treatChance < 1 ? ', прийшли голодні — −' : ', −') + treat + ' ₴ на частування' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
+        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (treat ? ', прийшли голодні — −' + treat + ' ₴ на їжу' : unfed ? ', прийшли голодні, не нагодував — Стосунки −1' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама — за тими ж правилами, що й міні-гра.
@@ -450,7 +461,7 @@
     }
     if (borrowedNow) note += '; взяв наперед ресурс ' + borrowedNow;
     j.did.push(ACTIONS[id].label + ' (' + note + ')');
-    return { ok: true, note, borrowed: borrowedNow, guests };
+    return { ok: true, note, borrowed: borrowedNow, guests, tags };
   }
 
   // Розмова від першої особи: kinds — відповіді на теми ('right'|'meh'|'wrong'|'silent').
@@ -458,6 +469,12 @@
     if (!pendingTalk) return '';
     pendingTalk = null;
     return talkResult(s, kinds);
+  }
+  // Покликав друзів сам: чи прийдуть голодні (кидаємо до дії, щоб гравець міг вибрати, чим пригостити).
+  function rollHungry(s) {
+    const a = C.actions.friends;
+    s.hungryNow = !inviteToday(s) && !!a.treat && rand(s) < a.treatChance;
+    return s.hungryNow;
   }
   // Розмова без міні-гри: кожну тему біль може накрити (coverOf) — тоді вгадуєш навпіл.
   function autoTalkKinds(s) {
@@ -744,7 +761,7 @@
     }
     // Друзі: чи прийдуть голодні — випадок, тож показуємо шанс, а не наперед відомий результат.
     const fa = C.actions.friends, hungry = id === 'friends' && !inviteToday(s) && fa.treat && fa.treatChance < 1;
-    if (hungry) fx.push({ t: Math.round(fa.treatChance * 100) + '%: прийдуть голодні, −' + fa.treat + ' ₴', kind: 'money' });
+    if (hungry) fx.push({ t: Math.round(fa.treatChance * 100) + '%: прийдуть голодні — нагодувати (−' + fa.treat + ' ₴) чи Стосунки −1', kind: 'money' });
     else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
@@ -851,7 +868,7 @@
   const api = {
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
-    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho, autoTalkKinds,
+    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho, autoTalkKinds, rollHungry,
     pillsInWeek, courseActive, pain, rawPain, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },
