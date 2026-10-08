@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кнопка «без гри» — варіанти</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600&family=Tiny5&display=swap">
+<style>
+  :root {
+    --bg: #161924; --panel: #20243a; --panel-2: #262b45; --line: #3b4263; --fg: #ece3cf; --muted: #9aa0b8; --accent: #d4a03e;
+    --energy: #6ec6b0; --money: #e6c35a; --joy: #e58fa8; --light: #8fcf7e; --strong: #df5b4f; --soul: #8fb4ff; --ink: #11131c;
+    --font: "Handjet", "Arial Narrow", sans-serif; --display: "Tiny5", "Handjet", sans-serif; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 20px/1.3 var(--font); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 22px; }
+  h1 { margin: 0; font: 28px/1.1 var(--display); color: var(--accent); }
+  .variant { background: var(--panel); border: 2px solid var(--line); padding: 12px 14px; display: grid; gap: 10px; }
+  .variant h2 { margin: 0; font: 18px/1 var(--display); color: var(--accent); }
+  .variant p { margin: 0; color: var(--muted); font-size: 18px; }
+  .ab-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .act { position: relative; text-align: left; background: var(--panel-2); border: 2px solid var(--line); padding: 6px 9px; cursor: pointer;
+    display: grid; gap: 2px; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; column-gap: 8px; color: var(--fg); font: inherit; }
+  .act:hover { border-color: var(--accent); }
+  .act kbd { font: 16px var(--display); background: var(--ink); color: var(--muted); padding: 0 5px; border: 1px solid var(--line); }
+  .a-name { font-size: 21px; font-weight: 500; }
+  .a-cost { color: var(--energy); font: 16px var(--display); white-space: nowrap; }
+  .a-fx { grid-column: 1 / -1; font-size: 17px; color: var(--muted); }
+  .a-fx .soul { color: var(--soul); } .a-fx .money { color: var(--money); } .a-fx .good { color: var(--light); }
+
+  /* A: маленька кнопка в кутку картки */
+  .va .skip { position: absolute; right: 6px; bottom: 6px; font: 15px var(--display); background: var(--ink); color: var(--muted);
+    border: 1px solid var(--line); padding: 1px 6px; cursor: pointer; }
+  .va .skip:hover { color: var(--fg); border-color: var(--accent); }
+
+  /* B: розділена кнопка — праворуч вузька смуга «без гри» */
+  .vb .split { display: grid; grid-template-columns: minmax(0, 1fr) 46px; }
+  .vb .split .act { border-right: 0; }
+  .vb .side { background: #1c2036; border: 2px solid var(--line); color: var(--muted); font: 14px var(--display); cursor: pointer;
+    writing-mode: vertical-rl; text-orientation: mixed; display: grid; place-items: center; }
+  .vb .side:hover { color: var(--fg); border-color: var(--accent); }
+
+  /* C: два рядки-посилання під ефектами */
+  .vc .runs { grid-column: 1 / -1; display: flex; gap: 6px; margin-top: 3px; }
+  .vc .run { font: 15px var(--display); padding: 1px 8px; border: 1px solid var(--line); background: var(--ink); color: var(--muted); cursor: pointer; }
+  .vc .run.play { color: var(--accent); border-color: var(--accent); }
+  .vc .run:hover { color: var(--fg); }
+
+  /* D: значок 🎮 на картці + Shift для «без гри» */
+  .vd .pad { position: absolute; right: 6px; bottom: 5px; font-size: 16px; opacity: .8; }
+  .vd .hint { font-size: 16px; color: var(--muted); }
+  .vd .hint kbd { font: 14px var(--display); background: var(--ink); border: 1px solid var(--line); padding: 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Кнопка «без міні-гри» — 4 варіанти</h1>
+  <p style="margin:0;color:var(--muted)">Клік по самій картці — як зараз (з міні-грою, якщо вони увімкнені). Варіанти — як дати запуск без міні-гри. Наведи й поклацай: це лише макет.</p>
+
+  <section class="variant va">
+    <h2>A. Маленька кнопка в кутку картки</h2>
+    <p>Непомітна, поки не треба. Картка — з грою, «⏭ без гри» — одразу результат.</p>
+    <div class="ab-list" id="va"></div>
+  </section>
+
+  <section class="variant vb">
+    <h2>B. Розділена кнопка: вузька смуга праворуч</h2>
+    <p>Видно одразу, великий клікабельний край. Займає трохи ширини.</p>
+    <div class="ab-list" id="vb"></div>
+  </section>
+
+  <section class="variant vc">
+    <h2>C. Два явні варіанти під описом</h2>
+    <p>Найзрозуміліше: «▶ з грою» і «⏭ без гри». Картка трохи вища.</p>
+    <div class="ab-list" id="vc"></div>
+  </section>
+
+  <section class="variant vd">
+    <h2>D. Значок 🎮 + Shift</h2>
+    <p class="hint">На картці з міні-грою — значок 🎮. Клік або цифра — з грою; <kbd>Shift</kbd>+клік чи <kbd>Shift</kbd>+цифра — без гри. Найкомпактніше, але треба знати про Shift.</p>
+    <div class="ab-list" id="vd"></div>
+  </section>
+</div>
+<script>
+  const acts = [
+    { n: 'Робота', c: 'ресурс 2', fx: '<span class="money">+33 ₴ на день 3</span>', game: true },
+    { n: 'Пограти в ігри', c: 'ресурс 1', fx: '<span class="soul">Настрій +2…+4</span> · <span class="good">біль зараз 5→4</span>', game: true },
+    { n: 'Написати другові', c: 'ресурс 1', fx: '<span>Стосунки +1</span>', game: false },
+  ];
+  const card = (a, i, extra) => `<button class="act"><kbd>${i + 1}</kbd><span class="a-name">${a.n}</span><span class="a-cost">${a.c}</span><span class="a-fx">${a.fx}</span>${extra || ''}</button>`;
+  const flash = (el, t) => { el.textContent = t; setTimeout(() => (el.textContent = el.dataset.t), 900); };
+  document.getElementById('va').innerHTML = acts.map((a, i) => card(a, i, a.game ? '<span class="skip" data-t="⏭ без гри">⏭ без гри</span>' : '')).join('');
+  document.getElementById('vb').innerHTML = acts.map((a, i) => a.game ? `<div class="split">${card(a, i)}<button class="side" data-t="без гри">без гри</button></div>` : card(a, i)).join('');
+  document.getElementById('vc').innerHTML = acts.map((a, i) => card(a, i, a.game ? '<span class="runs"><span class="run play" data-t="▶ з грою">▶ з грою</span><span class="run" data-t="⏭ без гри">⏭ без гри</span></span>' : '')).join('');
+  document.getElementById('vd').innerHTML = acts.map((a, i) => card(a, i, a.game ? '<span class="pad" title="Є міні-гра. Shift — без неї">🎮</span>' : '')).join('');
+  document.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); flash(b, '✓'); }));
+</script>
+</body>
+</html>

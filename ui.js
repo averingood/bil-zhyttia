@@ -149,7 +149,7 @@
       const z = room.currentZone();
       if (!z) return;
       const a = G.zoneActions(game, z)[Number(e.code.slice(5)) - 1];
-      if (a) act(a.id);
+      if (a) act(a.id, e.shiftKey);   // Shift+цифра — без міні-гри
       return;
     }
     if (e.code === 'KeyE') endDayClick();
@@ -195,7 +195,8 @@
     if (phase === 'scene' && sceneAbort) { sceneSkipped = true; sceneAbort(); }
   }
 
-  function act(id) {
+  // noGame — запустити без міні-гри (Shift+клік чи Shift+цифра), результат рахується автоматично.
+  function act(id, noGame) {
     if (phase !== 'play') return;
     const p = G.preview(game, id);
     if (!p.available) {
@@ -211,12 +212,13 @@
     }
     armed = null;
     if (id !== 'friends') room.endVisit(false);
-    const sc = setupChoice.scenes;
+    const sc = setupChoice.scenes && !noGame;
     if (sc && id === 'create' && window.SynthGame) return runScene(window.SynthGame, { title: G.songTitle(game) }, (r) => ({ synth: r }), id, p);
     if (sc && id === 'games' && window.RunGame) return runScene(window.RunGame, { jumps: C.actions.games.jumps, painChance: C.actions.games.painChance }, (r) => ({ runner: r }), id, p);
     if (sc && id === 'cook' && window.CookGame) return runScene(window.CookGame, {}, (r) => ({ cook: r }), id, p);
     if (sc && id === 'exercise' && window.MatGame) return runScene(window.MatGame, {}, (r) => ({ mat: r }), id, p);
     if (sc && id === 'work' && window.Meeting) return runScene(window.Meeting, { canvas, payDay: game.day + C.actions.work.payDelay }, (r) => ({ score: r.score }), id, p);
+    if (id === 'friends') { finishAction(id, p, null, noGame); return; }
     if (sc && id === 'read' && window.ReadGame) {
       const b = G.bookNow(game);
       return runScene(window.ReadGame, { book: b ? b[0] : '', session: game.book.done + 1, sessions: b ? b[1] : 0 }, () => ({}), id, p);
@@ -252,8 +254,8 @@
     setTimeout(() => el.remove(), 3600);
   }
 
-  function finishAction(id, p, opts) {
-    const talk = id === 'friends' && setupChoice.scenes && window.FriendTalk;
+  function finishAction(id, p, opts, noGame) {
+    const talk = id === 'friends' && setupChoice.scenes && window.FriendTalk && !noGame;
     const before = snap();
     const r = G.doAction(game, id, Object.assign({}, opts, talk ? { deferTalk: true } : null));
     if (r.ok) showDelta(before);
@@ -356,6 +358,7 @@
   // ---------- рядок дій ----------
   function renderActions() {
     const el = $('actionBar');
+    if (tipIndex == null) $('tipBox').hidden = true;   // підказка значка 🎮 не має лишатися після перемальовки
     if (phase === 'scene' || phase === 'cut') return;
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
     const z = room.currentZone();
@@ -371,7 +374,13 @@
     const list = G.zoneActions(game, z);
     el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${esc(G.ZONES[z].name)}</span><span class="ab-meta">${meta}</span></div>
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
-    el.querySelectorAll('.act').forEach((b) => { b.onclick = () => act(b.dataset.id); });
+    el.querySelectorAll('.act').forEach((b) => { b.onclick = (e) => act(b.dataset.id, e.shiftKey); });
+    // Підказка до значка 🎮 — у плаваючому вікні (рядок дій обрізає все, що виходить за край).
+    el.querySelectorAll('.pad').forEach((ic) => {
+      ic.onmouseenter = () => { const box = $('tipBox'), r = ic.getBoundingClientRect(); box.innerHTML = '<p><b>Тут є міні-гра.</b></p><p>Клік або цифра — з грою.<br><b>Shift</b>+клік чи <b>Shift</b>+цифра — без гри: результат порахується сам, як із вимкненими міні-іграми.</p>'; box.hidden = false;
+        box.style.left = Math.max(12, Math.min(r.left - box.offsetWidth + r.width, window.innerWidth - box.offsetWidth - 12)) + 'px'; box.style.top = Math.max(12, r.top - box.offsetHeight - 8) + 'px'; };
+      ic.onmouseleave = () => { if (tipIndex == null) $('tipBox').hidden = true; };
+    });
     bindInvite(el);
     fitBar(el);
   }
@@ -427,6 +436,8 @@
     if (id && G.ACTIONS[id].zone === z) act(id);
   };
 
+  // Дії, що мають міні-гру від першої особи.
+  const GAME_ACTIONS = ['work', 'games', 'create', 'cook', 'exercise', 'read', 'friends'];
   function actionButton(a, i) {
     const cost = a.cost == null ? '' : a.cost === 0 ? 'без ресурсу' : 'ресурс ' + a.cost;
     let body;
@@ -436,8 +447,9 @@
       if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра.'}</span>`;
     }
     const cls = ['act', a.available ? '' : 'off', armed === a.id ? 'armed' : ''].join(' ');
+    const pad = setupChoice.scenes && GAME_ACTIONS.includes(a.id) && a.available ? '<span class="pad" aria-label="Є міні-гра; Shift — без неї">🎮</span>' : '';
     return `<button class="${cls}" data-id="${a.id}" aria-disabled="${!a.available}">
-      <kbd>${i + 1}</kbd><span class="a-name">${esc(a.label)}</span><span class="a-cost">${cost}</span>${body}</button>`;
+      <kbd>${i + 1}</kbd><span class="a-name">${esc(a.label)}</span><span class="a-cost">${cost}</span>${body}${pad}</button>`;
   }
 
   function renderChips() {
