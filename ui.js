@@ -213,7 +213,7 @@
     if (a.pain !== b.pain) parts.push({ t: 'біль ' + b.pain + '→' + a.pain, k: a.pain < b.pain ? 'good' : 'bad' });
     if (a.tomorrow > b.tomorrow) parts.push({ t: 'завтра ресурс −' + (a.tomorrow - b.tomorrow), k: 'bad' });
     if (a.future > b.future) { const f = game.future[game.future.length - 1]; parts.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, k: 'good' } : { t: 'завтра відкат +' + f.amount, k: 'bad' }); }
-    if (a.fed && !b.fed) parts.push({ t: 'їжа на день є', k: '' });
+    if (a.fed && !b.fed) parts.push({ t: game.foodType === 'guests' ? 'друзі нагодували' : 'їжа на день є', k: game.foodType === 'guests' ? 'good' : '' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
     if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '»!', k: 'good' });
     if (!parts.length) return;
@@ -492,7 +492,7 @@
       </div>
 
       <div class="sec">
-        <span class="lbl">Підказки</span>
+        <span class="lbl">Плани</span>
         <ul class="hints">${hints.map((h) => `<li class="${h.kind}">${esc(h.t)}</li>`).join('')}</ul>
       </div>
 

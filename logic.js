@@ -167,7 +167,7 @@
     const p = pain(s);
     switch (id) {
       case 'cook': case 'delivery':
-        if (s.fed) return no('Їжа на сьогодні вже є');
+        if (s.fed) return no(s.foodType === 'guests' ? 'Друзі нагодували' : 'Їжа на сьогодні вже є');
         break;
       case 'create':
         if (p > a.maxPain) return no('З болем ' + (a.maxPain + 1) + '+ пісня не пишеться');
@@ -254,7 +254,7 @@
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
-        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (st === 'strong' ? ' (з болем ти «не тут»)' : '') + (food ? ', принесли ' + food : '');
+        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (st === 'strong' ? ' (з болем ти «не тут»)' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама: що сильніший біль, то частіше пропускаєш суть.
@@ -573,7 +573,7 @@
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
-    if (after.fed && !s.fed) fx.push({ t: 'їжа на день є', kind: 'info' });
+    if (after.fed && !s.fed) fx.push({ t: after.foodType === 'guests' ? 'друзі нагодують' : 'їжа на день є', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
       const A = C.actions.create, n = s.song.done + 1;
@@ -611,31 +611,25 @@
     return out;
   }
 
-  // Підказки на день.
+  // Підказки — лише плани з календаря, словами: що на сьогодні й найближчі дні.
+  // Нічого не радимо (ліки, їжа, вправи): гравець пам'ятає сам і стикається з наслідками, коли забув.
   function hints(s) {
     const out = [];
     if (s.lost || s.finished) return out;
-    const inv = inviteToday(s);
-    if (inv) out.push({ kind: 'friends', t: inv.name + ' хоче прийти сьогодні. Якщо не покличеш — Стосунки −' + C.friends.refuse + '.' });
-    if (!s.fed) out.push({ kind: 'money', t: 'Їжі ще немає: приготуй або замов. Без їжі — Тіло −' + C.hungry.body + '.' });
-    for (const k of SOFT) if (s[k] <= 2) out.push({ kind: 'fatal', t: SPHERES[k].name + ' на межі (' + s[k] + '): уночі ще −1' + (pressureOf(s.day) ? ' і, можливо, тиск' : '') + '.' });
-    const cost = dailyCost(s.day), incoming = s.pending.filter((p) => p.day <= s.day + 1).reduce((a, p) => a + p.amount, 0);
-    if (s.money + incoming - cost <= 0) out.push({ kind: 'fatal', t: 'Уночі витрати ' + cost + ' ₴, а грошей ' + s.money + ' ₴' + (incoming ? ' (+' + incoming + ' надійде)' : '') + ' — не вистачить.' });
-    if (s.courseStreak > 0 && s.courseToday !== s.day) out.push({ kind: 'pain', t: 'Курсова пігулка ще не випита: пропуск — курс з нуля' + (s.courseDrop ? ' і базовий біль +' + s.courseDrop : '') + '.' });
-    const nd = C.doctor.days.find((d) => d >= s.day);
-    if (nd && nd - s.day <= 3) {
-      // Простими словами: коли прийом і що лікар зробить.
-      const D = C.doctor, when = nd === s.day ? 'Сьогодні ввечері' : nd - s.day === 1 ? 'Завтра ввечері' : 'Через ' + (nd - s.day) + ' дні, ввечері дня ' + nd + ',';
-      const pills = s.pillDays.filter((d) => d > nd - 7).length, canStill = Math.min(7, nd - s.day + 1 - (s.courseToday === s.day ? 1 : 0));
-      const v1 = pills >= D.adherence ? 'Ліки ти п\'єш як слід — лікар зменшить біль.'
-        : pills + canStill >= D.adherence ? 'Щоб лікар зменшив біль, треба ' + D.adherence + ' курсових пігулок за тиждень (зараз ' + pills + ') — ще встигнеш.'
-        : 'Курсових пігулок за тиждень замало (' + pills + ' з ' + D.adherence + ') — біль лікар цього разу не зменшить.';
-      const v2 = s.body <= D.rescueBody ? ' Тіло слабке — лікар призначить відновлення (Тіло +' + D.rescue + ').' : '';
-      out.push({ kind: 'info', t: when + ' — прийом у лікаря. ' + v1 + v2 });
+    const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
+    for (const d of calendar(s, 4)) {
+      const w = when(d.day);
+      const inv = s.invites[d.day];
+      if (inv && inv.status === 'open') out.push({ kind: 'friends', t: w + ': ' + inv.name + (d.day === s.day ? ' хоче прийти. Якщо не покличеш — Стосунки −' + C.friends.refuse + '.' : ' пропонує зайти.') });
+      const pay = s.pending.filter((p) => p.day === d.day).reduce((a, p) => a + p.amount, 0);
+      if (pay) out.push({ kind: 'money', t: w + ': надійде оплата за роботу, +' + pay + ' ₴.' });
+      for (const f of s.future.filter((x) => x.day === d.day && x.kind === 'relief')) out.push({ kind: 'good', t: w + ': ' + (f.from === 'block' ? 'процедура ще діє' : 'вправи окупляться') + ', біль −' + f.amount + '.' });
+      if (C.doctor.days.includes(d.day)) out.push({ kind: 'info', t: w + ': увечері прийом у лікаря.' });
+      if (s.loan && s.loan.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + s.loan.from + ', ' + s.loan.amount + ' ₴.' });
+      if (d.day > s.day && pressureOf(d.day) > pressureOf(d.day - 1)) out.push({ kind: 'bad', t: w + ': життя тисне сильніше.' });
+      if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': витрати на життя зростуть до ' + dailyCost(d.day) + ' ₴ за ніч.' });
     }
-    out.push({ kind: 'pain', t: 'Шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '% — що міцніше Тіло, то менше.' });
-    if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ресурс на нулі: шанс загострення вночі вищий на ' + Math.round(C.night.exhausted * 100) + '%.' });
-    else if (s.spoons >= C.night.earlyRest) out.push({ kind: 'good', t: 'Лягти, лишивши ресурс ' + C.night.earlyRest + '+, — завтра біль −1.' });
+    if (!out.length) out.push({ kind: 'info', t: 'Найближчі дні в календарі порожні.' });
     return out;
   }
 
