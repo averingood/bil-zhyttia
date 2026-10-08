@@ -293,7 +293,7 @@
     held.clear(); applyKeys();
     sceneSkipped = false;
     window.FriendTalk.start(sceneOpts({
-      canvas, names, invited: !!game.lastVisitInvited, missedLast: !!game.lastTalkMissed,
+      canvas, names, invited: !!game.lastVisitInvited, missedLast: !!game.lastTalkMissed, used: game.talkUsed || (game.talkUsed = []),
       registerAbort: (fn) => { sceneAbort = fn; },
       onDone: (res) => {
         sceneAbort = null;
