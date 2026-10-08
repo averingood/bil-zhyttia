@@ -31,6 +31,7 @@
     block:    { zone: 'shelf',   label: 'Платна процедура', sphere: null },
     board:    { zone: 'sofa',    label: 'Покликати на настолки', sphere: 'people' },
     loan:     { zone: 'sofa',    label: 'Позичити в друзів', sphere: 'money' },
+    repay:    { zone: 'sofa',    label: 'Повернути борг', sphere: 'money' },
     gig:      { zone: null,      label: 'Підробіток від друга', sphere: 'money' },   // не в меню: друг пропонує сам, як запрошення
     read:     { zone: 'books',   label: 'Почитати', sphere: 'soul' },
   };
@@ -215,6 +216,10 @@
       case 'gig':
         if (!gigToday(s)) return no('Сьогодні ніхто не пропонував підробіток');
         break;
+      case 'repay':
+        if (!s.loan) return no('Боргів немає');
+        if (s.money < s.loan.amount) return no('Не вистачає грошей: треба ' + s.loan.amount + ' ₴');
+        break;
       case 'board':
         if (s.day - (s.boardDay != null ? s.boardDay : -99) < a.cooldown) return no('Настолки — раз на тиждень: наступні з дня ' + (s.boardDay + a.cooldown));
         break;
@@ -375,6 +380,12 @@
         s.stats.blocks = (s.stats.blocks || 0) + 1;
         note = 'біль −' + a.reliefToday + ' сьогодні, −' + a.reliefNext.join(' і −') + ' наступні дні, Тіло +' + a.body + ', −' + a.money + ' ₴';
         break;
+      case 'repay': {
+        const l = s.loan;
+        s.money -= l.amount; s.loan = null;
+        note = 'борг ' + l.amount + ' ₴ (' + l.from + ') повернуто раніше строку';
+        break;
+      }
       case 'gig': {
         s.money += a.pay; s.stats.earned += a.pay;
         note = s.gig.from + ' підкинув' + (C.friends.female.includes(s.gig.from) ? 'а' : '') + ' підробіток: +' + a.pay + ' ₴ одразу';
@@ -577,7 +588,10 @@
     // Пропозицію підробітку, на яку не відповів, друг сприймає як відмову.
     if (gigToday(s)) { const r = refuseGig(s); ev.push({ kind: 'friends', text: r.text }); }
     if (s.gig && s.gig.day <= s.day) s.gig = null;
-    if (!s.gig && peopleAtDusk >= C.links.peopleGood && s.day < s.days && rand(s) < C.links.gigChance) {
+    if (peopleAtDusk >= C.links.peopleGood) s.gigWait = (s.gigWait || 0) + 1; else s.gigWait = 0;
+    // Шанс щоночі, а якщо близькі поруч уже кілька ночей і досі нічого — пропонують напевно.
+    if (!s.gig && peopleAtDusk >= C.links.peopleGood && s.day < s.days && (rand(s) < C.links.gigChance || s.gigWait >= C.links.gigSure)) {
+      s.gigWait = 0;
       s.gig = { day: s.day + 1, from: pick(s, s.friendNames) };
       ev.push({ kind: 'money', text: s.gig.from + ' пропонує завтра підробіток: +' + C.actions.gig.pay + ' ₴ за ресурс ' + C.actions.gig.spoons });
     }
@@ -714,13 +728,14 @@
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
     if (id === 'friends') fx.push(inviteToday(s) ? { t: inviteToday(s).name + ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' просить — дешевше', kind: 'good' } : { t: 'кличеш сам — ресурс ' + C.actions.friends.spoons, kind: 'info' });
+    if (id === 'repay') fx.push({ t: 'борг ' + s.loan.from + ' закрито', kind: 'good' });
     if (id === 'loan') fx.push({ t: 'віддати ' + after.loan.amount + ' ₴ до дня ' + after.loan.due + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
     if (id === 'course') fx.push({ t: 'пігулок за тиждень: ' + (pillsInWeek(s) + 1) + ' з ' + C.course.need, kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%', kind: 'pain' });
     return out;
   }
 
-  function zoneActions(s, zone) { return ACTION_IDS.filter((id) => ACTIONS[id].zone === zone).map((id) => preview(s, id)); }
+  function zoneActions(s, zone) { return ACTION_IDS.filter((id) => ACTIONS[id].zone === zone && (id !== 'repay' || s.loan)).map((id) => preview(s, id)); }
 
   // Календар: що вже відомо на найближчі дні.
   function calendar(s, len) {
