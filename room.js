@@ -189,18 +189,16 @@
   // Кожен друг упізнаваний: своє волосся і свій одяг. Одяг холодних кольорів —
   // на рудому дивані теплі губилися.
   const FRIENDS = {
-    'Оля':    { long: true,  H: '#b8502f', S: '#ecc09c', G: '#3fa3c4', J: '#2b2f3a' },
-    'Марко':  { long: false, H: '#1d1a1f', S: '#d9a47e', G: '#8fd16a', J: '#3a3f6b' },
-    'Ірина':  { long: true,  H: '#e8c25a', S: '#f0c8a8', G: '#a77fd6', J: '#2b2f3a' },
-    'Андрій': { long: false, H: '#6b4a2b', S: '#e2b48c', G: '#e2584a', J: '#2b2f3a' },
-    'Соня':   { long: true,  H: '#2a1f2a', S: '#c99573', G: '#f2d36b', J: '#3a3f6b' },
-    'Тарас':  { long: false, H: '#c9c3b8', S: '#e8b896', G: '#4f8a5a', J: '#33373f' },
-    'Тарас':  { long: false, H: '#6b4a2a', S: '#e0ac84', G: '#d9dde8', J: '#33405e' },
-    'Соня':   { long: true,  H: '#1d1a1f', S: '#a8754f', G: '#e07a9a', J: '#2b2f3a' },
-    'Дмитро': { long: false, H: '#e8c25a', S: '#e8b892', G: '#6f8fe0', J: '#2b2f3a' },
+    // Дідуслав — сивий, у коричневому кардигані; Ковбасій — рудуватий, у червоній картатій сорочці;
+    // Любава — довге винне волосся, малинова сукня; Одарка — біляві коси, біла вишиванка; Андрій — чорне, у чорній шкірянці.
+    'Дідуслав': { long: false, H: '#c9c6c0', S: '#e2b48c', G: '#7a6247', J: '#3a3530' },
+    'Ковбасій': { long: false, H: '#8a3f1c', S: '#e8b892', G: '#c8463a', J: '#33405e' },
+    'Любава':   { long: true,  H: '#5a1830', S: '#f0c8a8', G: '#b8326e', J: '#2b2f3a' },
+    'Одарка':   { long: true,  H: '#e8c25a', S: '#f0c8a8', G: '#efe8dc', J: '#7a2a2a' },
+    'Андрій':   { long: false, H: '#1d1a1f', S: '#c99573', G: '#2a2a30', J: '#1f2a3a' },
   };
   function friendLook(name) {
-    const f = FRIENDS[name] || FRIENDS['Марко'];
+    const f = FRIENDS[name] || FRIENDS['Андрій'];
     return {
       long: f.long,
       pal: { H: f.H, S: f.S, E: '#1d1d24', B: f.long ? f.S : shade(f.S, -0.15), G: f.G, D: shade(f.G, -0.2), J: f.J, K: '#15161b' },
@@ -549,8 +547,8 @@
       this.bubble = null; this.heroAway = false; this.slumpPending = false;
       this.hero.sitting = false; this.hero.sit = 0; this.hero.black = false;
       this.hero.x = 4.3; this.hero.y = 4.7; this.path = []; this.target = null;
-      const spots = [[3.2, 3.9], [3.3, 5.7], [5.5, 6.0], [5.6, 3.6]];
-      const guests = ['Оля', 'Марко', 'Ірина'].map((n) => { const l = friendLook(n); return { pal: l.pal, long: l.long }; })
+      const spots = [[3.2, 3.9], [3.3, 5.7], [4.6, 6.5], [5.5, 6.0], [5.9, 4.6], [5.6, 3.4]];   // п'ятеро друзів і лікар
+      const guests = ['Дідуслав', 'Ковбасій', 'Любава', 'Одарка', 'Андрій'].map((n) => { const l = friendLook(n); return { pal: l.pal, long: l.long }; })
         .concat([{ pal: MEDICS[0], long: false, doctor: true }]);
       const medics = guests.map((g, i) => {
         const m = { x: DOOR[0] + (i % 2) * 0.5, y: DOOR[1] + (i % 2) * 0.3, pal: g.pal, long: g.long, doctor: g.doctor, path: [], wait: i * 0.7 };
@@ -774,7 +772,7 @@
     // board — вечір настолок: заходять усі, двоє на дивані, решта на подушках по той бік столика.
     startVisit(names, onSeated, board) {
       this.speech = [];
-      names = names && names.length ? names : ['Марко'];
+      names = names && names.length ? names : ['Андрій'];
       const one = names.length === 1;
       const friends = names.slice(0, board ? 5 : 2).map((name, i) => {
         const look = friendLook(name);

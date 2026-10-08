@@ -138,7 +138,8 @@
   // ---------- друзі ----------
   function addInvite(s, day) {
     if (day > s.days || s.invites[day]) return null;
-    s.invites[day] = { name: pick(s, s.friendNames), status: 'open', line: Math.floor(rand(s) * C.friends.inviteLines.length) };
+    const name = pick(s, s.friendNames), v = (C.friends.voices || {})[name];
+    s.invites[day] = { name, status: 'open', line: Math.floor(rand(s) * (v ? v.invite.length : C.friends.inviteLines.length)) };
     return s.invites[day];
   }
   function inviteToday(s) {
@@ -146,8 +147,13 @@
     return inv && inv.status === 'open' ? inv : null;
   }
   // Рядок запрошення в роді того, хто пише.
+  // Рядок запрошення: у кожного друга свій голос; про запас — загальні рядки.
+  function inviteLine(inv) {
+    const v = (C.friends.voices || {})[inv.name];
+    return v ? v.invite[inv.line % v.invite.length] : C.friends.inviteLines[inv.line] || C.friends.inviteLines[0];
+  }
   function inviteText(inv) {
-    const l = C.friends.inviteLines[inv.line] || C.friends.inviteLines[0];
+    const l = inviteLine(inv);
     return !C.friends.female.includes(inv.name) && l.textM ? l.textM : l.text;
   }
   // Відмова: явна (кнопкою) або мовчазна (день скінчився без зустрічі).
@@ -157,7 +163,8 @@
     inv.status = 'refused';
     s.people = clampS(s.people - C.friends.refuse);
     s.stats.invitesRefused++;
-    const line = pick(s, C.friends.refusalLines);
+    const v = (C.friends.voices || {})[inv.name];
+    const line = pick(s, v ? v.refuse : C.friends.refusalLines);
     journalFor(s, s.day).refused.push('Відмовив ' + inv.name + ': Стосунки −' + C.friends.refuse);
     return { name: inv.name, line, text: inv.name + ': «' + line + '» Стосунки −' + C.friends.refuse };
   }
@@ -274,7 +281,7 @@
         if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
         // Близькі (Стосунки високі) частіше приходять з їжею.
-        const food = (inv && (C.friends.inviteLines[inv.line] || {}).food) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, ['піцу', 'борщ', 'вареники', 'пиріг']) : null);
+        const food = (inv && inviteLine(inv).food) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, ['піцу', 'борщ', 'вареники', 'пиріг']) : null);
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
