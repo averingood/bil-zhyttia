@@ -579,7 +579,6 @@
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і проходиш ${C.days}-денний курс лікування. Щоранку біль вирішує, скільки в тебе <b>ресурсу</b> — сил на день; решту з'їдає біль.
       Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b> і <b>Емоції</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
-      <p class="sub">Виграти не можна: рано чи пізно якась сфера посиплеться. Вирішуєш ти — яка і коли. Біль б'є по всьому, але по-різному; на нього впливають вправи, курс ліків, лікар і те, чи береш сили наперед.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
         ${slider('basePain', 'Базовий біль', SU.basePain, '', 'на старті ще +' + SU.startExtra + ' тимчасового, що сам спадає')}
@@ -652,12 +651,12 @@
 
   let endingPlayed = false;
   function showEnd() {
-    if (game && game.lost && !endingPlayed && ['joy', 'money', 'friends', 'body'].includes(game.lost.cause)) {
+    if (game && (game.lost || game.finished) && !endingPlayed) {
       endingPlayed = true;
       phase = 'cut';
       closeModal();
       held.clear(); applyKeys();
-      room.playEnding(game.lost.cause, () => { $('cutCaption').hidden = true; showEnd(); });
+      room.playEnding(game.lost ? game.lost.cause : 'win', () => { $('cutCaption').hidden = true; showEnd(); });
       renderAll();
       return;
     }
@@ -667,7 +666,7 @@
     const hist = sm.history.concat(sm.history[sm.history.length - 1].day < sm.daysLived ? [last] : []);
     const head = sm.lost
       ? `<h2>${esc(sm.lost.text)} на ${sm.lost.day}-й день</h2><p class="lost-line">Курс лікування — ${sm.days} ${dayWord(sm.days)}. Ти протримався ${sm.lost.day} ${dayWord(sm.lost.day)}.</p>`
-      : `<h2>Усі ${sm.days} днів позаду</h2><p>Так не мало статися — напиши, як вдалося.</p>`;
+      : `<h2>Курс лікування завершено</h2><p>Усі ${sm.days} ${dayWord(sm.days)} позаду. Жодна сфера не посипалась — таке трапляється рідко.</p>`;
     // Фінал «Емоції згасли» — про найтемніше. Поруч — куди звернутися, якщо так зараз і в житті.
     const support = sm.lost && sm.lost.sphere === 'soul'
       ? `<p class="sub">Якщо тобі зараз так само порожньо — ти не сам. Lifeline Ukraine: 7333 (цілодобово, безкоштовно з мобільного).</p>` : '';
@@ -692,12 +691,12 @@
 
   // Перегляд усіх чотирьох фіналів підряд: адреса з ?endings (щоб подивитися, не граючи).
   function demoEndings() {
-    const list = [['money', 'Гроші'], ['friends', 'Стосунки'], ['body', 'Тіло'], ['joy', 'Емоції']];
+    const list = [['money', 'Гроші'], ['friends', 'Стосунки'], ['body', 'Тіло'], ['joy', 'Емоції'], ['win', 'перемога (дожив до кінця)']];
     game = G.createGame({});
     game.soul = 3;
     let i = 0;
     const next = () => {
-      if (i >= list.length) { $('cutCaption').hidden = true; toast('Це всі чотири фінали.'); showSetup(); return; }
+      if (i >= list.length) { $('cutCaption').hidden = true; toast('Це всі фінали.'); showSetup(); return; }
       const [kind, name] = list[i++];
       room.resetHero(); room.endVisit(true);
       room.setView({ joy: 30 });
