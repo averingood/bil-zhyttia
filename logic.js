@@ -29,6 +29,8 @@
     coffee:   { zone: 'kitchen', label: 'Випити кави', sphere: null },
     course:   { zone: 'shelf',   label: 'Пігулка з курсу', sphere: 'body' },
     meds:     { zone: 'shelf',   label: 'Знеболювальне', sphere: null },
+    block:    { zone: 'shelf',   label: 'Платна процедура', sphere: null },
+    loan:     { zone: 'sofa',    label: 'Позичити в друзів', sphere: 'money' },
     read:     { zone: 'books',   label: 'Почитати', sphere: 'soul' },
   };
   const ACTION_IDS = Object.keys(ACTIONS);
@@ -85,7 +87,7 @@
       seed, rng: seed | 0, days: opts.days || C.days, day: 1,
       setup: { money, basePain },
       baseStart: basePain, base: basePain, extra: SU.startExtra, relief: 0,
-      courseStreak: 0, courseDrop: 0, courseToday: 0, doctorDrop: 0,
+      courseStreak: 0, courseDrop: 0, courseToday: 0, doctorDrop: 0, pillDays: [], blockDay: -99, loan: null,
       money, people: C.start.people, body: C.start.body, soul: C.start.soul,
       spoons: 0, spoonsMorning: 0, spent: 0, borrowed: 0, spoonTomorrow: 0,
       friendNames: C.friends.names.slice(0, friendsN),
@@ -176,6 +178,12 @@
         break;
       case 'friends':
         if (!s.friendNames.length) return no('Кликати нікого');
+        break;
+      case 'block':
+        if (s.day - s.blockDay < a.cooldown) return no('Наступна процедура — не раніше дня ' + (s.blockDay + a.cooldown));
+        break;
+      case 'loan':
+        if (s.loan) return no('Спершу поверни борг (' + s.loan.amount + ' ₴ ' + s.loan.from + ')');
         break;
     }
     return { available: true, reason: null };
@@ -305,6 +313,7 @@
       case 'course': {
         s.money -= C.course.money;
         s.courseToday = s.day;
+        s.pillDays.push(s.day);
         s.stats.coursePills++;
         const n = s.courseStreak + 1, next = C.course.steps.find((x) => x >= n);
         note = 'курс: ' + n + '-й день поспіль, −' + C.course.money + ' ₴' + (next === n ? '; уночі базовий біль −' + C.course.drop : next ? ' (до ефекту ' + (next - n) + ' дн.)' : '');
@@ -317,6 +326,23 @@
         s.future.push({ day: s.day + 1, kind: 'rebound', amount: a.rebound });
         note = 'біль ' + before + ' → ' + pain(s) + ', завтра відкат +' + a.rebound;
         if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Емоції −' + a.side.soul; }
+        break;
+      }
+      case 'block':
+        s.blockDay = s.day;
+        s.relief += a.reliefToday;
+        a.reliefNext.forEach((v, i) => s.future.push({ day: s.day + 1 + i, kind: 'relief', amount: v, from: 'block' }));
+        s.body = clampS(s.body + a.body);
+        s.stats.blocks = (s.stats.blocks || 0) + 1;
+        note = 'біль −' + a.reliefToday + ' сьогодні, −' + a.reliefNext.join(' і −') + ' наступні дні, Тіло +' + a.body + ', −' + a.money + ' ₴';
+        break;
+      case 'loan': {
+        const from = pick(s, s.friendNames);
+        s.money += a.amount;
+        s.people = clampS(s.people - a.people);
+        s.loan = { amount: a.amount, due: s.day + a.dueIn, from };
+        s.stats.loans = (s.stats.loans || 0) + 1;
+        note = '+' + a.amount + ' ₴ від ' + from + ', незручно просити: Стосунки −' + a.people + '; віддати до дня ' + s.loan.due;
         break;
       }
       case 'read': {
@@ -411,7 +437,6 @@
     s.extra = Math.max(0, s.extra - N.drift);
     if (s.spoons === 0 || s.borrowed > 0) { s.extra += N.exhausted; ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: завтра біль +' + N.exhausted }); }
     else if (s.spoons >= N.earlyRest) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
-    if (s.body <= L.bodyWeak) { s.extra += 1; ev.push({ kind: 'pain', text: 'Тіло слабке: завтра біль +1' }); }
     s.extra = Math.max(-2, s.extra);
 
     // Курс лікування.
@@ -424,9 +449,19 @@
     }
     // Лікар.
     if (C.doctor.days.includes(s.day)) {
-      if (s.body >= C.doctor.good) { s.doctorDrop++; ev.push({ kind: 'good', text: 'Прийом у лікаря: Тіло тримається, лікування працює — біль слабшає (базовий −1)' }); }
-      else if (s.body <= C.doctor.bad) { s.doctorDrop--; ev.push({ kind: 'pain', text: 'Прийом у лікаря: Тіло слабке, стало гірше — біль сильнішає (базовий +1)' }); }
-      else ev.push({ kind: 'info', text: 'Прийом у лікаря: без змін — для покращення треба Тіло ' + C.doctor.good + '+ (було ' + s.body + ')' });
+      // Лікар лікує: хто пив курс — біль слабшає; кому зле — відновлення для Тіла. Гірше не робить.
+      const D = C.doctor, pills = s.pillDays.filter((d) => d > s.day - 7).length;
+      const parts = [];
+      if (pills >= D.adherence) { s.doctorDrop++; parts.push('ти не пропускав ліки — біль слабшає (базовий −1)'); }
+      else parts.push('пігулок за тиждень ' + pills + ' з 7 — лікування не встигло подіяти');
+      if (s.body <= D.rescueBody) { s.body = clampS(s.body + D.rescue); parts.push('Тіло слабке — призначив відновлення: Тіло +' + D.rescue); }
+      ev.push({ kind: pills >= D.adherence || s.body <= D.rescueBody + D.rescue ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
+    }
+    // Борг: настав день — віддаєш, якщо є з чого; нема — друг ображається.
+    if (s.loan && s.day >= s.loan.due) {
+      const A = C.actions.loan;
+      if (s.money > s.loan.amount) { s.money -= s.loan.amount; ev.push({ kind: 'money', text: 'Повернув борг ' + s.loan.from + ': −' + s.loan.amount + ' ₴' }); s.loan = null; }
+      else { s.people = clampS(s.people - A.late); s.loan.due = s.day + A.again; ev.push({ kind: 'friends', text: 'Не зміг повернути борг ' + s.loan.from + ': Стосунки −' + A.late + '. Нагадає в день ' + s.loan.due }); }
     }
     recalcBase(s);
 
@@ -538,6 +573,7 @@
       const b = bookNow(s), n = s.book.done + 1;
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
+    if (id === 'loan') fx.push({ t: 'віддати ' + C.actions.loan.amount + ' ₴ до дня ' + (s.day + C.actions.loan.dueIn) + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
     if (id === 'course') fx.push({ t: 'курс ' + (s.courseStreak + 1) + '-й день', kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ' і біль +' + C.night.exhausted, kind: 'pain' });
     return out;
@@ -557,6 +593,7 @@
       if (inv && inv.status !== 'cancelled') ev.push({ t: '♥ ' + inv.name, k: inv.status === 'refused' ? 'inv refused' : 'inv' });
       for (const f of s.future.filter((x) => x.day === d)) ev.push(f.kind === 'relief' ? { t: 'біль −' + f.amount, k: 'good' } : { t: 'відкат +' + f.amount, k: 'bad' });
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
+      if (s.loan && s.loan.due === d) ev.push({ t: 'борг −' + s.loan.amount + '₴', k: 'bad' });
       if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
       if (courseDay === d) ev.push({ t: 'курс ' + need, k: 'good' });
       out.push({ day: d, cost: dailyCost(d), events: ev });
@@ -577,12 +614,14 @@
     if (s.courseStreak > 0 && s.courseToday !== s.day) out.push({ kind: 'pain', t: 'Курсова пігулка ще не випита: пропуск — курс з нуля' + (s.courseDrop ? ' і базовий біль +' + s.courseDrop : '') + '.' });
     const nd = C.doctor.days.find((d) => d >= s.day);
     if (nd && nd - s.day <= 3) {
-      // Простими словами: коли прийом і що лікар зробить з таким Тілом, як зараз.
+      // Простими словами: коли прийом і що лікар зробить.
       const D = C.doctor, when = nd === s.day ? 'Сьогодні ввечері' : nd - s.day === 1 ? 'Завтра ввечері' : 'Через ' + (nd - s.day) + ' дні, ввечері дня ' + nd + ',';
-      const verdict = s.body >= D.good ? 'Тіло зараз ' + s.body + ' з 10 — лікар побачить, що лікування працює, і біль стане слабшим (−1). Тримай Тіло ' + D.good + ' або вище.'
-        : s.body <= D.bad ? 'Тіло зараз лише ' + s.body + ' з 10 — лікар побачить погіршення, і біль стане сильнішим (+1). Підтягни Тіло: вправи, розтяжка, своя їжа.'
-        : 'Тіло зараз ' + s.body + ' з 10 — лікар нічого не змінить. Якщо підтягнеш Тіло до ' + D.good + ' (вправи, розтяжка, своя їжа), біль стане слабшим.';
-      out.push({ kind: 'info', t: when + ' — прийом у лікаря. ' + verdict });
+      const pills = s.pillDays.filter((d) => d > nd - 7).length, canStill = Math.min(7, nd - s.day + 1 - (s.courseToday === s.day ? 1 : 0));
+      const v1 = pills >= D.adherence ? 'Ліки ти п\'єш як слід — лікар зменшить біль.'
+        : pills + canStill >= D.adherence ? 'Щоб лікар зменшив біль, треба ' + D.adherence + ' курсових пігулок за тиждень (зараз ' + pills + ') — ще встигнеш.'
+        : 'Курсових пігулок за тиждень замало (' + pills + ' з ' + D.adherence + ') — біль лікар цього разу не зменшить.';
+      const v2 = s.body <= D.rescueBody ? ' Тіло слабке — лікар призначить відновлення (Тіло +' + D.rescue + ').' : '';
+      out.push({ kind: 'info', t: when + ' — прийом у лікаря. ' + v1 + v2 });
     }
     out.push({ kind: 'pain', t: 'Шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '% — що міцніше Тіло, то менше.' });
     if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ресурс на нулі: завтра біль +' + C.night.exhausted + '.' });
@@ -610,6 +649,8 @@
     if (st.invitesRefused) lostItems.push('Відмов друзям: ' + st.invitesRefused);
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
     if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
+    if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loan ? ', не повернуто ' + s.loan.amount + ' ₴' : ''));
+    if (st.blocks) kept.push('Платних процедур: ' + st.blocks);
     if (st.talkMissed) lostItems.push('Не почув друзів: ' + st.talkMissed + ' р.');
     return { lost: s.lost ? Object.assign({}, s.lost) : null, daysLived: s.lost ? s.lost.day : s.days, days: s.days, kept, lostItems, history: s.history };
   }

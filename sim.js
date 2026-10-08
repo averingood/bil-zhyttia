@@ -13,6 +13,8 @@ const SOFT = ['people', 'body', 'soul'];
 // Розважливий: їсть, п'є курс, підтягує найнижчу сферу, не позичає, лишає ложку на себе, коли можна.
 function careful(s, opt = {}) {
   if (opt.course !== false && ok(s, 'course') && s.money > 30) return 'course';
+  if (opt.loan !== false && ok(s, 'loan') && s.money < L.dailyCost(s.day) * 2 && !s.pending.length) return 'loan';
+  if (opt.block && ok(s, 'block') && L.pain(s) >= 7 && s.money > 140) return 'block';
   if (L.inviteToday(s) && free(s, 'friends')) return 'friends';
   if (!s.fed) { if (free(s, 'cook')) return 'cook'; if (ok(s, 'delivery') && s.money > 40) return 'delivery'; }
   // Гроші: скільки днів протримаємось.
@@ -58,6 +60,8 @@ const STRATS = {
   'розмірена': paced,
   'жадібна (бере наперед)': greedy,
   'з кавою': (s) => careful(s, { coffee: true }),
+  'з процедурою': (s) => careful(s, { block: true }),
+  'без позик': (s) => careful(s, { loan: false }),
   'випадкова': random,
 };
 

@@ -457,15 +457,15 @@
           Емоції ${L.soulHigh}+ дають ще +1, ${L.soulLow} і нижче — −1. Стосунки ${L.peopleHelp}+ підхоплюють у поганий ранок: +1. Бракує — можна взяти до ${C.maxBorrow} із завтра.
           Ліг з нулем — завтра біль +${C.night.exhausted}; лишив ${C.night.earlyRest}+ — завтра біль −1.</p>
           <p class="why"><b>Біль б'є по всьому, але по-різному:</b> менше ресурсу; робота дає менше грошей; з друзями ти «не тут» — зустріч дає менше; вправи дорожчі; з болем 7+ не пишеться і не читається, не встояти біля плити; день у сильному болю пригнічує емоції.</p>
-          <p class="why"><b>Знижують біль:</b> курс ліків (${C.course.steps.join(' і ')} днів поспіль — по −${C.course.drop}), лікар на днях ${C.doctor.days.join(' і ')} (якщо Тіло ${C.doctor.good}+), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка й знеболювальне (сьогодні), лягти з запасом. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.
-          <b>Підвищують:</b> загострення (шанс тримає Тіло), вичерпаний день, слабке Тіло, відкат знеболювального.</p>
+          <p class="why"><b>Знижують біль:</b> курс ліків (${C.course.steps.join(' і ')} днів поспіль — по −${C.course.drop}), лікар на днях ${C.doctor.days.join(' і ')} (якщо не пропускав ліки), платна процедура (різко, але дорого), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка й знеболювальне (сьогодні), лягти з запасом. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.
+          <b>Підвищують:</b> загострення (шанс тримає Тіло), вичерпаний день, відкат знеболювального.</p>
         </div>
       </div>
 
       ${sphereSec(s, 'money', `<p>Гроші: ${s.money} ₴. Очікується: ${incoming}.</p>
-        <p class="why">Щоночі витрати на життя: ${C.costs.join(' / ')} ₴ за тижнями. Робота — ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; з болем заробляєш менше. Гроші тримають тіло: їжа, ліки. На нулі — кінець.</p>`)}
+        <p class="why">Щоночі витрати на життя: ${C.costs.join(' / ')} ₴ за тижнями. Робота — ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; з болем заробляєш менше. Гроші тримають тіло: їжа, ліки. На нулі — кінець. Бракує — можна позичити ${C.actions.loan.amount} ₴ у друзів (диван): незручно, Стосунки −${C.actions.loan.people}; через ${C.actions.loan.dueIn} днів віддаєш, а не зможеш — Стосунки −${C.actions.loan.late}.${s.loan ? ' Борг ' + s.loan.amount + ' ₴ ' + esc(s.loan.from) + ' — віддати в день ' + s.loan.due + '.' : ''}</p>`)}
       ${sphereSec(s, 'people', `<p class="why">Друзі. Зустріч — ресурс ${C.actions.friends.spoons}: +3 при легкому болю, +2 при помітному, +1 при сильному; на їхнє запрошення ще +${C.actions.friends.invited}. Написати — ресурс ${C.actions.text.spoons}, +1, і кличуть частіше. Відмова чи пропущена зустріч — −${C.friends.refuse}. Стосунки ${L.peopleHelp}+ підхоплюють у поганий ранок.</p>`)}
-      ${sphereSec(s, 'body', `<p>Шанс загострення вночі зараз ${flareP}%.</p><p class="why">Вправи (+${C.actions.exercise.body}, через ${C.actions.exercise.reliefIn} дні біль −1), розтяжка (+1), своя їжа (+1). Без їжі — −${C.hungry.body}. Тіло тримає біль: 7+ — загострення рідко, ${L.bodyWeak} і нижче — завтра біль +1. Лікар дивиться саме на Тіло.</p>`)}
+      ${sphereSec(s, 'body', `<p>Шанс загострення вночі зараз ${flareP}%.</p><p class="why">Вправи (+${C.actions.exercise.body}, через ${C.actions.exercise.reliefIn} дні біль −1), розтяжка (+1), своя їжа (+1). Без їжі — −${C.hungry.body}. Тіло тримає біль: що міцніше, то рідше загострення. Якщо Тіло на прийомі ${C.doctor.rescueBody} і нижче, лікар призначить відновлення: +${C.doctor.rescue}.</p>`)}
       ${sphereSec(s, 'soul', `<p>${(() => {
         // Скільки ще сесій до кінця — щоб було ясно, що пісню треба дописати, а книжку дочитати.
         const A = C.actions.create, R = C.actions.read, b = G.bookNow(s);
@@ -488,7 +488,7 @@
       <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Курс лікування</span><span class="val">${s.courseStreak}${s.courseToday === s.day ? '+1' : ''}</span></div>
         <div class="tip"><p>${s.courseStreak ? s.courseStreak + ' днів поспіль' + (s.courseToday === s.day ? ', сьогодні випито' : ', сьогодні ще ні') : 'Курс не розпочато'}${need ? '. До ефекту: ' + (need - s.courseStreak - (s.courseToday === s.day ? 1 : 0)) + ' дн.' : ''}${s.courseDrop ? ' Діє: базовий біль −' + s.courseDrop + '.' : ''}</p>
-        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ресурсу. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар приймає ввечері днів ${C.doctor.days.join(' і ')} і дивиться на Тіло: ${C.doctor.good} і вище — лікування працює, біль слабшає; ${C.doctor.bad} і нижче — стало гірше, біль сильнішає; між ними — без змін.</p></div>
+        <p class="why">Пігулка щодня, ${C.course.money} ₴, без ресурсу. ${C.course.steps.join(' і ')} днів поспіль — базовий біль −${C.course.drop}. Пропуск — з нуля, і ефект минає. Лікар приймає ввечері днів ${C.doctor.days.join(' і ')}. Якщо за тиждень випив хоча б ${C.doctor.adherence} курсових пігулок — зменшує біль. Якщо Тіло слабке (${C.doctor.rescueBody} і нижче) — призначає відновлення, Тіло +${C.doctor.rescue}. Гірше лікар не робить.</p></div>
       </div>
 
       <div class="sec">
