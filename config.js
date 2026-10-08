@@ -96,7 +96,7 @@
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
       create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 6 },
       friends:  { spoons: 2, inviteSpoons: 1, perDay: 1, people: { light: 3, medium: 3, strong: 2 }, invited: 1 },   // зустріч вигідніша за «написати» навіть у сильному болю
-      text:     { spoons: 1, perDay: 1, people: 2, inviteBoost: 0.15 },
+      text:     { spoons: 1, perDay: 1, people: 1, inviteBoost: 0.15 },
       exercise: { spoons: { light: 2, medium: 2, strong: 3 }, perDay: 1, body: 2, partialBody: 1, reliefIn: 2, relief: 1,
         // Килимок від першої особи: повтор рухів за тренером.
         mat: { series: [3, 4], step: 0.75, grow: 0.25, inputSeconds: 6, baseShare: 1 / 3, reliefShare: 2 / 3,
