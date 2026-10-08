@@ -13,6 +13,7 @@ const SOFT = ['people', 'body', 'soul'];
 // Розважливий: їсть, п'є курс, підтягує найнижчу сферу, не позичає, лишає ложку на себе, коли можна.
 function careful(s, opt = {}) {
   if (opt.course !== false && ok(s, 'course') && s.money > 30) return 'course';
+  if (ok(s, 'gig') && free(s, 'gig')) return 'gig';
   if (opt.loan !== false && ok(s, 'loan') && s.money < L.dailyCost(s.day) * 2 && !s.pending.length) return 'loan';
   if (opt.block && ok(s, 'block') && L.pain(s) >= 7 && s.money > 140) return 'block';
   if (L.inviteToday(s) && free(s, 'friends')) return 'friends';

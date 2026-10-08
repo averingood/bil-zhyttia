@@ -31,6 +31,7 @@
     block:    { zone: 'shelf',   label: 'Платна процедура', sphere: null },
     board:    { zone: 'sofa',    label: 'Покликати на настолки', sphere: 'people' },
     loan:     { zone: 'sofa',    label: 'Позичити в друзів', sphere: 'money' },
+    gig:      { zone: 'desk',    label: 'Підробіток від друга', sphere: 'money' },
     read:     { zone: 'books',   label: 'Почитати', sphere: 'soul' },
   };
   const ACTION_IDS = Object.keys(ACTIONS);
@@ -190,6 +191,9 @@
       case 'block':
         if (s.day - s.blockDay < a.cooldown) return no('Наступна процедура — не раніше дня ' + (s.blockDay + a.cooldown));
         break;
+      case 'gig':
+        if (!s.gig || s.gig.day !== s.day) return no('Сьогодні підробітку немає — друзі підкидають, коли Стосунки ' + C.links.peopleGood + '+');
+        break;
       case 'board':
         if (s.day - (s.boardDay != null ? s.boardDay : -99) < a.cooldown) return no('Настолки — раз на тиждень: наступні з дня ' + (s.boardDay + a.cooldown));
         break;
@@ -226,9 +230,11 @@
 
     switch (id) {
       case 'work': {
-        const pay = opts.score != null ? Math.max(0, Math.round(opts.score)) : a.pay[st];
+        const base = opts.score != null ? Math.max(0, Math.round(opts.score)) : a.pay[st];
+        const mod = base > 0 ? soulPayMod(s) : 0;   // Емоції: зосереджений — більше, пригнічений — менше
+        const pay = Math.max(0, base + mod);
         if (pay > 0) s.pending.push({ day: s.day + a.payDelay, amount: pay });
-        note = pay > 0 ? '+' + pay + ' ₴ прийде на день ' + (s.day + a.payDelay) : 'нічого не зароблено';
+        note = pay > 0 ? '+' + pay + ' ₴ прийде на день ' + (s.day + a.payDelay) + (mod ? ' (Емоції: ' + signed(mod) + ' ₴)' : '') : 'нічого не зароблено';
         break;
       }
       case 'games': {
@@ -267,7 +273,8 @@
         const names = [first];
         if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
-        const food = inv && (C.friends.inviteLines[inv.line] || {}).food;
+        // Близькі (Стосунки високі) частіше приходять з їжею.
+        const food = (inv && (C.friends.inviteLines[inv.line] || {}).food) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, ['піцу', 'борщ', 'вареники', 'пиріг']) : null);
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
@@ -347,6 +354,12 @@
         s.stats.blocks = (s.stats.blocks || 0) + 1;
         note = 'біль −' + a.reliefToday + ' сьогодні, −' + a.reliefNext.join(' і −') + ' наступні дні, Тіло +' + a.body + ', −' + a.money + ' ₴';
         break;
+      case 'gig': {
+        s.money += a.pay; s.stats.earned += a.pay;
+        note = s.gig.from + ' підкинув' + (C.friends.female.includes(s.gig.from) ? 'а' : '') + ' підробіток: +' + a.pay + ' ₴ одразу';
+        s.gig = null;
+        break;
+      }
       case 'board': {
         s.boardDay = s.day;
         s.people = clampS(s.people + a.people);
@@ -358,11 +371,12 @@
       }
       case 'loan': {
         const from = pick(s, s.friendNames);
-        s.money += a.amount;
+        const close = s.people >= a.close.people, amount = close ? a.close.amount : a.amount, dueIn = close ? a.close.dueIn : a.dueIn;
+        s.money += amount;
         s.people = clampS(s.people - a.people);
-        s.loan = { amount: a.amount, due: s.day + a.dueIn, from };
+        s.loan = { amount, due: s.day + dueIn, from };
         s.stats.loans = (s.stats.loans || 0) + 1;
-        note = '+' + a.amount + ' ₴ від ' + from + ', незручно просити: Стосунки −' + a.people + '; віддати до дня ' + s.loan.due;
+        note = '+' + amount + ' ₴ від ' + from + (close ? ' (близький друг — більше й надовше)' : '') + ', незручно просити: Стосунки −' + a.people + '; віддати до дня ' + s.loan.due;
         break;
       }
       case 'read': {
@@ -414,8 +428,11 @@
   const exhaustedNow = (s) => s.spoons === 0 || s.borrowed > 0;
   function flareChanceTonight(s) {
     const t = C.links.bodyFlare.find(([min]) => s.body >= min);
-    return Math.min(1, (t ? t[1] : 0.3) + s.coffeeToday * C.actions.coffee.flareAdd + (exhaustedNow(s) ? C.night.exhausted : 0) + (s.painkiller ? C.actions.meds.flareAdd : 0));
+    return Math.min(1, Math.max(0, (t ? t[1] : 0.3) + s.coffeeToday * C.actions.coffee.flareAdd + (exhaustedNow(s) ? C.night.exhausted : 0) + (s.painkiller ? C.actions.meds.flareAdd : 0) + soulFlareMod(s)));
   }
+  // Емоції тримають біль: спокій — рідше загострення, пригніченість — частіше.
+  function soulFlareMod(s) { const L = C.links; return s.soul >= L.soulGood ? -L.soulFlare : s.soul <= L.soulBad ? L.soulFlare : 0; }
+  function soulPayMod(s) { const L = C.links; return s.soul >= L.soulGood ? L.soulPay : s.soul <= L.soulBad ? -L.soulPay : 0; }
   function flareSize(s) {
     const t = C.night.flareSizes, sum = t.reduce((a, x) => a + x[1], 0);
     let r = rand(s) * sum;
@@ -432,6 +449,7 @@
     opts = opts || {};
     if (s.lost || s.finished) return { events: [], flare: false, hospital: false };
     const ev = [], j = journalFor(s, s.day), N = C.night, L = C.links;
+    const peopleAtDusk = s.people;   // підробіток пропонують за тим, які стосунки були за день, до нічного танення
     const st = stateKey(s);
 
     const ref = refuseInvite(s);
@@ -532,6 +550,12 @@
       ev.push({ kind: 'flare', text: (N.flareNames[size] || 'Загострення') + ' вночі: біль +' + size });
     }
 
+    // Близькі друзі підкидають підробіток на завтра.
+    if (s.gig && s.gig.day <= s.day) s.gig = null;
+    if (!s.gig && peopleAtDusk >= C.links.peopleGood && s.day < s.days && rand(s) < C.links.gigChance) {
+      s.gig = { day: s.day + 1, from: pick(s, s.friendNames) };
+      ev.push({ kind: 'money', text: s.gig.from + ' пропонує підробіток на завтра: +' + C.actions.gig.pay + ' ₴ за ресурс ' + C.actions.gig.spoons + ' (робочий стіл)' });
+    }
     // Нові пропозиції від друзів.
     const share = s.friendNames.length / C.friends.baseCount;
     const inviteChance = Math.min(0.8, (C.friends.inviteChance + (s.textedToday ? C.actions.text.inviteBoost : 0)) * share);
@@ -664,7 +688,7 @@
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
     if (id === 'friends') fx.push(inviteToday(s) ? { t: inviteToday(s).name + ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' просить — дешевше', kind: 'good' } : { t: 'кличеш сам — ресурс ' + C.actions.friends.spoons, kind: 'info' });
-    if (id === 'loan') fx.push({ t: 'віддати ' + C.actions.loan.amount + ' ₴ до дня ' + (s.day + C.actions.loan.dueIn) + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
+    if (id === 'loan') fx.push({ t: 'віддати ' + after.loan.amount + ' ₴ до дня ' + after.loan.due + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
     if (id === 'course') fx.push({ t: 'пігулок за тиждень: ' + (pillsInWeek(s) + 1) + ' з ' + C.course.need, kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%', kind: 'pain' });
     return out;
@@ -684,6 +708,7 @@
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
       for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
       if (s.loan && s.loan.due === d) ev.push({ t: 'борг −' + s.loan.amount + '₴', k: 'bad' });
+      if (s.gig && s.gig.day === d) ev.push({ t: 'підробіток', k: 'pay' });
       if (s.bill && s.bill.due === d) ev.push({ t: '−' + s.bill.amount + '₴', k: 'bad' });
       if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
       out.push({ day: d, cost: dailyCost(d), events: ev });
@@ -709,6 +734,7 @@
       for (const f of s.future.filter((x) => x.day === d.day && x.kind === 'relief')) out.push({ kind: 'good', t: w + ': ' + (f.from === 'block' ? 'процедура ще діє' : 'вправи окупляться') + ', біль −' + f.amount + '.' });
       if (C.doctor.days.includes(d.day)) out.push({ kind: 'info', t: w + ': увечері прийом у лікаря.' });
       if (s.bill && s.bill.due === d.day) out.push({ kind: 'money', t: w + ': ' + s.bill.name.toLowerCase() + ' — заплатити ' + s.bill.amount + ' ₴ (знімуть уночі).' });
+      if (s.gig && s.gig.day === d.day) out.push({ kind: 'money', t: w + ': ' + s.gig.from + ' дає підробіток, +' + C.actions.gig.pay + ' ₴ (робочий стіл).' });
       if (s.loan && s.loan.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + s.loan.from + ', ' + s.loan.amount + ' ₴.' });
       if (d.day > s.day && pressureOf(d.day) > pressureOf(d.day - 1)) out.push({ kind: 'bad', t: w + ': життя тисне сильніше.' });
       if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': витрати на життя зростуть до ' + dailyCost(d.day) + ' ₴ за ніч.' });
