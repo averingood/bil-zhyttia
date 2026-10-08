@@ -459,7 +459,7 @@
       </div>
 
       <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Ресурс</span><span><span class="state-tag" style="--c:${col}">біль ${p}</span> <span class="val">${s.spoons}</span></span></div>
+        <div class="sec-h"><span class="lbl">Ресурс</span><span><span class="state-tag" style="--c:${col}">біль ${p}</span></span></div>
         <div class="tris">${tri}</div>
         <div class="tip">
           <p>Зранку ресурс ${s.spoonsMorning}${eaten ? ', біль з\'їв ' + eaten : ''}${s.coffeeToday ? ', +' + C.actions.coffee.gain + ' від кави' : ''}${s.borrowed ? ', узято наперед ' + s.borrowed : ''}.

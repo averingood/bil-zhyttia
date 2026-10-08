@@ -252,7 +252,10 @@
         const gain = a.people[st] + (inv ? a.invited : 0);
         s.people = clampS(s.people + gain);
         s.stats.meetings++;
-        const names = inv ? [inv.name] : [pick(s, s.friendNames)];
+        // Приходять по одному або вдвох: хто кликав (чи кого покликав ти) і, буває, ще хтось за компанію.
+        const first = inv ? inv.name : pick(s, s.friendNames);
+        const names = [first];
+        if (rand(s) < C.friends.pairChance) { const rest = s.friendNames.filter((n) => n !== first); if (rest.length) names.push(pick(s, rest)); }
         if (inv) { inv.status = 'accepted'; s.stats.invitesAccepted++; }
         const food = inv && (C.friends.inviteLines[inv.line] || {}).food;
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
@@ -401,7 +404,7 @@
     return t[t.length - 1][0];
   }
   const weekOf = (d) => Math.max(0, Math.floor((d - 1) / 7));
-  const pressureOf = (d) => Math.floor(((d - 1) * (d - 1)) / C.pressureK);
+  const pressureOf = (d) => Math.min(C.maxPressure, Math.floor(((d - 1) * (d - 1)) / C.pressureK));
   const dailyCost = (d) => C.costs[Math.min(C.costs.length - 1, weekOf(d))];
 
   // ---------- ніч ----------
@@ -501,7 +504,7 @@
       ev.push({ kind: 'bad', text: 'Біль дійшов до 10. Швидка, лікарня: день випадає, −' + C.hospital.cost + ' ₴' });
     }
 
-    checkLose(s, s.day);
+    checkLose(s, s.day, ev);
     // Кінцева ніч: окремої лікарні з поверненням немає — тіло здалося, то й так госпіталізація.
     if (s.lost && hospital && s.lost.sphere === 'body') { hospital = false; s.money += C.hospital.cost; s.stats.hospital--; ev.splice(ev.findIndex((e) => e.text.startsWith('Біль дійшов до 10')), 1); }
     j.night = ev.map((e) => e.text);
@@ -516,7 +519,7 @@
           for (const k of SOFT) s[k] = clampS(s[k] - C.decay);
           s.extra = C.hospital.extraAfter;
           s.history.push({ day: s.day, pain: C.painMax, money: s.money, people: s.people, body: s.body, soul: s.soul, spoons: 0 });
-          checkLose(s, s.day);
+          checkLose(s, s.day, ev);
           if (!s.lost) { if (s.day >= s.days) s.finished = true; else s.day++; }
         }
         if (!s.lost && !s.finished) startDay(s, ev);
@@ -525,10 +528,22 @@
     return { events: ev, flare, hospital: hospital ? 1 : false };
   }
 
-  function checkLose(s, day) {
+  // Сфера на нулі — ще не кінець: є C.grace днів, щоб вибратися. Не вибрався — кінець.
+  // В останній день курсу часу вже немає: нуль — це кінець.
+  function checkLose(s, day, ev) {
     if (s.lost) return;
-    const fallen = s.money <= 0 ? 'money' : SOFT.find((k) => s[k] <= 0);
-    if (fallen) s.lost = { cause: SPHERES[fallen].ending, sphere: fallen, day, sphereName: SPHERES[fallen].name, text: SPHERES[fallen].fall };
+    ev = ev || [];
+    s.crisis = s.crisis || {};
+    const fallen = (s.money <= 0 ? ['money'] : []).concat(SOFT.filter((k) => s[k] <= 0));
+    for (const k of Object.keys(s.crisis)) if (!fallen.includes(k)) { delete s.crisis[k]; ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' знову вище нуля' }); }
+    const lose = (k) => { s.lost = { cause: SPHERES[k].ending, sphere: k, day, sphereName: SPHERES[k].name, text: SPHERES[k].fall }; };
+    for (const k of fallen) {
+      if (s.crisis[k] == null) {
+        if (day >= s.days) { lose(k); return; }
+        s.crisis[k] = day + C.grace;
+        ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! Є ' + C.grace + ' дні, щоб вибратися (до кінця дня ' + s.crisis[k] + '), інакше кінець' });
+      } else if (day >= s.crisis[k] || day >= s.days) { lose(k); return; }
+    }
   }
 
   // ---------- допоміжне ----------
@@ -609,6 +624,7 @@
       if (inv && inv.status !== 'cancelled') ev.push({ t: '♥ ' + inv.name, k: inv.status === 'refused' ? 'inv refused' : 'inv' });
       for (const f of s.future.filter((x) => x.day === d)) ev.push(f.kind === 'relief' ? { t: 'біль −' + f.amount, k: 'good' } : { t: 'відкат +' + f.amount, k: 'bad' });
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
+      for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
       if (s.loan && s.loan.due === d) ev.push({ t: 'борг −' + s.loan.amount + '₴', k: 'bad' });
       if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
       out.push({ day: d, cost: dailyCost(d), events: ev });
@@ -622,6 +638,7 @@
     const out = [];
     if (s.lost || s.finished) return out;
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
+    for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: SPHERES[k].name + ' на нулі: до кінця дня ' + d + ' треба підняти, інакше кінець.' });
     for (const d of calendar(s, 4)) {
       const w = when(d.day);
       const inv = s.invites[d.day];
