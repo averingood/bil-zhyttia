@@ -143,6 +143,7 @@
       o.onDone({ cleared, pain: !!pain && cleared < N });
     }
     function frame() {
+      if (closed) return;   // сцену закрили («Пропустити») — кадр, що вже стояв у черзі, нічого не малює
       fit();
       const t = now(), dt = Math.min(0.05, t - lastT); lastT = t;
       if (!done) {

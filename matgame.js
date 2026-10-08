@@ -128,7 +128,7 @@
       msg('Серія ' + (round + 1) + ': зараховано ' + ok + ' з ' + seq.length +
         (ok === seq.length ? '. Чисто!' : ok ? '. Кожен рух іде в залік.' : '. Нічого, буває.'), ok ? 'good' : '');
       setTimeout(() => {
-        if (done) return;
+        if (done || closed) return;
         round++;
         if (round < M.series.length) newRound(); else finish();
       }, 1200);
@@ -166,6 +166,7 @@
     }
 
     function frame() {
+      if (closed) return;   // сцену закрили («Пропустити») — кадр, що вже стояв у черзі, нічого не малює
       fit();
       const t = now();
       if (mode === 'input') {

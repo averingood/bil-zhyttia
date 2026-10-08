@@ -137,6 +137,7 @@
       o.onDone({ pages: page });
     }
     function frame() {
+      if (closed) return;   // сцену закрили («Пропустити») — кадр, що вже стояв у черзі, нічого не малює
       fit();
       const t = now();
       const f = flipFrom ? Math.min(1, (t - flipFrom) / 0.5) : 1;

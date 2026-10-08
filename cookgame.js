@@ -117,7 +117,7 @@
     const noteFrom = now() + 0.4, noteEnd = noteFrom + NOTE_SECONDS;
     // Біль на записці: ядро встигає вирости й тримається до кінця показу — закрите вже не повернеться.
     const A = C.actions.cook;
-    const glitch = Math.random() < Math.max(A.minCover, C.painCover[o.state] || 0)
+    const glitch = Math.random() < Math.max(A.minCover, root.GameLogic.coverOf(o.pain))
       ? { start: noteFrom + 0.7 + Math.random() * 1.0, end: noteEnd + 0.2 } : null;
     let mode = 'note', picked = [];
 
@@ -180,6 +180,7 @@
     }
 
     function frame() {
+      if (closed) return;   // сцену закрили («Пропустити») — кадр, що вже стояв у черзі, нічого не малює
       fit();
       const t = now();
       lg.clearRect(0, 0, LW, LH);

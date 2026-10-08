@@ -224,7 +224,7 @@
       const typed = start + q.text.length / CPS, end = typed + 1.4;
       // Біль накриває ключові слова: як часто — за станом.
       let glitch = null;
-      if (Math.random() < C.painCover[o.state]) {
+      if (Math.random() < root.GameLogic.coverOf(o.pain) * (again ? C.coverRepeat : 1)) {
         const ks = start + q.text.indexOf(q.key) / CPS;
         glitch = { start: ks - 0.1, end: end + 0.1 };
       }
@@ -264,7 +264,7 @@
       $q('.sc-msg').className = 'sc-msg ' + (pay > 0 ? 'good' : 'bad');
       $q('.sc-msg').textContent = reply + ' ' + (pay > 0 ? '+' + pay + ' ₴' : pay < 0 ? '−' + Math.abs(pay) + ' ₴' : '(без оплати)');
       cur.reaction = { text: reply, from: performance.now() / 1000, until: performance.now() / 1000 + 1.8 };
-      setTimeout(() => { if (done) return; n++; $q('.sc-msg').textContent = ''; if (n < M.questions) play(); else finish(); }, 1900);
+      setTimeout(() => { if (done || closed) return; n++; $q('.sc-msg').textContent = ''; if (n < M.questions) play(); else finish(); }, 1900);
     }
 
     function repeat() {
@@ -318,6 +318,7 @@
     const blinkOf = (k, t) => (Math.floor(t * 1.3 + k.length * 0.7) % 5 === 0) && ((t * 1.3 + k.length * 0.7) % 1 < 0.15);
 
     function frame(nowMs) {
+      if (closed) return;   // сцену закрили («Пропустити») — кадр, що вже стояв у черзі, нічого не малює
       fit();   // поле міняється, коли заповнюється панель дій; спостерігач розміру іноді запізнюється
       const t = nowMs / 1000;
       if (cur && !cur.asking && !cur.reaction && !done && t >= cur.end) ask();

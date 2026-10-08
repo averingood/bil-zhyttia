@@ -65,6 +65,8 @@
     return p < 1 ? 'light' : 'strong';
   }
   const stateKey = (s) => stateOfPain(pain(s));
+  // Як часто біль накриває ключове слово (міні-ігри й їхній автоматичний результат).
+  const coverOf = (p) => C.painCover[Math.max(0, Math.min(C.painCover.length - 1, Math.round(p)))] || 0;
 
   // Ціна дії в ресурсі за сьогоднішнім станом; null — у цьому стані недоступно.
   function spoonCost(s, id) {
@@ -278,7 +280,7 @@
         break;
       }
       case 'create': {
-        const fake = opts.synth ? opts.synth.fake : (rand(s) < (C.painCover[st] || 0) * 0.6 ? 1 : 0);
+        const fake = opts.synth ? opts.synth.fake : (rand(s) < coverOf(pain(s)) * 0.6 ? 1 : 0);
         const gain = a.soul[0];   // скільки обіцяно, стільки й дає: фальшиві ноти — лише про біль у моменті
         s.soul = clampS(s.soul + gain);
         songTitle(s);
@@ -312,7 +314,7 @@
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама: що сильніший біль, то частіше пропускаєш суть.
-          const missed = rand(s) < (C.painCover[st] || 0) * 0.7;
+          const missed = rand(s) < coverOf(pain(s)) * 0.7;
           if (missed) { s.people = clampS(s.people - 1); s.soul = clampS(s.soul - 1); s.stats.talkMissed++; note += '; пропустив суть розмови, Стосунки −1, Настрій −1'; }
           else s.stats.talkHeard++;
         }
@@ -347,7 +349,7 @@
       case 'cook': {
         s.fed = true; s.foodType = 'cook';
         s.body = clampS(s.body + a.body);
-        const misses = opts.cook ? opts.cook.misses : (rand(s) < (C.painCover[st] || 0) ? 1 : 0);
+        const misses = opts.cook ? opts.cook.misses : (rand(s) < coverOf(pain(s)) ? 1 : 0);
         if (misses === 0) s.soul = clampS(s.soul + a.soulIfTasty);
         note = 'їжа є, Тіло +' + a.body + (misses === 0 ? ', смачно: Настрій +' + a.soulIfTasty : ', щось не те поклав');
         break;
@@ -823,7 +825,7 @@
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
     gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText,
-    pillsInWeek, courseActive, pain, rawPain, stateKey, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
+    pillsInWeek, courseActive, pain, rawPain, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },
   };

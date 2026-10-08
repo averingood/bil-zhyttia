@@ -191,6 +191,7 @@
       o.onDone({ fake: fake || 0 });
     }
     function frame() {
+      if (closed) return;   // сцену закрили («Пропустити») — кадр, що вже стояв у черзі, нічого не малює
       fit();
       const t = now(), dt = Math.min(0.05, t - lastT); lastT = t;
       const shake = t < shakeUntil ? Math.sin(t * 60) * 2 : 0;
