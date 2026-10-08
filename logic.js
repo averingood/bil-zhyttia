@@ -462,7 +462,10 @@
       const D = C.doctor, active = courseActive(s), parts = [];
       if (active) { s.doctorDrop++; parts.push('курс діє — лікар підсилює лікування, біль слабшає (базовий −1)'); }
       else parts.push('курс не діє (пігулок за тиждень ' + pillsInWeek(s) + ' з ' + C.course.need + ') — підсилювати нічого');
-      if (s.body <= D.rescueBody) { s.body = clampS(s.body + D.rescue); parts.push('Тіло слабке — призначив відновлення: Тіло +' + D.rescue); }
+      if (s.body <= D.rescueBody) {
+        if (s.money > D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); parts.push('Тіло слабке — укол і відновлення: Тіло +' + D.rescue + ', −' + D.rescueCost + ' ₴'); }
+        else parts.push('Тіло слабке, але на укол (' + D.rescueCost + ' ₴) не вистачає грошей');
+      }
       ev.push({ kind: active || parts.length > 1 ? 'good' : 'info', text: 'Прийом у лікаря: ' + parts.join('; ') });
     }
     // Борг: настав день — віддаєш, якщо є з чого; нема — друг ображається.
