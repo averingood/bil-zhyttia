@@ -106,7 +106,7 @@
         // Килимок від першої особи: повтор рухів за тренером.
         mat: { series: [3, 4], step: 0.75, grow: 0.25, inputSeconds: 6, baseShare: 1 / 3, reliefShare: 2 / 3,
           spike: { light: 0.3, medium: 0.5, strong: 0.7 } } },
-      stretch:  { spoons: 1, perDay: 1, body: 1, reliefToday: 1 },
+      stretch:  { spoons: 1, body: 1, reliefToday: 1 },   // скільки завгодно разів на день
       cook:     { spoons: { light: 1, medium: 1, strong: null }, money: 5, body: 1, soulIfTasty: 1, minCover: 0.25 },
       delivery: { spoons: 0, money: 14 },
       coffee:   { spoons: 0, perDay: 2, money: 6, gain: 1, flareAdd: 0.20, secondTomorrow: 1 },   // друга чашка за день — ще й завтра ресурс −1
