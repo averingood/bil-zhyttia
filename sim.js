@@ -31,7 +31,7 @@ function careful(s, opt = {}) {
   for (const [k] of needs) {
     const id = k === 'money' ? 'work'
       : k === 'people' ? (free(s, 'friends') ? 'friends' : 'text')
-      : k === 'body' ? (free(s, 'exercise') ? 'exercise' : 'stretch')
+      : k === 'body' ? (opt.lfk !== false && free(s, 'exercise') ? 'exercise' : 'stretch')   // «без ЛФК» — справді без неї, лише розтяжка
       : (free(s, 'create') ? 'create' : free(s, 'read') ? 'read' : 'games');
     if (free(s, id)) return id;
   }
