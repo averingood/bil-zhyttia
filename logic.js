@@ -334,7 +334,9 @@
         }
         s.hungryNow = null;
         const hungry = !!s.hungryNow || treat > 0 || unfed;
-        const food = hungry ? null : (inv && (inviteLine(inv).food || (a.invitedFood ? pick(s, DISHES) : null))) || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance ? pick(s, DISHES) : null);
+        // Їжу приносять лише ті, хто просився сам: як сказали в запрошенні, а близькі (Стосунки 7+) — іноді й без слів.
+        // Покликав сам — їжі не несуть (або прийдуть голодні, або ні).
+        const food = hungry || !inv ? null : inviteLine(inv).food || (a.invitedFood || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance) ? pick(s, DISHES) : null);
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
