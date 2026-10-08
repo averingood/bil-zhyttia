@@ -195,13 +195,17 @@
     'Ковбасій': { long: false, H: '#8a3f1c', S: '#e8b892', G: '#c8463a', J: '#33405e' },
     'Любава':   { long: true,  H: '#5a1830', S: '#f0c8a8', G: '#b8326e', J: '#2b2f3a' },
     'Одарка':   { long: true,  H: '#e8c25a', S: '#f0c8a8', G: '#efe8dc', J: '#7a2a2a' },
-    'Андрій':   { long: false, H: '#1d1a1f', S: '#c99573', G: '#2a2a30', J: '#1f2a3a' },
+    'Андрій':   { long: false, H: '#1d1a1f', S: '#c99573', G: '#2a2a30', J: '#1f2a3a', shades: true },
   };
+  // Темні окуляри в мініатюрі: смуга через рядок очей, на лінзах — відблиск.
+  const SHADES_ROW = '.QqQQqQ.';
+  const withShades = (rows, pal) => (pal.shades ? rows.map((r) => (r === '.SESSES.' ? SHADES_ROW : r)) : rows);
   function friendLook(name) {
     const f = FRIENDS[name] || FRIENDS['Андрій'];
     return {
       long: f.long,
-      pal: { H: f.H, S: f.S, E: '#1d1d24', B: f.long ? f.S : shade(f.S, -0.15), G: f.G, D: shade(f.G, -0.2), J: f.J, K: '#15161b' },
+      pal: { H: f.H, S: f.S, E: '#1d1d24', B: f.long ? f.S : shade(f.S, -0.15), G: f.G, D: shade(f.G, -0.2), J: f.J, K: '#15161b',
+        shades: !!f.shades, Q: '#0d0d10', q: '#6f8ba3' },
     };
   }
   const LONG_TOP = ['..HHHH..', '.HHHHHH.', 'HHSSSSHH', 'HSESSESH', 'HSSSSSSH', 'HHSSSSHH', 'HGGSSGGH',
@@ -970,7 +974,7 @@
       const e = k * k * (3 - 2 * k);
       const bx = Math.round(from[0] + (to[0] - from[0]) * e), by = Math.round(from[1] + (to[1] - from[1]) * e);
       const x = bx - 4, y = by - rows.length + 1;
-      spriteO(ctx, rows, pal, x, y);
+      spriteO(ctx, withShades(rows, pal), pal, x, y);
       a.anchor = [bx, y - 2];
     }
 
@@ -1571,7 +1575,7 @@
       const top = long ? (h.back ? LONG_BACK : LONG_TOP) : (h.back ? HERO_BACK : HERO_TOP);
       const rows = top.concat(LEGS[frame]);
       const y = fy - rows.length + 1 + bob;
-      spriteO(ctx, rows, pal, fx - 4, y);
+      spriteO(ctx, withShades(rows, pal), pal, fx - 4, y);
       h.anchor = [fx, y - 2];
     }
 
