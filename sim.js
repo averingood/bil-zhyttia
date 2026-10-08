@@ -28,7 +28,7 @@ function careful(s, opt = {}) {
     const id = k === 'money' ? 'work'
       : k === 'people' ? (free(s, 'friends') ? 'friends' : 'text')
       : k === 'body' ? (free(s, 'exercise') ? 'exercise' : 'stretch')
-      : (free(s, 'create') ? 'create' : free(s, 'read') ? 'read' : free(s, 'games') ? 'games' : 'clean');
+      : (free(s, 'create') ? 'create' : free(s, 'read') ? 'read' : 'games');
     if (free(s, id)) return id;
   }
   if (opt.coffee && ok(s, 'coffee') && s.money > 60) return 'coffee';

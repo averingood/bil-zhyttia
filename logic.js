@@ -25,7 +25,6 @@
     stretch:  { zone: 'mat',     label: 'Розтяжка', sphere: 'body' },
     cook:     { zone: 'kitchen', label: 'Приготувати', sphere: 'body' },
     delivery: { zone: 'kitchen', label: 'Замовити доставку', sphere: 'body' },
-    clean:    { zone: 'kitchen', label: 'Прибрати', sphere: 'soul' },
     coffee:   { zone: 'kitchen', label: 'Випити кави', sphere: null },
     course:   { zone: 'shelf',   label: 'Пігулка з курсу', sphere: 'body' },
     meds:     { zone: 'shelf',   label: 'Знеболювальне', sphere: null },
@@ -300,10 +299,6 @@
       case 'delivery':
         s.fed = true; s.foodType = 'delivery';
         note = 'їжа є, −' + a.money + ' ₴';
-        break;
-      case 'clean':
-        s.soul = clampS(s.soul + a.soul);
-        note = 'вдома чисто, Емоції +' + a.soul;
         break;
       case 'coffee':
         s.spoons += a.gain; s.coffeeToday++;

@@ -86,7 +86,6 @@
       stretch:  { spoons: 1, perDay: 1, body: 1, reliefToday: 1 },
       cook:     { spoons: { light: 1, medium: 1, strong: null }, money: 5, body: 1, soulIfTasty: 1, minCover: 0.25 },
       delivery: { spoons: 0, money: 14 },
-      clean:    { spoons: { light: 2, medium: 2, strong: null }, perDay: 1, soul: 2 },
       coffee:   { spoons: 0, perDay: 1, money: 6, gain: 1, flareAdd: 0.15 },
       course:   { spoons: 0, perDay: 1 },
       meds:     { spoons: 0, perDay: 1, money: 12, reliefToday: 2, rebound: 1, side: { chance: 0.25, soul: 1 } },
