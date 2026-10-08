@@ -93,7 +93,7 @@
 
     o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Вправи</span><span class="ab-meta" id="scCount"></span></div>
       <div class="sc-bar"><div class="sc-timer" hidden><i></i></div><span class="mat-input"></span></div>
-      <div class="sc-answers">${ARR.map((a, i) => `<button class="ans mat-arrow" type="button" data-a="${i}" disabled><kbd>${a}</kbd>${['ліво', 'вгору', 'право', 'вниз'][i]}</button>`).join('')}</div>
+      <div class="sc-answers mat-keys">${ARR.map((a, i) => `<button class="ans mat-arrow" type="button" data-a="${i}" style="grid-area:${['l', 'u', 'r', 'd'][i]}" disabled><kbd>${a}</kbd>${['ліво', 'вгору', 'право', 'вниз'][i]}</button>`).join('')}</div>
       <p class="sc-msg">Дивись на телефон: тренер показує рухи.</p>`;
     fit();
     const $q = (sel) => o.bar.querySelector(sel);
