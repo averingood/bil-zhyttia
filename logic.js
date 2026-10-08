@@ -192,8 +192,12 @@
     if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ресурсу, навіть якщо взяти наперед');
     const p = pain(s);
     switch (id) {
-      case 'cook': case 'delivery':
-        if (s.fed) return no(s.foodType === 'guests' ? 'Друзі нагодували' : 'Їжа на сьогодні вже є');
+      case 'cook':
+        // Друзі нагодували — готувати однаково можна.
+        if (s.fed && s.foodType !== 'guests') return no('Їжа на сьогодні вже є');
+        break;
+      case 'delivery':
+        if (s.fed) return no(s.foodType === 'guests' ? 'Друзі вже погодували' : 'Їжа на сьогодні вже є');
         break;
       case 'create':
         if (p > a.maxPain) return no('З болем ' + (a.maxPain + 1) + '+ пісня не пишеться');
@@ -697,6 +701,7 @@
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
     if (id === 'coffee') { fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' }); fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' }); }
     if (after.fed && !s.fed) fx.push({ t: after.foodType === 'guests' ? 'друзі нагодують' : 'їжа на день є', kind: 'info' });
+    if (id === 'cook' && s.foodType === 'guests') fx.push({ t: 'друзі вже погодували', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
       const A = C.actions.create, n = s.song.done + 1;
