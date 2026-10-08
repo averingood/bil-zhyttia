@@ -65,6 +65,8 @@
 
   // Ціна дії в ресурсі за сьогоднішнім станом; null — у цьому стані недоступно.
   function spoonCost(s, id) {
+    // Друзі, що прийшли самі, — менше клопоту: ресурс inviteSpoons.
+    if (id === 'friends' && inviteToday(s)) return C.actions.friends.inviteSpoons;
     const c = C.actions[id].spoons;
     return typeof c === 'number' ? c : c[stateKey(s)];
   }
