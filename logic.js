@@ -799,6 +799,13 @@
       if (id === 'games' && k === 'soul') { const g = C.actions.games; txt = SPHERES[k].name + ' +' + (g.soul - 1) + '…+' + (after[k] - s[k]) + ' (що далі пробіжиш)'; }
       fx.push({ t: txt, kind: k });
     }
+    // Сфера вже 10: дія підняла б її, але нікуди — кажемо про це, а не мовчимо.
+    for (const k of SOFT) if (s[k] >= 10 && after[k] === s[k]) {
+      const probe = clone(s); probe[k] = 9; const pa = clone(probe), sv = pendingTalk;
+      doAction(pa, id, id === 'friends' ? { noTalk: true } : id === 'cook' ? { cook: { misses: 0 } } : id === 'create' ? { synth: { fake: 0 } } : id === 'games' ? { runner: { cleared: C.actions.games.jumps } } : null);
+      pendingTalk = sv;
+      if (pa[k] > probe[k]) fx.push({ t: SPHERES[k].name + ' вже 10 — вище нікуди', kind: 'info' });
+    }
     // Друзі: чи прийдуть голодні — випадок, тож показуємо шанс, а не наперед відомий результат.
     const fa = C.actions.friends, hungry = id === 'friends' && !inviteToday(s) && fa.treat && fa.treatChance < 1;
     if (hungry) fx.push({ t: Math.round(fa.treatChance * 100) + '%: прийдуть голодні — нагодувати (−' + fa.treat + ' ₴) чи Стосунки −1', kind: 'money' });
