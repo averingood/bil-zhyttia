@@ -35,9 +35,9 @@
 
   const SPHERES = {
     money:  { name: 'Гроші', fall: 'Гроші скінчилися', ending: 'money' },
-    people: { name: 'Люди', fall: 'Люди відвернулися', ending: 'friends' },
-    body:   { name: 'Тіло', fall: 'Тіло здалося', ending: 'body' },
-    soul:   { name: 'Душа', fall: 'Душа згасла', ending: 'joy' },
+    people: { name: 'Стосунки', fall: 'Стосунки розпалися', ending: 'friends' },
+    body:   { name: 'Тіло', fall: 'Тіло здалося: госпіталізація', ending: 'body' },
+    soul:   { name: 'Емоції', fall: 'Емоції згасли', ending: 'joy' },
   };
   const SPHERE_IDS = Object.keys(SPHERES);
   const SOFT = ['people', 'body', 'soul'];   // сфери 0–10 (гроші — у ₴)
@@ -116,7 +116,7 @@
     s.future = s.future.filter((x) => x.day > s.day);
     const L = C.links;
     let sp = C.spoons[Math.max(0, Math.min(10, pain(s)))];
-    if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Душа на місці: ресурс +1' }); }
+    if (s.soul >= L.soulHigh) { sp++; ev.push({ kind: 'good', text: 'Емоції в нормі: ресурс +1' }); }
     if (s.soul <= L.soulLow) { sp--; ev.push({ kind: 'bad', text: 'На душі порожньо: ресурс −1' }); }
     if (s.spoonTomorrow) { sp -= s.spoonTomorrow; ev.push({ kind: 'bad', text: 'Учора взяв наперед: ресурс −' + s.spoonTomorrow }); s.spoonTomorrow = 0; }
     if (sp <= 3 && s.people >= L.peopleHelp) { sp++; ev.push({ kind: 'good', text: 'Друг підхопив у поганий ранок: ресурс +1' }); }
@@ -147,8 +147,8 @@
     s.people = clampS(s.people - C.friends.refuse);
     s.stats.invitesRefused++;
     const line = pick(s, C.friends.refusalLines);
-    journalFor(s, s.day).refused.push('Відмовив ' + inv.name + ': Люди −' + C.friends.refuse);
-    return { name: inv.name, line, text: inv.name + ': «' + line + '» Люди −' + C.friends.refuse };
+    journalFor(s, s.day).refused.push('Відмовив ' + inv.name + ': Стосунки −' + C.friends.refuse);
+    return { name: inv.name, line, text: inv.name + ': «' + line + '» Стосунки −' + C.friends.refuse };
   }
 
   // ---------- перевірка дії ----------
@@ -216,7 +216,7 @@
         const gain = a.soul + Math.floor(run.cleared / a.perJumps) - 1;
         s.soul = clampS(s.soul + gain);
         s.spoonTomorrow += a.tomorrow;
-        note = 'Душа +' + gain + ', засидівся — завтра ресурс −' + a.tomorrow;
+        note = 'Емоції +' + gain + ', засидівся — завтра ресурс −' + a.tomorrow;
         break;
       }
       case 'create': {
@@ -225,12 +225,12 @@
         s.soul = clampS(s.soul + gain);
         songTitle(s);
         s.song.done++;
-        note = 'Душа +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '» ' + s.song.done + '/' + a.songSessions;
+        note = 'Емоції +' + gain + (fake ? ' (фальшивих нот: ' + fake + ')' : '') + ', «' + s.song.title + '» ' + s.song.done + '/' + a.songSessions;
         if (s.song.done >= a.songSessions) {
           s.soul = clampS(s.soul + a.songSoul);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
           s.lastSongDone = s.song.title;
-          note += '; дописав! Душа +' + a.songSoul;
+          note += '; дописав! Емоції +' + a.songSoul;
           s.song = { n: s.song.n + 1, done: 0, title: null };
         }
         break;
@@ -246,12 +246,12 @@
         if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
         s.lastVisitInvited = !!inv;
         guests = names;
-        note = names.join(' і ') + ' в гостях, Люди +' + gain + (st === 'strong' ? ' (з болем ти «не тут»)' : '') + (food ? ', принесли ' + food : '');
+        note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (st === 'strong' ? ' (з болем ти «не тут»)' : '') + (food ? ', принесли ' + food : '');
         if (opts.deferTalk) pendingTalk = true;
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама: що сильніший біль, то частіше пропускаєш суть.
           const missed = rand(s) < (C.painCover[st] || 0) * 0.7;
-          if (missed) { s.people = clampS(s.people - 1); s.stats.talkMissed++; note += '; пропустив суть розмови, Люди −1'; }
+          if (missed) { s.people = clampS(s.people - 1); s.stats.talkMissed++; note += '; пропустив суть розмови, Стосунки −1'; }
           else s.stats.talkHeard++;
         }
         break;
@@ -259,7 +259,7 @@
       case 'text':
         s.people = clampS(s.people + a.people);
         s.textedToday = true;
-        note = 'Люди +' + a.people + '; хтось, може, захоче зайти';
+        note = 'Стосунки +' + a.people + '; хтось, може, захоче зайти';
         break;
       case 'exercise': {
         let q = 'good';
@@ -287,7 +287,7 @@
         s.body = clampS(s.body + a.body);
         const misses = opts.cook ? opts.cook.misses : (rand(s) < (C.painCover[st] || 0) ? 1 : 0);
         if (misses === 0) s.soul = clampS(s.soul + a.soulIfTasty);
-        note = 'їжа є, Тіло +' + a.body + (misses === 0 ? ', смачно: Душа +' + a.soulIfTasty : ', щось не те поклав');
+        note = 'їжа є, Тіло +' + a.body + (misses === 0 ? ', смачно: Емоції +' + a.soulIfTasty : ', щось не те поклав');
         break;
       }
       case 'delivery':
@@ -296,7 +296,7 @@
         break;
       case 'clean':
         s.soul = clampS(s.soul + a.soul);
-        note = 'вдома чисто, Душа +' + a.soul;
+        note = 'вдома чисто, Емоції +' + a.soul;
         break;
       case 'coffee':
         s.spoons += a.gain; s.coffeeToday++;
@@ -316,18 +316,18 @@
         s.painkiller = true;
         s.future.push({ day: s.day + 1, kind: 'rebound', amount: a.rebound });
         note = 'біль ' + before + ' → ' + pain(s) + ', завтра відкат +' + a.rebound;
-        if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Душа −' + a.side.soul; }
+        if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Емоції −' + a.side.soul; }
         break;
       }
       case 'read': {
         const b = bookNow(s);
         s.soul = clampS(s.soul + a.soul);
         s.book.done++;
-        note = '«' + b[0] + '» ' + s.book.done + '/' + b[1] + ', Душа +' + a.soul;
+        note = '«' + b[0] + '» ' + s.book.done + '/' + b[1] + ', Емоції +' + a.soul;
         if (s.book.done >= b[1]) {
           s.soul = clampS(s.soul + a.finishSoul);
           s.stats.booksRead++; s.lastBookDone = b[0];
-          note += '; дочитав! Душа +' + a.finishSoul;
+          note += '; дочитав! Емоції +' + a.finishSoul;
           s.book = { i: s.book.i + 1, done: 0 };
         }
         break;
@@ -348,7 +348,7 @@
     s.people = clampS(s.people + d);
     if ((kinds || []).some((k) => k === 'silent' || k === 'wrong')) s.stats.talkMissed++; else s.stats.talkHeard++;
     s.lastTalkMissed = d < 0;
-    return d > 0 ? 'розмова вдалась: Люди +1' : d < 0 ? 'біль заглушив розмову: Люди −1' : 'розмова як розмова';
+    return d > 0 ? 'розмова вдалась: Стосунки +1' : d < 0 ? 'біль заглушив розмову: Стосунки −1' : 'розмова як розмова';
   }
 
   function recalcBase(s) {
@@ -395,7 +395,7 @@
 
     // Сфери тануть: самі собою і від тиску життя.
     for (const k of SOFT) s[k] = clampS(s[k] - C.decay);
-    ev.push({ kind: 'info', text: 'Сфери тануть самі собою: Люди, Тіло, Душа −' + C.decay });
+    ev.push({ kind: 'info', text: 'Сфери тануть самі собою: Стосунки, Тіло, Емоції −' + C.decay });
     const pr = pressureOf(s.day);
     if (pr) {
       let pool = []; const hit = [];
@@ -405,7 +405,7 @@
       }
       ev.push({ kind: 'bad', text: 'Життя тисне: ' + hit.join(', ') + ' ще −1' });
     }
-    if (st === 'strong') { s.soul = clampS(s.soul - L.strongSoul); ev.push({ kind: 'pain', text: 'День у сильному болю гнітить: Душа −' + L.strongSoul }); }
+    if (st === 'strong') { s.soul = clampS(s.soul - L.strongSoul); ev.push({ kind: 'pain', text: 'День у сильному болю пригнічує: Емоції −' + L.strongSoul }); }
 
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
@@ -558,7 +558,7 @@
     const out = [];
     if (s.lost || s.finished) return out;
     const inv = inviteToday(s);
-    if (inv) out.push({ kind: 'friends', t: inv.name + ' хоче прийти сьогодні. Якщо не покличеш — Люди −' + C.friends.refuse + '.' });
+    if (inv) out.push({ kind: 'friends', t: inv.name + ' хоче прийти сьогодні. Якщо не покличеш — Стосунки −' + C.friends.refuse + '.' });
     if (!s.fed) out.push({ kind: 'money', t: 'Їжі ще немає: приготуй або замов. Без їжі — Тіло −' + C.hungry.body + '.' });
     for (const k of SOFT) if (s[k] <= 2) out.push({ kind: 'fatal', t: SPHERES[k].name + ' на межі (' + s[k] + '): уночі ще −1' + (pressureOf(s.day) ? ' і, можливо, тиск' : '') + '.' });
     const cost = dailyCost(s.day), incoming = s.pending.filter((p) => p.day <= s.day + 1).reduce((a, p) => a + p.amount, 0);
@@ -585,7 +585,7 @@
     if (st.songs) kept.push('Пісні: ' + st.songTitles.map((t) => '«' + t + '»').join(', '));
     const read = (s.bookOrder || C.books.map((_, i) => i)).slice(0, s.book.i).map((i) => C.books[i]);
     if (read.length) kept.push('Книжки прочитано: ' + read.map((x) => '«' + x[0] + '»').join(', '));
-    kept.push('Наприкінці: ' + s.money + ' ₴, Люди ' + s.people + ', Тіло ' + s.body + ', Душа ' + s.soul + ', біль ' + pain(s));
+    kept.push('Наприкінці: ' + s.money + ' ₴, Стосунки ' + s.people + ', Тіло ' + s.body + ', Емоції ' + s.soul + ', біль ' + pain(s));
     if (st.flares) lostItems.push('Загострень: ' + st.flares);
     if (st.strongDays) lostItems.push('Днів у сильному болю: ' + st.strongDays);
     if (st.hospital) lostItems.push('Лікарня: ' + st.hospital + ' р.');

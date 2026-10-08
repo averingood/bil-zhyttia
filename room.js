@@ -524,6 +524,8 @@
     // Дострокове завершення: коротка сцена перед підсумком.
     // kind: 'joy' — радість на нулі, 'money' — гроші скінчились.
     playEnding(kind, onDone) {
+      // Тіло здалося — госпіталізація: та сама сцена швидкої, але додому вже не повертаєшся.
+      if (kind === 'body') { this.playHospital(1, 0, onDone); this.cut.final = true; this.cut.slot = this.view.slot; this.cut.sleeping = false; this.cut.phase = 'flash'; return; }
       this.endVisit(true);
       const onBag = kind === 'joy' && this.hero.sit >= 1;
       this.bubble = null; this.heroAway = false; this.slumpPending = false;
@@ -537,40 +539,39 @@
     updateEnding(dt) {
       const c = this.cut;
       const go = (p) => { c.phase = p; c.t = 0; };
-      if (c.ending === 'friends' || c.ending === 'body') {
+      if (c.ending === 'friends') {
         // Останній друг пішов: сісти на мішок, телефон мовчить, світ тьмяніє.
         if (c.phase === 'walk') {
-          c.caption = c.ending === 'body' ? 'Тіло здалося' : 'Люди відвернулися';
+          c.caption = 'Стосунки розпалися';
           if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('quiet'); }
         } else if (c.phase === 'quiet') {
           c.drain = Math.min(1, c.t / 4);
-          c.caption = c.ending === 'body'
-            ? (c.t < 2.2 ? 'Сил не лишилося навіть підвестися.' : 'Курс лікування доведеться починати знову.')
-            : (c.t < 2.2 ? 'Друзі перестали писати.' : 'Телефон мовчить.');
+          c.caption = c.t < 2.2 ? 'Друзі перестали писати.' : 'Телефон мовчить.';
           if (c.t > 6) go('done');
         }
       } else if (c.ending === 'joy') {
-        // Пуф → підвестися → вдягнути все чорне → повільно вийти. Кімната тим часом вицвітає.
+        // Пуф → підвестися → вікно над диваном → світло заливає кімнату. Кімната тим часом вицвітає.
         c.drain = Math.min(1, c.drain + dt / 6);
         if (c.phase === 'walk') {
-          c.caption = 'Душа згасла';
+          c.caption = 'Емоції згасли';
           if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('sit'); }
         } else if (c.phase === 'sit') {
-          c.caption = c.t < 1.6 ? 'Душа згасла' : 'Нічого не хочеться.';
-          if (c.t > 3.6) { this.setHeroSit(0); go('dress'); }
-        } else if (c.phase === 'dress') {
-          // Перевдягається: одяг блимає, поки не стає чорним.
-          c.caption = 'Ти повільно збираєшся.';
-          this.hero.black = c.t > 1.4 || Math.floor(c.t / 0.22) % 2 === 1;
-          if (c.t > 2.2) {
-            this.hero.black = true; c.slow = true;
-            this.path = [...this.findPath(DOOR_IN[0], DOOR_IN[1]), [DOOR[0], DOOR[1]]];
-            go('leave');
-          }
-        } else if (c.phase === 'leave') {
-          c.caption = 'І тихо зачиняєш за собою двері.';
-          if (!this.path.length) { this.heroAway = true; if (c.t > 1.6) go('done'); }
-          else c.t = 0;
+          c.caption = 'Емоції згасли';
+          if (c.t > 2.4) { this.setHeroSit(0); this.path = this.findPath(STAND.sofa[0], STAND.sofa[1]); go('towin'); }
+        } else if (c.phase === 'towin') {
+          // Підвестися й підійти до вікна над диваном.
+          c.caption = 'Нічого не хочеться.';
+          if (!this.path.length) { this.hero.back = true; this.hero.dir = -1; go('open'); }
+        } else if (c.phase === 'open') {
+          c.caption = 'Ти відчиняєш вікно.';
+          c.windowOpen = Math.min(1, c.t / 1.2);
+          if (c.t > 2.2) go('out');
+        } else if (c.phase === 'out') {
+          // Світло з вікна заливає кімнату — і тебе в ній уже немає.
+          c.caption = 'І виходиш туди.';
+          c.whiteout = Math.min(1, c.t / 2.4);
+          if (c.whiteout >= 1) this.heroAway = true;
+          if (c.t > 3.6) go('done');
         }
       } else {
         if (c.phase === 'walk') {
@@ -607,7 +608,7 @@
           break;
         case 'flash':
           c.flash = 1;
-          c.caption = 'Біль дійшов до 10. Викликали швидку';
+          c.caption = c.final ? 'Тіло здалося' : 'Біль дійшов до 10. Викликали швидку';
           if (c.t > 1.6) {
             c.medics = MEDICS.map((pal, i) => {
               const m = { x: DOOR[0] + i * 0.5, y: DOOR[1] + i * 0.3, pal, path: [] };
@@ -625,7 +626,7 @@
             c.sleeping = false;
             this.hero.x = 2.15; this.hero.y = 4.9; this.hero.back = false;
           }
-          c.caption = 'Тебе забирають у лікарню';
+          c.caption = c.final ? 'Госпіталізація' : 'Тебе забирають у лікарню';
           if (c.t > 1.4) {
             c.medics.forEach((m, i) => { m.path = [...this.findPath(DOOR_IN[0] + i * 0.5, DOOR_IN[1], m.x, m.y), [DOOR[0] + i * 0.5, DOOR[1] + i * 0.3]]; });
             this.path = [...this.findPath(DOOR_IN[0] + 0.25, DOOR_IN[1] - 0.4), [DOOR[0] + 0.25, DOOR[1]]];
@@ -642,6 +643,12 @@
           break;
         }
         case 'away': {
+          if (c.final) {
+            c.slot = 4;
+            c.caption = 'Курс лікування перервано.';
+            if (c.t > 2.4) { const done = c.onDone; this.cut = null; done && done(); return; }
+            break;
+          }
           // Дні в лікарні пролітають: ранок, день, пообіддя, вечір, ніч.
           const perDay = 1.5;
           const k = Math.floor(c.t / perDay);
@@ -1058,6 +1065,12 @@
       }
       wallL(ctx, 4.85, 4.95, 25, 49, PAL.sheet);
       wallL(ctx, 3.9, 5.9, 37, 38.5, PAL.sheet);
+      // Відчинене вікно у фіналі: стулка відходить, з вікна б'є світло.
+      const wo = this.cut && this.cut.windowOpen;
+      if (wo) {
+        wallL(ctx, 4.95, 4.95 + 0.95 * wo, 25, 49, 'rgba(255,248,225,' + (0.55 + 0.35 * wo) + ')');
+        wallL(ctx, 4.95 + 0.95 * wo - 0.08, 4.95 + 0.95 * wo, 25, 49, PAL.sheet);
+      }
 
       // Постер з горами в дальньому кінці лівої стіни.
       wallL(ctx, 7.0, 8.5, 22, 42, PAL.ol);
@@ -1490,6 +1503,10 @@
         }
       }
       ctx.putImageData(img, 0, 0);
+      if (this.cut && this.cut.whiteout) {
+        ctx.fillStyle = 'rgba(255,250,236,' + (this.cut.whiteout * 0.92) + ')';
+        ctx.fillRect(0, 0, W, H);
+      }
       // Відблиски швидкої: червоне й синє по черзі.
       if (this.cut && this.cut.flash) {
         ctx.fillStyle = Math.floor(this.t * 4) % 2 ? 'rgba(230,40,50,0.2)' : 'rgba(40,100,240,0.2)';

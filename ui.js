@@ -349,7 +349,7 @@
     return `<div class="invite"><span class="inv-msg"><b>${esc(inv.name)}</b> пише: «${esc(G.inviteText(inv))}»</span>
       <span class="inv-btns">
         <button class="btn primary" data-inv="yes" ${p.available ? '' : 'aria-disabled="true"'}>Покликати${p.cost != null ? ' · ресурс ' + p.cost : ''}</button>
-        <button class="btn" data-inv="no">Відмовити · Люди −${C.friends.refuse}</button>
+        <button class="btn" data-inv="no">Відмовити · Стосунки −${C.friends.refuse}</button>
       </span>
       ${p.available && p.borrow ? `<span class="warn">Наперед ${p.borrow}: завтра на стільки менше ресурсу</span>` : ''}
       ${!p.available ? `<span class="warn">${esc(p.reason)}</span>` : ''}</div>`;
@@ -453,9 +453,9 @@
           <p>Зранку ресурс ${s.spoonsMorning}${eaten ? ', біль з\'їв ' + eaten : ''}${s.coffeeToday ? ', +' + C.actions.coffee.gain + ' від кави' : ''}${s.borrowed ? ', узято наперед ' + s.borrowed : ''}.
           Біль зараз ${p} (${C.states[st].name.toLowerCase()}): базовий ${s.base}, тимчасовий ${s.extra >= 0 ? '+' : '−'}${Math.abs(s.extra)}${s.relief ? ', знято сьогодні −' + s.relief : ''}. Шанс загострення вночі ${flareP}%.</p>
           <p class="why"><b>Ресурс</b> — сили на день, кожна справа коштує ресурсу. Біль з'їдає частину: для болю 1…10 лишається ${C.spoons.slice(1).join(' / ')}.
-          Душа ${L.soulHigh}+ дає ще +1, Душа ${L.soulLow} і нижче — −1. Люди ${L.peopleHelp}+ підхоплюють у поганий ранок: +1. Бракує — можна взяти до ${C.maxBorrow} із завтра.
+          Емоції ${L.soulHigh}+ дають ще +1, ${L.soulLow} і нижче — −1. Стосунки ${L.peopleHelp}+ підхоплюють у поганий ранок: +1. Бракує — можна взяти до ${C.maxBorrow} із завтра.
           Ліг з нулем — завтра біль +${C.night.exhausted}; лишив ${C.night.earlyRest}+ — завтра біль −1.</p>
-          <p class="why"><b>Біль б'є по всьому, але по-різному:</b> менше ресурсу; робота дає менше грошей; з друзями ти «не тут» — зустріч дає менше; вправи дорожчі; з болем 7+ не пишеться і не читається, не встояти біля плити; день у сильному болю гнітить Душу.</p>
+          <p class="why"><b>Біль б'є по всьому, але по-різному:</b> менше ресурсу; робота дає менше грошей; з друзями ти «не тут» — зустріч дає менше; вправи дорожчі; з болем 7+ не пишеться і не читається, не встояти біля плити; день у сильному болю пригнічує емоції.</p>
           <p class="why"><b>Знижують біль:</b> курс ліків (${C.course.steps.join(' і ')} днів поспіль — по −${C.course.drop}), лікар на днях ${C.doctor.days.join(' і ')} (якщо Тіло ${C.doctor.good}+), вправи (через ${C.actions.exercise.reliefIn} дні −${C.actions.exercise.relief}), розтяжка й знеболювальне (сьогодні), лягти з запасом. Лікуванням базовий нижче ніж −${C.maxRelief} не опустиш.
           <b>Підвищують:</b> загострення (шанс тримає Тіло), вичерпаний день, слабке Тіло, відкат знеболювального.</p>
         </div>
@@ -463,10 +463,10 @@
 
       ${sphereSec(s, 'money', `<p>Гроші: ${s.money} ₴. Очікується: ${incoming}.</p>
         <p class="why">Щоночі витрати на життя: ${C.costs.join(' / ')} ₴ за тижнями. Робота — ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; з болем заробляєш менше. Гроші тримають тіло: їжа, ліки. На нулі — кінець.</p>`)}
-      ${sphereSec(s, 'people', `<p class="why">Друзі. Зустріч — ресурс ${C.actions.friends.spoons}: +3 при легкому болю, +2 при помітному, +1 при сильному; на їхнє запрошення ще +${C.actions.friends.invited}. Написати — ресурс ${C.actions.text.spoons}, +1, і кличуть частіше. Відмова чи пропущена зустріч — −${C.friends.refuse}. Люди ${L.peopleHelp}+ підхоплюють у поганий ранок.</p>`)}
+      ${sphereSec(s, 'people', `<p class="why">Друзі. Зустріч — ресурс ${C.actions.friends.spoons}: +3 при легкому болю, +2 при помітному, +1 при сильному; на їхнє запрошення ще +${C.actions.friends.invited}. Написати — ресурс ${C.actions.text.spoons}, +1, і кличуть частіше. Відмова чи пропущена зустріч — −${C.friends.refuse}. Стосунки ${L.peopleHelp}+ підхоплюють у поганий ранок.</p>`)}
       ${sphereSec(s, 'body', `<p>Шанс загострення вночі зараз ${flareP}%.</p><p class="why">Вправи (+${C.actions.exercise.body}, через ${C.actions.exercise.reliefIn} дні біль −1), розтяжка (+1), своя їжа (+1). Без їжі — −${C.hungry.body}. Тіло тримає біль: 7+ — загострення рідко, ${L.bodyWeak} і нижче — завтра біль +1. Лікар дивиться саме на Тіло.</p>`)}
       ${sphereSec(s, 'soul', `<p>${s.song.title ? 'Пісня «' + esc(s.song.title) + '»: ' + s.song.done + ' з ' + C.actions.create.songSessions + '.' : 'Нова пісня ще не розпочата.'} ${(() => { const b = G.bookNow(s); return b ? 'Книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] + '.' : 'Усі книжки прочитані.'; })()}</p>
-        <p class="why">Пісні, книжки, ігри, чистий дім, смачна їжа. Дописана пісня чи дочитана книжка — ще бонус. Душа ${L.soulHigh}+ — зранку ресурс +1, ${L.soulLow} і нижче — −1. Сильний біль гнітить: −1 за ніч.</p>`)}
+        <p class="why">Пісні, книжки, ігри, чистий дім, смачна їжа. Дописана пісня чи дочитана книжка — ще бонус. Емоції ${L.soulHigh}+ — зранку ресурс +1, ${L.soulLow} і нижче — −1. Сильний біль пригнічує: −1 за ніч.</p>`)}
 
       <div class="sec">
         <span class="lbl">Календар</span>
@@ -566,7 +566,7 @@
     openModal(`
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і проходиш ${C.days}-денний курс лікування. Щоранку біль вирішує, скільки в тебе <b>ресурсу</b> — сил на день; решту з'їдає біль.
-      Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Люди</b>, <b>Тіло</b> і <b>Душа</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
+      Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b> і <b>Емоції</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
       <p class="sub">Виграти не можна: рано чи пізно якась сфера посиплеться. Вирішуєш ти — яка і коли. Біль б'є по всьому, але по-різному; на нього впливають вправи, курс ліків, лікар і те, чи береш сили наперед.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
@@ -657,8 +657,11 @@
     const head = sm.lost
       ? `<h2>${esc(sm.lost.text)} на ${sm.lost.day}-й день</h2><p class="lost-line">Курс лікування — ${sm.days} ${dayWord(sm.days)}. Ти протримався ${sm.lost.day} ${dayWord(sm.lost.day)}.</p>`
       : `<h2>Усі ${sm.days} днів позаду</h2><p>Так не мало статися — напиши, як вдалося.</p>`;
+    // Фінал «Емоції згасли» — про найтемніше. Поруч — куди звернутися, якщо так зараз і в житті.
+    const support = sm.lost && sm.lost.sphere === 'soul'
+      ? `<p class="sub">Якщо тобі зараз так само порожньо — ти не сам. Lifeline Ukraine: 7333 (цілодобово, безкоштовно з мобільного).</p>` : '';
     openModal(`
-      ${head}
+      ${head}${support}
       <canvas id="endChart" width="760" height="260" class="end-chart"></canvas>
       <div class="legend">${['money', 'people', 'body', 'soul', 'pain'].map((k) => `<span style="--c:${SPH_HEX[k]}"><i></i>${k === 'pain' ? 'біль' : G.SPHERES[k].name}</span>`).join('')}</div>
       <div class="cols">
@@ -678,7 +681,7 @@
 
   // Перегляд усіх чотирьох фіналів підряд: адреса з ?endings (щоб подивитися, не граючи).
   function demoEndings() {
-    const list = [['money', 'Гроші'], ['friends', 'Люди'], ['body', 'Тіло'], ['joy', 'Душа']];
+    const list = [['money', 'Гроші'], ['friends', 'Стосунки'], ['body', 'Тіло'], ['joy', 'Емоції']];
     game = G.createGame({});
     game.soul = 3;
     let i = 0;
