@@ -554,7 +554,7 @@
       ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loan ? ' Борг: ' + s.loan.amount + ' ₴ (' + esc(s.loan.from) + '), віддати до дня ' + s.loan.due + '.' : ''}</p>
         <ul class="tl">
           <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші через ${C.actions.work.payDelay} дні; біль і настрій змінюють суму), підробіток від друга.</li>
-          <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; раз на тиждень — несподіваний рахунок.</li>
+          <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; двічі на тиждень — несподіваний рахунок.</li>
           <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів (близькі — ${C.actions.loan.close.amount} на ${C.actions.loan.close.dueIn}), Стосунки −${C.actions.loan.people}; не віддав — −${C.actions.loan.late}.</li>
         </ul>`)}
       ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people >= L.peopleGood ? ' Близькі поруч — діють бонуси нижче.' : s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>

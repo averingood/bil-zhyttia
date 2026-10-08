@@ -107,9 +107,13 @@
     for (let i = s.bookOrder.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [s.bookOrder[i], s.bookOrder[k]] = [s.bookOrder[k], s.bookOrder[i]]; }
     // Перша пропозиція від друзів — на 3-й день, щоб календар не був порожнім.
     addInvite(s, 3);
-    // Несподівані витрати: по одній на тиждень, у випадковий день (звістка вночі, платити — наступної ночі).
+    // Несподівані витрати: двічі на тиждень — у першій половині (дні 2–4) і в другій (5–7), звістка вночі, платити — наступної ночі.
     s.surpriseDays = [];
-    for (let w = 0; w * 7 + 2 < s.days; w++) s.surpriseDays.push(Math.min(s.days - 1, w * 7 + 2 + Math.floor(rand(s) * 5)));
+    for (let w = 0; w * 7 + 2 < s.days; w++)
+      for (const [from, span] of [[2, 3], [5, 3]]) {
+        const d = w * 7 + from + Math.floor(rand(s) * span);
+        if (d < s.days) s.surpriseDays.push(d);
+      }
     s.bill = null;
     startDay(s, []);
     return s;
