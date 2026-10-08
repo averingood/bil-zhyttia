@@ -455,8 +455,10 @@
       ev.push({ kind: 'bad', text: 'Біль дійшов до 10. Швидка, лікарня: день випадає, −' + C.hospital.cost + ' ₴' });
     }
 
-    j.night = ev.map((e) => e.text);
     checkLose(s, s.day);
+    // Кінцева ніч: окремої лікарні з поверненням немає — тіло здалося, то й так госпіталізація.
+    if (s.lost && hospital && s.lost.sphere === 'body') { hospital = false; s.money += C.hospital.cost; s.stats.hospital--; ev.splice(ev.findIndex((e) => e.text.startsWith('Біль дійшов до 10')), 1); }
+    j.night = ev.map((e) => e.text);
     if (!s.lost) {
       if (s.day >= s.days) s.finished = true;
       else {

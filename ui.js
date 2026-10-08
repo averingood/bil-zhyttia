@@ -285,7 +285,8 @@
     const r = G.endDay(game);
     room.endVisit(true);
     armed = null;
-    if (r.hospital) {
+    // Лікарня з поверненням додому — лише якщо гра триває; якщо ця ніч кінцева, буде одна фінальна сцена.
+    if (r.hospital && !game.lost) {
       phase = 'cut';
       held.clear(); applyKeys();
       room.playHospital(1, dayWas + 1, () => { $('cutCaption').hidden = true; nightReport(r, dayWas, left); });

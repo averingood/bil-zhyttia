@@ -645,7 +645,7 @@
         case 'away': {
           if (c.final) {
             c.slot = 4;
-            c.caption = 'Курс лікування перервано.';
+            c.caption = 'Курс лікування доведеться починати заново.';
             if (c.t > 2.4) { const done = c.onDone; this.cut = null; done && done(); return; }
             break;
           }
