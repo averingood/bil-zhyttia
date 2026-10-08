@@ -36,7 +36,7 @@
   const ACTION_IDS = Object.keys(ACTIONS);
 
   const SPHERES = {
-    money:  { name: 'Гроші', fall: 'Гроші скінчилися', ending: 'money' },
+    money:  { name: 'Гроші', fall: 'Нема чим платити — виселили', ending: 'money' },
     people: { name: 'Стосунки', fall: 'Стосунки розпалися', ending: 'friends' },
     body:   { name: 'Тіло', fall: 'Тіло здалося: госпіталізація', ending: 'body' },
     soul:   { name: 'Емоції', fall: 'Емоції згасли', ending: 'joy' },
@@ -449,9 +449,17 @@
     s.money -= cost;
     ev.push({ kind: 'money', text: 'Витрати на життя: −' + cost + ' ₴' });
 
+    // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі вона в безпеці.
+    s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
+    const safe = {};
+    for (const k of SOFT) if (s.crisis[k] != null && s[k] > 0) {
+      delete s.crisis[k]; safe[k] = true;
+      const left = C.crises - (s.crisesUsed[k] || 0);
+      ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля, цієї ночі в безпеці' + (left > 0 ? ' (запас: ще ' + left + ')' : ' (запасу більше немає — наступний нуль стане кінцем)') });
+    }
     // Сфери тануть: самі собою і від тиску життя.
-    for (const k of SOFT) s[k] = clampS(s[k] - C.decay);
-    ev.push({ kind: 'info', text: 'Сфери тануть самі собою: Стосунки, Тіло, Емоції −' + C.decay });
+    for (const k of SOFT) if (!safe[k]) s[k] = clampS(s[k] - C.decay);
+    ev.push({ kind: 'info', text: 'Сфери тануть самі собою: ' + SOFT.filter((k) => !safe[k]).map((k) => SPHERES[k].name).join(', ') + ' −' + C.decay });
     const pr = pressureOf(s.day);
     if (pr) {
       // Пощада: сфери на межі (≤ mercy) тиск обходить, поки є інші — щоб було з чого виплутатись.
@@ -459,8 +467,8 @@
       let pool = []; const hit = [], got = {};
       for (let i = 0; i < pr; i++) {
         if (!pool.length) {
-          pool = SOFT.filter((k) => s[k] > C.mercy && (got[k] || 0) < C.perSphere);
-          if (!pool.length) pool = SOFT.filter((k) => (got[k] || 0) < C.perSphere);
+          pool = SOFT.filter((k) => !safe[k] && s[k] > C.mercy && (got[k] || 0) < C.perSphere);
+          if (!pool.length) pool = SOFT.filter((k) => !safe[k] && (got[k] || 0) < C.perSphere);
           if (!pool.length) break;
         }
         const k = pool.splice(Math.floor(rand(s) * pool.length), 1)[0]; s[k] = clampS(s[k] - 1); hit.push(SPHERES[k].name); got[k] = (got[k] || 0) + 1;
@@ -565,21 +573,32 @@
     return { events: ev, flare, hospital: hospital ? 1 : false };
   }
 
-  // Сфера на нулі — ще не кінець: є C.grace днів, щоб вибратися. Не вибрався — кінець.
-  // В останній день курсу часу вже немає: нуль — це кінець.
+  // Нуль — ще не кінець. Стосунки/Тіло/Емоції: криза — наступного дня треба підняти вище нуля (перевіряється
+  // наступної ночі ще до танення); кожна сфера має запас C.crises криз, далі нуль — кінець.
+  // Гроші: на нулі є C.graceMoney днів, щоб знайти, чим платити; не знайшов — виселяють.
+  // В останній день курсу часу вже немає: нуль — кінець.
   function checkLose(s, day, ev) {
     if (s.lost) return;
     ev = ev || [];
-    s.crisis = s.crisis || {};
-    const fallen = (s.money <= 0 ? ['money'] : []).concat(SOFT.filter((k) => s[k] <= 0));
-    for (const k of Object.keys(s.crisis)) if (!fallen.includes(k)) { delete s.crisis[k]; ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' знову вище нуля' }); }
+    s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
     const lose = (k) => { s.lost = { cause: SPHERES[k].ending, sphere: k, day, sphereName: SPHERES[k].name, text: SPHERES[k].fall }; };
-    for (const k of fallen) {
-      if (s.crisis[k] == null) {
-        if (day >= s.days) { lose(k); return; }
-        s.crisis[k] = day + C.grace;
-        ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! ' + (C.grace === 1 ? 'Виправити можна лише завтра — інакше кінець' : 'Є ' + C.grace + ' дні, щоб вибратися (до кінця дня ' + s.crisis[k] + '), інакше кінець') });
-      } else if (day >= s.crisis[k] || day >= s.days) { lose(k); return; }
+    // Гроші.
+    if (s.money <= 0) {
+      if (day >= s.days) { lose('money'); return; }
+      if (s.crisis.money == null) {
+        s.crisis.money = day + C.graceMoney;
+        ev.push({ kind: 'flare', text: 'Гроші на нулі! ' + C.graceMoney + ' дні, щоб знайти, чим платити (до кінця дня ' + s.crisis.money + '), — інакше виселять' });
+      } else if (day >= s.crisis.money) { lose('money'); return; }
+    } else if (s.crisis.money != null) { delete s.crisis.money; ev.push({ kind: 'good', text: 'Вибрався: гроші знову є' }); }
+    // Стосунки, Тіло, Емоції.
+    for (const k of SOFT) {
+      if (s[k] > 0) continue;
+      if (s.crisis[k] != null || day >= s.days) { lose(k); return; }   // не підняв за день — кінець
+      s.crisesUsed[k] = (s.crisesUsed[k] || 0) + 1;
+      if (s.crisesUsed[k] > C.crises) { lose(k); return; }               // запас вичерпано
+      s.crisis[k] = day + 1;
+      const left = C.crises - s.crisesUsed[k];
+      ev.push({ kind: 'flare', text: SPHERES[k].name + ' на нулі! Завтра треба підняти вище нуля — інакше кінець' + (left ? ' (запас криз: ще ' + left + ')' : ' (це остання криза)') });
     }
   }
 
@@ -630,7 +649,7 @@
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
-    if (id === 'games') fx.push({ t: Math.round(C.actions.games.tomorrowChance * 100) + '% засидітись: завтра ресурс −' + C.actions.games.tomorrow, kind: 'pain' });
+    if (id === 'games') fx.push({ t: 'Засидишся: ' + Math.round(C.actions.games.tomorrowChance * 100) + '% шанс втратити ' + C.actions.games.tomorrow + ' ресурс завтра', kind: 'pain' });
     else if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
     if (id === 'coffee') { fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' }); fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' }); }
@@ -678,7 +697,9 @@
     const out = [];
     if (s.lost || s.finished) return out;
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
-    for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: SPHERES[k].name + ' на нулі: ' + (d === s.day ? 'сьогодні' : 'до кінця дня ' + d) + ' треба підняти, інакше кінець.' });
+    for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: k === 'money'
+      ? 'Гроші на нулі: до кінця дня ' + d + ' знайди, чим платити, — інакше виселять.'
+      : SPHERES[k].name + ' на нулі: сьогодні підніми вище нуля, інакше кінець.' });
     for (const d of calendar(s, 4)) {
       const w = when(d.day);
       const inv = s.invites[d.day];

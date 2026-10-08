@@ -1390,7 +1390,7 @@
             const f = this.visit.friends.find((x) => x.floor && x.seat === BOARD_SPOTS[i]);
             if (f && f.sit > 0) {
               const from = P(f.front[0], f.front[1], 0).map(Math.round), to = P(cx, cy, 2).map(Math.round);
-              this.drawSitter(ctx, f, f.pal, f.long, from, [to[0], to[1] - 1], true);
+              this.drawSitter(ctx, f, f.pal, f.long, from, [to[0], to[1] - 1], i !== 2);   // з боку компа — обличчям до нас
             }
           }, null, [cx - 0.3, cy - 0.3, 0.6, 0.6]);
         });

@@ -428,7 +428,8 @@
     return `<div class="sec tipped sph ${danger ? 'danger' : ''}" tabindex="0" style="--c:${SPH_COLOR[k]}">
       <div class="sec-h"><span class="lbl">${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
       <div class="meter">${cells}</div>
-      <div class="tip">${tip}</div></div>`;
+      <div class="tip">${tip}${isMoney ? `<p class="why">На нулі — ${C.graceMoney} дні, щоб знайти, чим платити, інакше виселять.</p>`
+        : `<p class="why">На нулі — є наступний день, щоб підняти вище нуля. Запас криз: ${C.crises - ((s.crisesUsed || {})[k] || 0)} з ${C.crises}.</p>`}</div></div>`;
   }
 
   function renderPanel() {
