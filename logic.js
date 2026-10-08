@@ -782,7 +782,7 @@
     if (s.lost || s.finished) return null;
     const a = clone(s), b = clone(s);
     const ra = endDay(a, { forceFlare: false }), rb = endDay(b, { forceFlare: true });
-    return { lost: a.lost, lostFlare: b.lost, hospital: !!ra.hospital, hospitalFlare: !!rb.hospital,
+    return { lost: a.lost, lostFlare: b.lost, hospital: !!ra.hospital, hospitalFlare: !!rb.hospital, events: ra.events,
       pain: a.lost || a.finished ? null : pain(a), painFlare: b.lost || b.finished ? null : pain(b) };
   }
 
@@ -875,6 +875,7 @@
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
     for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: k === 'money'
       ? 'Гроші на нулі: до кінця дня ' + d + ' знайди, чим платити, — інакше виселять.'
+      : s[k] > 0 ? SPHERES[k].name + ' вчора було на нулі, зараз ' + s[k] + ': не дай йому знову впасти до нуля цієї ночі, інакше кінець.'
       : SPHERES[k].name + ' на нулі: сьогодні підніми вище нуля, інакше кінець.' });
     for (const d of calendar(s, 4)) {
       const w = when(d.day);

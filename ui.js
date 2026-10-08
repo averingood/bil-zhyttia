@@ -338,7 +338,7 @@
     const fc = G.forecastNight(game);
     if (fc && (fc.lost || fc.hospital)) {
       const title = fc.lost ? 'Після цієї ночі гра закінчиться' : 'Цієї ночі доведеться в лікарню';
-      const text = fc.lost ? esc(lossWarning(fc.lost)) : `Біль дійде до 10, приїде швидка: день випаде, −${C.hospital.cost} ₴.`;
+      const text = fc.lost ? esc(lossWarning(fc.lost, fc)) : `Біль дійде до 10, приїде швидка: день випаде, −${C.hospital.cost} ₴.`;
       openModal(`
         <h2>${title}</h2>
         <p>${text} Можна ще щось змінити, якщо лишився ресурс.</p>
@@ -679,7 +679,7 @@
       <button class="btn ghost" id="restartBtn">Почати заново</button>
       ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально): скинути до нуля, потім завершити день</span>
         <div class="row">${['money', 'people', 'body', 'soul'].map((k) => `<button class="btn" data-zero="${k}">${G.SPHERES[k].name} → 0</button>`).join('')}</div></div>` : ''}
-      ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost))}</div>` : ''}
+      ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost, fc))}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
     $('endBtn').onclick = endDayClick;
@@ -689,14 +689,27 @@
   }
 
   // Попередження про кінець — чесно: що саме станеться і чи ще можна встигнути щось зробити сьогодні.
-  function lossWarning(lost) {
-    const k = lost.sphere, name = G.SPHERES[k].name, crisis = (game.crisis || {})[k];
+  // Чесно: скільки сфера має зараз і що саме вночі зіб'є її до нуля.
+  function lossWarning(lost, fc) {
+    const k = lost.sphere, name = G.SPHERES[k].name, crisis = (game.crisis || {})[k], end = ' — кінець (' + lost.text.toLowerCase() + ').';
     if (k === 'money') return crisis != null
       ? 'Сьогодні останній день знайти гроші. Не знайдеш — уночі виселять.'
       : 'Уночі гроші скінчаться, а часу на порятунок не лишиться: виселять.';
-    if (crisis != null) return name + ' на нулі. Не піднімеш сьогодні — уночі кінець (' + lost.text.toLowerCase() + ').';
-    if (game.day >= game.days) return 'Останній день: якщо ' + name.toLowerCase() + ' впаде до нуля, порятунку вже не буде.';
-    return 'Уночі ' + name.toLowerCase() + ' впаде до нуля, а запасу криз уже немає — кінець (' + lost.text.toLowerCase() + ').';
+    // Причини коротко: «знову без їжі −2, тане саме собою −1».
+    const why = [];
+    for (const e of (fc && fc.events) || []) {
+      if (!e.text.includes(name)) continue;
+      const pre = e.text.split(':')[0], m = e.text.match(new RegExp(name + '[^−]*−(\\d+)')) || e.text.match(/−(\d+)/);
+      if (!m) continue;
+      const label = pre.startsWith('Сфери тануть') ? 'тане саме собою' : pre.startsWith('Життя тисне') ? 'тиск життя' : pre.toLowerCase();
+      why.push(label + ' −' + m[1]);
+    }
+    const because = why.length ? ' (' + why.join(', ') + ')' : '';
+    const now = game[k];
+    if (crisis != null && now <= 0) return name + ' на нулі. Не піднімеш сьогодні — уночі' + end;
+    if (crisis != null) return name + ' зараз ' + now + ', але вночі знову впаде до нуля' + because + '. Учора воно вже було на нулі, тож другий нуль поспіль' + end;
+    if (game.day >= game.days) return 'Останній день: ' + name.toLowerCase() + ' зараз ' + now + ', уночі впаде до нуля' + because + ', а порятунку вже не буде.';
+    return name + ' зараз ' + now + ', уночі впаде до нуля' + because + ', а запасу криз уже немає' + end;
   }
 
   // ---------- підказки секцій ----------
@@ -777,6 +790,8 @@
     const m = $('modal');
     m.innerHTML = `<div class="dlg" role="dialog" aria-modal="true">${html}</div>`;
     m.hidden = false;
+    // Клік поза вікном закриває те, що можна закрити (щоденник, правила тижня…).
+    m.onclick = (e) => { if (e.target === m && modalClosable) closeModal(); };
     held.clear(); applyKeys();
   }
   function closeModal() { $('modal').hidden = true; $('modal').innerHTML = ''; }
@@ -841,7 +856,7 @@
     if (!game) return;
     const back = phase === 'end' ? showEnd : closeModal;
     // Кнопка закриття — вгорі, щоб не гортати до кінця; Esc теж закриває.
-    openModal(`<div class="j-head"><h2>Щоденник</h2><button class="btn primary" id="jClose">${phase === 'end' ? 'До підсумку' : 'Закрити'} <kbd>Esc</kbd></button></div>${journalHTML()}`, phase !== 'end');
+    openModal(`<div class="j-head"><h2>Щоденник</h2>${phase === 'end' ? '<button class="btn primary" id="jClose">До підсумку</button>' : '<button class="x-close" id="jClose" title="Закрити (Esc)" aria-label="Закрити">✕</button>'}</div>${journalHTML()}`, phase !== 'end');
     $('jClose').onclick = back;
     $('jClose').focus();
   }
