@@ -644,6 +644,7 @@
       const b = bookNow(s), n = s.book.done + 1;
       fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
     }
+    if (id === 'friends') fx.push(inviteToday(s) ? { t: inviteToday(s).name + ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' просить — дешевше', kind: 'good' } : { t: 'кличеш сам — ресурс ' + C.actions.friends.spoons, kind: 'info' });
     if (id === 'loan') fx.push({ t: 'віддати ' + C.actions.loan.amount + ' ₴ до дня ' + (s.day + C.actions.loan.dueIn) + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
     if (id === 'course') fx.push({ t: 'пігулок за тиждень: ' + (pillsInWeek(s) + 1) + ' з ' + C.course.need, kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%', kind: 'pain' });

@@ -29,6 +29,8 @@
     renderAll();
   }
 
+  // Налагодження: на localhost (чи з ?debug) — кнопки скинути сфери до нуля.
+  const DEBUG = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /[?&]debug\b/.test(location.search);
   const STATE_COLOR = { light: 'var(--light)', medium: 'var(--medium)', strong: 'var(--strong)' };
   const SPH_COLOR = { money: 'var(--money)', people: 'var(--joy)', body: 'var(--light)', soul: 'var(--soul)' };
   const SPH_HEX = { money: '#e6c35a', people: '#e58fa8', body: '#8fcf7e', soul: '#8fb4ff', pain: '#df5b4f' };
@@ -352,7 +354,10 @@
       <div class="ab-list">${list.map((a, i) => actionButton(a, i)).join('')}</div>`;
     el.querySelectorAll('.act').forEach((b) => { b.onclick = () => act(b.dataset.id); });
     bindInvite(el);
+    fitBar(el);
   }
+  // Без прокрутки: якщо на вузькому екрані не влазить — блок підростає, а не ріже вміст.
+  function fitBar(el) { el.style.height = ''; if (el.scrollHeight > el.clientHeight + 1) el.style.height = 'auto'; }
 
   function inviteBanner() {
     const inv = G.inviteToday(game);
@@ -513,12 +518,15 @@
       </div>
       <div class="sub">Якщо лягти зараз: ${esc(G.sleepGainText(s))}.</div>
       <button class="btn ghost" id="restartBtn">Почати заново</button>
+      ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально): скинути до нуля, потім завершити день</span>
+        <div class="row">${['money', 'people', 'body', 'soul'].map((k) => `<button class="btn" data-zero="${k}">${G.SPHERES[k].name} → 0</button>`).join('')}</div></div>` : ''}
       ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">Після ночі: ${esc(fc.lost.text.toLowerCase())}</div>` : fc && fc.lostFlare ? `<div class="warn">Якщо вночі загострення — ${esc(fc.lostFlare.text.toLowerCase())}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
     $('endBtn').onclick = endDayClick;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
+    document.querySelectorAll('[data-zero]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; game[b.dataset.zero] = 0; toast(G.SPHERES[b.dataset.zero].name + ' → 0. Заверши день, щоб побачити, що буде.'); renderAll(); }; });
   }
 
   // ---------- підказки секцій ----------

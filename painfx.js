@@ -56,6 +56,12 @@
       }
       // Кожен напад трохи іншого розміру (від −5% до +15% діаметра): так не вивчиш, де саме край і що лишиться видно.
       if (glitch && glitch.scale == null) glitch.scale = 0.95 + Math.random() * 0.2;
+      // Накочує біль — сцена легенько здригається (раз на кожен напад).
+      if (glitch && !glitch.shook && t >= glitch.start - gi && g.canvas && g.canvas.parentElement) {
+        glitch.shook = true;
+        const el = g.canvas.parentElement;
+        el.classList.remove('shake-soft'); void el.offsetWidth; el.classList.add('shake-soft');
+      }
       paint(t, pain / 10, grow, glitch ? glitch.scale : 1);
       ctx.putImageData(buf, 0, 0);
       g.imageSmoothingEnabled = false;
