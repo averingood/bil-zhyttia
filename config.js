@@ -109,7 +109,7 @@
       stretch:  { spoons: 1, body: 1, reliefToday: 1 },   // скільки завгодно разів на день
       cook:     { spoons: { light: 1, medium: 1, strong: null }, money: 5, body: 1, soulIfTasty: 1, minCover: 0.25 },
       delivery: { spoons: 0, money: 14 },
-      coffee:   { spoons: 0, perDay: 2, money: 6, gain: 1, flareAdd: 0.20, secondTomorrow: 1 },   // друга чашка за день — ще й завтра ресурс −1
+      coffee:   { spoons: 0, money: 6, gain: 1, flareAdd: 0.20, secondTomorrow: 1 },   // скільки завгодно; з другої чашки — ще й завтра ресурс −1 (поки є що брати із завтра)
       course:   { spoons: 0, perDay: 1 },
       meds:     { spoons: 0, perDay: 1, money: 12, reliefToday: 2, flareAdd: 0.15, side: { chance: 0.25, soul: 1 } },   // замість відкату — шанс загострення вночі +11%
       read:     { spoons: 1, soul: 1, maxPain: 6, finishSoul: 4 },

@@ -247,6 +247,10 @@
         if (s.money < l.amount) return no('Не вистачає грошей: треба ' + l.amount + ' ₴');
         break;
       }
+      case 'coffee':
+        // З другої чашки кава бере із завтра — не більше, ніж можна взяти наперед.
+        if (s.coffeeToday >= 1 && a.secondTomorrow && s.spoonTomorrow + a.secondTomorrow > C.maxBorrow) return no('Завтрашній ресурс уже весь узято наперед');
+        break;
       case 'board':
         if (s.day - (s.boardDay != null ? s.boardDay : -99) < a.cooldown) return no('Настолки — раз на тиждень: наступні з дня ' + (s.boardDay + a.cooldown));
         if (!freeFriends(s).length) return no('Ти всім винен — кликати нікого');
@@ -402,7 +406,7 @@
         s.spoons += a.gain; s.coffeeToday++;
         // Друга чашка: сили зараз — у борг завтрашньому ранку.
         note = 'ресурс +' + a.gain + ', шанс загострення вночі +' + Math.round(a.flareAdd * 100) + '%';
-        if (s.coffeeToday >= 2 && a.secondTomorrow) { s.spoonTomorrow += a.secondTomorrow; note = 'друга кава: ' + note + ', завтра ресурс −' + a.secondTomorrow; }
+        if (s.coffeeToday >= 2 && a.secondTomorrow) { s.spoonTomorrow += a.secondTomorrow; note = s.coffeeToday + '-га кава: ' + note + ', завтра ресурс −' + a.secondTomorrow; }
         break;
       case 'course': {
         s.money -= C.course.money;
