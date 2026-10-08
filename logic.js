@@ -313,7 +313,7 @@
         else if (!opts.noTalk) {
           // Без міні-гри розмова розігрується сама: що сильніший біль, то частіше пропускаєш суть.
           const missed = rand(s) < (C.painCover[st] || 0) * 0.7;
-          if (missed) { s.people = clampS(s.people - 1); s.stats.talkMissed++; note += '; пропустив суть розмови, Стосунки −1'; }
+          if (missed) { s.people = clampS(s.people - 1); s.soul = clampS(s.soul - 1); s.stats.talkMissed++; note += '; пропустив суть розмови, Стосунки −1, Настрій −1'; }
           else s.stats.talkHeard++;
         }
         break;
@@ -442,11 +442,15 @@
     pendingTalk = null;
     const T = C.friends.talk.joy;
     const sum = (kinds || []).reduce((acc, k) => acc + (T[k] || 0), 0);
+    // Вдалась — Стосунки +1. Так собі — Настрій −1. Не склалась (біль заглушив, відповідав невлад) — Стосунки −1 і Настрій −1.
     const d = sum > 0 ? 1 : sum < 0 ? -1 : 0;
-    s.people = clampS(s.people + d);
+    if (d > 0) s.people = clampS(s.people + 1);
+    if (d < 0) s.people = clampS(s.people - 1);
+    if (d <= 0) s.soul = clampS(s.soul - 1);
     if ((kinds || []).some((k) => k === 'silent' || k === 'wrong')) s.stats.talkMissed++; else s.stats.talkHeard++;
     s.lastTalkMissed = d < 0;
-    return d > 0 ? 'розмова вдалась: Стосунки +1' : d < 0 ? 'біль заглушив розмову: Стосунки −1' : 'розмова як розмова';
+    s.lastTalk = d > 0 ? 'good' : d < 0 ? 'bad' : 'meh';
+    return d > 0 ? 'розмова вдалась: Стосунки +1' : d < 0 ? 'розмова не склалась: Стосунки −1, Настрій −1' : 'розмова так собі: Настрій −1';
   }
 
   // Зняти тимчасовий біль: не «до ночі», а насправді — він далі спадає вже з нового рівня.

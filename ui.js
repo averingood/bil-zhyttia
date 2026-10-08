@@ -251,8 +251,8 @@
       tomorrow: game.spoonTomorrow, future: game.future.length,
     };
   }
-  function showDelta(b) {
-    const a = snap(), parts = [];
+  function showDelta(b, title) {
+    const a = snap(), parts = title ? [{ t: title, k: 'ttl' }] : [];
     const sg = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
     for (const k of ['people', 'body', 'soul']) if (a[k] !== b[k]) parts.push({ t: G.SPHERES[k].name + ' ' + sg(a[k] - b[k]), k: a[k] > b[k] ? 'good' : 'bad' });
     if (a.pending > b.pending) parts.push({ t: '+' + (a.pending - b.pending) + ' ₴ через ' + C.actions.work.payDelay + ' дні', k: 'good' });
@@ -263,7 +263,7 @@
     if (a.fed && !b.fed) parts.push({ t: game.foodType === 'guests' ? 'друзі нагодували' : 'їжа на день є', k: game.foodType === 'guests' ? 'good' : '' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
     if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '»!', k: 'good' });
-    if (!parts.length) return;
+    if (parts.length <= (title ? 1 : 0)) return;
     const el = document.createElement('div');
     el.className = 'delta';
     el.innerHTML = parts.map((x) => `<span class="${x.k}">${esc(x.t)}</span>`).join('');
@@ -301,7 +301,7 @@
         // Пропущено: розмова «сама» — біль іноді не дає почути суть.
         const kinds = sceneSkipped ? [Math.random() < (C.painCover[G.stateKey(game)] || 0) * 0.7 ? 'silent' : 'right'] : res.kinds;
         const note = G.applyTalk(game, kinds);
-        showDelta(before);
+        showDelta(before, { good: 'Розмова вдалась:', meh: 'Розмова так собі:', bad: 'Розмова не склалась:' }[game.lastTalk]);
         const j = game.journal.find((e) => e.day === game.day);
         if (j && j.did.length && note) j.did[j.did.length - 1] = j.did[j.did.length - 1].replace(/\)$/, '; ' + note + ')');
         phase = 'play';
