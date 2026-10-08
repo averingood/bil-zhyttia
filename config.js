@@ -81,7 +81,7 @@
     // perDay — скільки разів на день. Сфера й віддача описані в logic.js, числа — тут.
     actions: {
       work:     { spoons: 2, payDelay: 2, pay: { light: 40, medium: 33, strong: 21 } },   // не більше 40 ₴ за день
-      games:    { spoons: 1, perDay: 1, soul: 3, perJumps: 2, tomorrow: 1, jumps: 4,
+      games:    { spoons: 1, perDay: 1, soul: 3, perJumps: 2, ease: 1, tomorrow: 1, tomorrowChance: 0.3, jumps: 4,   // відволікає: тимчасовий біль −1; 30% засидітись
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
       create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 6 },
       friends:  { spoons: 2, inviteSpoons: 1, perDay: 1, people: { light: 4, medium: 3, strong: 2 }, invited: 1 },   // зустріч вигідніша за «написати» навіть у сильному болю

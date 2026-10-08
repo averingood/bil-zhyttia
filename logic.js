@@ -235,8 +235,10 @@
         const run = opts.runner || { cleared: rand(s) < (a.painChance[st] || 0.25) ? 1 + Math.floor(rand(s) * 2) : a.jumps };
         const gain = a.soul + Math.floor(run.cleared / a.perJumps) - 1;
         s.soul = clampS(s.soul + gain);
-        s.spoonTomorrow += a.tomorrow;
-        note = 'Емоції +' + gain + ', засидівся — завтра ресурс −' + a.tomorrow;
+        ease(s, a.ease);   // гра відволікає від болю
+        const late = rand(s) < a.tomorrowChance;
+        if (late) s.spoonTomorrow += a.tomorrow;
+        note = 'Емоції +' + gain + ', біль відступив на ' + a.ease + (late ? '; засидівся — завтра ресурс −' + a.tomorrow : '');
         break;
       }
       case 'create': {
@@ -628,7 +630,8 @@
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ на день ' + p.day, kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
-    if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
+    if (id === 'games') fx.push({ t: Math.round(C.actions.games.tomorrowChance * 100) + '% засидітись: завтра ресурс −' + C.actions.games.tomorrow, kind: 'pain' });
+    else if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
     if (id === 'coffee') { fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' }); fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' }); }
     if (after.fed && !s.fed) fx.push({ t: after.foodType === 'guests' ? 'друзі нагодують' : 'їжа на день є', kind: 'info' });

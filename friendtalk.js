@@ -428,8 +428,9 @@
       }
       const d = T.joy[kind];
       $q('.sc-msg').className = 'sc-msg ' + (d > 0 ? 'good' : d < 0 ? 'bad' : '');
-      $q('.sc-msg').textContent = (kind === 'silent' ? 'Ти промовчав. ' : '') + 'Радість ' + (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d) +
-        (d < 0 ? ', кличуть рідше' : kind === 'right' ? ', ' + cur.tp.speaker + ' теплішає' : '');
+      // Без чисел: підсумок розмови (Стосунки ±1) — у кінці.
+      $q('.sc-msg').textContent = kind === 'right' ? cur.tp.speaker + ' теплішає.' : kind === 'meh' ? 'Нейтрально.'
+        : (kind === 'silent' ? 'Ти промовчав — ' : 'Невлучно — ') + cur.tp.speaker + ' засмучується.';
       cur.reaction = { text: say, from: performance.now() / 1000, until: performance.now() / 1000 + 2.2 };
       setTimeout(() => { if (done) return; n++; $q('.sc-msg').textContent = ''; if (n < topics.length) play(); else finish(); }, 2400);
     }
@@ -447,7 +448,7 @@
       const sum = kinds.reduce((a, k) => a + T.joy[k], 0);
       $q('.sc-answers').innerHTML = '';
       $q('.sc-msg').className = 'sc-msg ' + (sum > 0 ? 'good' : sum < 0 ? 'bad' : '');
-      $q('.sc-msg').textContent = 'Розмова: радість ' + (sum > 0 ? '+' : sum < 0 ? '−' : '±') + Math.abs(sum) + '.';
+      $q('.sc-msg').textContent = sum > 0 ? 'Розмова вдалась: Стосунки +1.' : sum < 0 ? 'Біль заглушив розмову: Стосунки −1.' : 'Розмова як розмова.';
       setKeys((e) => { if (e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape') close(); else return false; });
       // Виходити нема з чого обирати — сцена закривається сама, Enter пришвидшує.
       setTimeout(close, 500);

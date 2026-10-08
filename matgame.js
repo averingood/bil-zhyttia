@@ -138,7 +138,8 @@
       $q('#scCount').textContent = '';
       $q('.sc-answers').innerHTML = '';
       const share = total ? right / total : 0;
-      const q = share >= M.reliefShare ? 'завтра біль менший.' : share >= M.baseShare ? 'день іде в залік базового болю.' : 'цього разу не зараховано, але й гірше не стало.';
+      const E = C.actions.exercise;
+      const q = share >= M.reliefShare ? 'Тіло +' + E.body + ', через ' + E.reliefIn + ' дні біль −' + E.relief + '.' : share >= M.baseShare ? 'частково: Тіло +' + E.partialBody + ', без полегшення потім.' : 'замало — не зараховано, але й гірше не стало.';
       msg('Зараховано рухів ' + right + ' з ' + total + ': ' + q, share >= M.baseShare ? 'good' : '');
       setTimeout(close, 500);
     }

@@ -262,7 +262,7 @@
         : ok ? pick(['Чудово, дякую.', 'Так, саме так.', 'Правильно, працюємо.', 'Добре, що ти уважний.', 'Точно. Дякую.'])
         : pick(['Ні, це не так. Уважніше, будь ласка.', 'Ні-ні, я казала інакше.', 'Не зовсім. Слухай уважніше.', 'Ні. Запиши собі, будь ласка.', 'Мимо. Я ж щойно казала.']);
       $q('.sc-msg').className = 'sc-msg ' + (pay > 0 ? 'good' : 'bad');
-      $q('.sc-msg').textContent = reply + ' ' + (pay > 0 ? '+' : '−') + Math.abs(pay) + ' ₴';
+      $q('.sc-msg').textContent = reply + ' ' + (pay > 0 ? '+' + pay + ' ₴' : pay < 0 ? '−' + Math.abs(pay) + ' ₴' : '(без оплати)');
       cur.reaction = { text: reply, from: performance.now() / 1000, until: performance.now() / 1000 + 1.8 };
       setTimeout(() => { if (done) return; n++; $q('.sc-msg').textContent = ''; if (n < M.questions) play(); else finish(); }, 1900);
     }
