@@ -388,7 +388,9 @@
         break;
       case 'coffee':
         s.spoons += a.gain; s.coffeeToday++;
+        // Друга чашка: сили зараз — у борг завтрашньому ранку.
         note = 'ресурс +' + a.gain + ', шанс загострення вночі +' + Math.round(a.flareAdd * 100) + '%';
+        if (s.coffeeToday >= 2 && a.secondTomorrow) { s.spoonTomorrow += a.secondTomorrow; note = 'друга кава: ' + note + ', завтра ресурс −' + a.secondTomorrow; }
         break;
       case 'course': {
         s.money -= C.course.money;
@@ -771,7 +773,10 @@
     if (id === 'games') fx.push({ t: 'Засидишся: ' + Math.round(C.actions.games.tomorrowChance * 100) + '% шанс втратити ' + C.actions.games.tomorrow + ' ресурс завтра', kind: 'pain' });
     else if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
     if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
-    if (id === 'coffee') { fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' }); fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' }); }
+    if (id === 'coffee') {
+      fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' });
+      fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' });
+    }
     if (after.fed && !s.fed) fx.push({ t: after.foodType === 'guests' ? 'друзі нагодують' : 'їжа на день є', kind: 'info' });
     if (id === 'cook' && s.foodType === 'guests') fx.push({ t: 'друзі вже погодували', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
