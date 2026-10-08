@@ -901,7 +901,7 @@
     if (st.meetings) kept.push('Зустрічі з друзями: ' + st.meetings);
     if (st.earned) kept.push('Зароблено ' + st.earned + ' ₴');
     if (st.exercise) kept.push('Днів із ЛФК: ' + st.exercise);
-    if (st.coursePills) kept.push('Курсових пігулок: ' + st.coursePills);
+    if (st.coursePills) kept.push('Прийнято пігулок: ' + st.coursePills);
     // Лікування: як мінявся базовий біль від огляду до огляду.
     if (s.doctorVisits.length) {
       const line = 'Базовий біль: ' + s.baseStart + s.doctorVisits.map((v) => ' → ' + v.after).join('') + (s.doctorVisits.some((v) => v.final) ? ' (фінальний огляд)' : '');
@@ -917,7 +917,9 @@
     if (st.invitesRefused) lostItems.push('Відмов друзям: ' + st.invitesRefused);
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
     if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
-    if (st.surprises) lostItems.push('Несподівані витрати: ' + st.surprises + ' ₴');
+    // Кому так і не віддав — ті друзі вже не прийдуть.
+    const lostTo = [...new Set(s.loans.map((l) => l.from))];
+    if (lostTo.length) lostItems.push('Втрачено ' + lostTo.length + ' ' + (lostTo.length === 1 ? 'друга' : 'друзів') + ' через борг: ' + lostTo.join(', '));
     if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loans.length ? ', не повернуто ' + s.loans.reduce((x, l) => x + l.amount, 0) + ' ₴' : ''));
     if (st.blocks) kept.push('Платних процедур: ' + st.blocks);
     if (st.talkMissed) lostItems.push('Не почув друзів: ' + st.talkMissed + ' р.');
