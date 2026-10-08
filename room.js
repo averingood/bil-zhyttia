@@ -802,6 +802,23 @@
       this.target = null;
     }
 
+    // «Пропустити» для візиту: якщо попереду розмова — одразу всі сидять і вона починається; інакше гості просто йдуть.
+    skipVisit() {
+      const v = this.visit;
+      if (!v) return false;
+      if (v.onSeated && !v.hold) {
+        this.speech = [];
+        v.friends.forEach((f) => { f.path = []; f.moving = false; f.x = f.front[0]; f.y = f.front[1]; f.sit = 1; f.sitDir = 0; f.seated = true; });
+        this.path = []; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; this.hero.sit = 1; this.hero.sitDir = 0; this.hero.sitting = true;
+        v.phase = 'talk'; v.t = 0; v.hold = true;
+        const cb = v.onSeated; v.onSeated = null; cb();
+        return true;
+      }
+      if (v.hold) return false;   // іде розмова від першої особи — її пропускає сцена
+      this.endVisit(true);
+      return true;
+    }
+
     setHeroSit(v) {
       const h = this.hero, was = h.sit > 0;
       h.sit = v; h.sitDir = 0; h.sitting = v > 0;

@@ -82,6 +82,7 @@
     }
     room.update(dt);
     room.render();
+    { const sk = $('skipBtn'), want = !!game && ((phase === 'scene' && !!sceneAbort) || phase === 'cut' || canSkipAnim()); if (sk.hidden === want) sk.hidden = !want; }
     const cap = $('cutCaption'), text = room.cut ? room.cut.caption : '';
     if (cap.textContent !== text) cap.textContent = text;
     cap.hidden = !text;
@@ -188,6 +189,9 @@
   }
   function skipNow() {
     if (phase === 'cut') { room.skipCut(); return; }
+    // Звичайні анімації: візит друзів, бульбашка дії, світіння монітора.
+    if (room.visit && room.skipVisit()) { renderAll(); return; }
+    if (room.bubble || workingT > 0) { room.bubble = null; workingT = 0; return; }
     if (phase === 'scene' && sceneAbort) { sceneSkipped = true; sceneAbort(); }
   }
 
@@ -634,9 +638,10 @@
 
   function renderAll() { renderPanel(); renderActions(); renderChips(); renderSceneToggle(); }
 
+  function canSkipAnim() { return (room.visit && !(room.visit.hold && phase === 'scene' && sceneAbort)) || !!room.bubble || workingT > 0; }
   function renderSceneToggle() {
     const sk = $('skipBtn');
-    if (sk) sk.hidden = !game || !((phase === 'scene' && sceneAbort) || phase === 'cut');
+    if (sk) sk.hidden = !game || !((phase === 'scene' && sceneAbort) || phase === 'cut' || canSkipAnim());
     const b = $('sceneTog');
     b.hidden = !game || phase === 'setup' || phase === 'scene' || phase === 'cut';
     b.classList.toggle('on', setupChoice.scenes);
