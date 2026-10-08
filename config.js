@@ -77,7 +77,7 @@
       games:    { spoons: 1, perDay: 1, soul: 2, perJumps: 2, tomorrow: 1, jumps: 4,
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
       create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 6 },
-      friends:  { spoons: 2, perDay: 1, people: { light: 3, medium: 2, strong: 1 }, invited: 1 },
+      friends:  { spoons: 2, perDay: 1, people: { light: 4, medium: 3, strong: 2 }, invited: 1 },   // зустріч вигідніша за «написати» навіть у сильному болю
       text:     { spoons: 1, perDay: 1, people: 1, inviteBoost: 0.15 },
       exercise: { spoons: { light: 2, medium: 2, strong: 3 }, perDay: 1, body: 2, partialBody: 1, reliefIn: 2, relief: 1,
         // Килимок від першої особи: повтор рухів за тренером.

@@ -562,6 +562,7 @@
       if (c.ending === 'win') {
         // Свято: світло, ніякої тіні болю.
         this.view.joy = 100; this.view.pain = 1; this.view.state = 'light';
+        this.lit.joy = 100; this.lit.pain = 1;
         const h = this.hero;
         const face = (a) => { const dx = h.x - a.x, dy = h.y - a.y; a.back = dx + dy < 0; if (Math.abs(dx - dy) > 0.05) a.dir = dx - dy > 0 ? 1 : -1; };
         // Конфеті сиплеться згори, поки триває свято.
@@ -577,9 +578,8 @@
           if (done) { c.medics.forEach(face); go('party'); }
         } else if (c.phase === 'party') {
           c.medics.forEach(face);
-          c.caption = c.t < 2.6 ? 'Курс лікування завершено' : c.t < 5.2 ? 'Друзі прийшли привітати' : c.t < 7.6 ? 'Лікар аплодує: ти впорався' : 'І вручає тобі медаль';
+          c.caption = c.t < 2.6 ? 'Курс лікування завершено' : c.t < 5.2 ? 'Друзі прийшли привітати' : c.t < 7.6 ? 'Лікар аплодує' : 'Ти молодець';
           c.clap = c.t > 5.2;
-          c.medal = c.t > 7.6;
           if (c.t > 11) go('done');
         }
         if (c.phase === 'done') { const cb = c.onDone; this.cut = null; cb && cb(); }
@@ -1147,6 +1147,18 @@
       box(ctx, 4.1, 0.12, 28, 0.2, 0.2, 5, '#e6e8ea', { outline: false });
       box(ctx, 4.42, 0.12, 28, 0.2, 0.2, 6, PAL.red, { outline: false });
       box(ctx, 4.75, 0.12, 28, 0.2, 0.2, 8, PAL.blue, { outline: false });
+      } else {
+        // Замість аптечки — полиця з кубком і грамотою над нею.
+        wallR(ctx, 4.0, 4.7, 34, 46, '#3a2f22');
+        wallR(ctx, 4.06, 4.64, 35, 45, '#f3ead6');
+        wallR(ctx, 4.15, 4.55, 42, 43, '#b08d3c'); wallR(ctx, 4.15, 4.45, 39, 40, '#8f8676'); wallR(ctx, 4.15, 4.5, 37, 38, '#8f8676');
+        box(ctx, 3.65, 0, 26, 1.4, 0.5, 2, PAL.woodD);
+        box(ctx, 4.05, 0.12, 28, 0.42, 0.26, 1, '#6b5220');
+        box(ctx, 4.18, 0.18, 29, 0.16, 0.14, 2, '#c9962a', { outline: false });
+        box(ctx, 4.02, 0.1, 31, 0.48, 0.3, 5, '#f2c43a');
+        box(ctx, 4.06, 0.12, 35, 0.4, 0.26, 1, '#ffe27a', { outline: false });
+        const sh = Math.floor(this.t * 3) % 2;
+        L(ctx, P(4.1, 0.1, 33), P(4.1, 0.1, 35), sh ? '#fff6c8' : '#ffe27a');
       }
       rec = null;
 
@@ -1216,12 +1228,6 @@
         }
         box(ctx, 1.1, 0.7, 17, 0.9, 0.28, 1, '#7d858f', { outline: false });
         box(ctx, 2.45, 0.75, 17, 0.15, 0.15, 3, PAL.mustard, { outline: false });
-        // Перемога: на столі пачка грошей.
-        if (this.cut && this.cut.win) {
-          box(ctx, 1.75, 0.72, 17, 0.55, 0.32, 3, '#5fa35a');
-          L(ctx, P(1.75, 1.04, 18.5), P(2.3, 1.04, 18.5), '#cfe8b8');
-          box(ctx, 1.8, 0.78, 20, 0.45, 0.25, 1, '#4f8f4c', { outline: false });
-        }
         box(ctx, 0.3, 0.2, 17, 0.22, 0.22, 1, PAL.metal, { outline: false });
         L(ctx, P(0.41, 0.31, 18), P(0.41, 0.31, 30), PAL.metal);
         box(ctx, 0.28, 0.2, 29, 0.35, 0.3, 3, PAL.mustard);
@@ -1518,15 +1524,16 @@
       ] : [];
       const p = this.lit.pain;
       const strong = v.state === 'strong';
+      const happy = !!(this.cut && this.cut.win);   // перемога: тепло, яскраво, без тіні по краях
       // Біль звужує кадр: краї гаснуть дизерингом, кольори вицвітають.
-      const r0 = 1.34 - p * 0.088 + (strong ? Math.sin(this.t * 1.7) * 0.035 : 0) - 0.2 * (root.PainFX ? root.PainFX.gloomOf(this.lit.joy) : 0);
+      const r0 = happy ? 9 : 1.34 - p * 0.088 + (strong ? Math.sin(this.t * 1.7) * 0.035 : 0) - 0.2 * (root.PainFX ? root.PainFX.gloomOf(this.lit.joy) : 0);
       // Радість фарбує світ: мало радості — сіро й тьмяно, багато — соковито.
       const j = Math.max(0, Math.min(100, this.lit.joy)) / 100;
       // Нейтрально на 60 (старт): нижче сірішає, вище стає соковитішим.
       // Нижче 60 — похмурість (спільна крива з PainFX): вицвітає, темнішає, холоднішає, краї підступають.
       const gl = root.PainFX ? root.PainFX.gloomOf(this.lit.joy) : 0;
-      const sat = (1 - Math.max(0, p - 3) * 0.07) * (gl > 0 ? 1 - 0.85 * gl : Math.min(1.25, 0.4 + j));
-      const bright = gl > 0 ? 1 - 0.4 * gl : Math.min(1.04, 0.85 + 0.25 * j);
+      const sat = happy ? 1.35 : (1 - Math.max(0, p - 3) * 0.07) * (gl > 0 ? 1 - 0.85 * gl : Math.min(1.25, 0.4 + j));
+      const bright = happy ? 1.16 : gl > 0 ? 1 - 0.4 * gl : Math.min(1.04, 0.85 + 0.25 * j);
       const coolR = 1 - 0.12 * gl, coolB = 1 + 0.1 * gl;
       const cx = W / 2, cy = H / 2 + 4;
       for (let y = 0; y < H; y++) {
@@ -1543,7 +1550,7 @@
               mr = mr + (L2[3][0] - mr) * k; mg = mg + (L2[3][1] - mg) * k; mb = mb + (L2[3][2] - mb) * k;
             }
           }
-          r *= mr * bright * coolR; g *= mg * bright; b *= mb * bright * coolB;
+          r *= mr * bright * coolR * (happy ? 1.08 : 1); g *= mg * bright * (happy ? 1.03 : 1); b *= mb * bright * coolB * (happy ? 0.9 : 1);
           const l = r * 0.3 + g * 0.59 + b * 0.11;
           r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
           if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
@@ -1562,15 +1569,6 @@
         for (const p of this.cut.confetti) {
           ctx.fillStyle = p.col;
           ctx.fillRect(Math.round(p.x * W + Math.sin(p.w) * 3), Math.round(p.y * H), Math.sin(p.w * 1.3) > 0 ? 2 : 1, 2);
-        }
-        // Медаль на грудях героя: стрічка й золотий кружечок, що поблискує.
-        const hr = this.hero.anchor;
-        if (this.cut.medal && hr) {
-          const mx = hr[0], my = hr[1] + 9;
-          ctx.fillStyle = '#2f6fb0'; ctx.fillRect(mx - 2, my, 1, 3); ctx.fillRect(mx + 1, my, 1, 3);
-          ctx.fillStyle = '#c9302c'; ctx.fillRect(mx - 1, my, 2, 2);
-          ctx.fillStyle = '#e8b830'; ctx.fillRect(mx - 2, my + 3, 4, 3);
-          ctx.fillStyle = Math.floor(this.t * 3) % 2 ? '#fff3b0' : '#f2d36b'; ctx.fillRect(mx - 1, my + 4, 2, 1);
         }
         // Лікар аплодує: над ним сходяться долоні.
         const d = this.cut.clap && this.cut.medics.find((m) => m.doctor);
