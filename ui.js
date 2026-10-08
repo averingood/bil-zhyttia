@@ -279,7 +279,7 @@
     const fc = G.forecastNight(game);
     if (fc && (fc.lost || fc.hospital)) {
       const title = fc.lost ? 'Після цієї ночі гра закінчиться' : 'Цієї ночі доведеться в лікарню';
-      const text = fc.lost ? esc(fc.lost.text) + '.' : `Біль дійде до 10, приїде швидка: день випаде, −${C.hospital.cost} ₴.`;
+      const text = fc.lost ? esc(lossWarning(fc.lost)) : `Біль дійде до 10, приїде швидка: день випаде, −${C.hospital.cost} ₴.`;
       openModal(`
         <h2>${title}</h2>
         <p>${text} Можна ще щось змінити, якщо лишився ресурс.</p>
@@ -545,13 +545,24 @@
       <button class="btn ghost" id="restartBtn">Почати заново</button>
       ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально): скинути до нуля, потім завершити день</span>
         <div class="row">${['money', 'people', 'body', 'soul'].map((k) => `<button class="btn" data-zero="${k}">${G.SPHERES[k].name} → 0</button>`).join('')}</div></div>` : ''}
-      ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">Після ночі: ${esc(fc.lost.text.toLowerCase())}</div>` : fc && fc.lostFlare ? `<div class="warn">Якщо вночі загострення — ${esc(fc.lostFlare.text.toLowerCase())}</div>` : ''}
+      ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost))}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
     $('endBtn').onclick = endDayClick;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
     document.querySelectorAll('[data-zero]').forEach((b) => { b.onclick = () => { if (phase !== 'play') return; game[b.dataset.zero] = 0; toast(G.SPHERES[b.dataset.zero].name + ' → 0. Заверши день, щоб побачити, що буде.'); renderAll(); }; });
+  }
+
+  // Попередження про кінець — чесно: що саме станеться і чи ще можна встигнути щось зробити сьогодні.
+  function lossWarning(lost) {
+    const k = lost.sphere, name = G.SPHERES[k].name, crisis = (game.crisis || {})[k];
+    if (k === 'money') return crisis != null
+      ? 'Сьогодні останній день знайти гроші. Не знайдеш — уночі виселять.'
+      : 'Уночі гроші скінчаться, а часу на порятунок не лишиться: виселять.';
+    if (crisis != null) return name + ' на нулі. Не піднімеш сьогодні — уночі кінець (' + lost.text.toLowerCase() + ').';
+    if (game.day >= game.days) return 'Останній день: якщо ' + name.toLowerCase() + ' впаде до нуля, порятунку вже не буде.';
+    return 'Уночі ' + name.toLowerCase() + ' впаде до нуля, а запасу криз уже немає — кінець (' + lost.text.toLowerCase() + ').';
   }
 
   // ---------- підказки секцій ----------
