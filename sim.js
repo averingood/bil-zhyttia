@@ -1,188 +1,95 @@
-// Прогін гри без графіки: node sim.js [кількість ігор] [днів]
-// Кілька простих стратегій грають на однакових зернах, щоб побачити,
-// чи не виграє одна стратегія завжди і чи не скочується гра в спіраль.
+// Прогін гри без графіки: node sim.js [кількість ігор]
+// Мета ядра: виграти не можна (21-й день не переживає ніхто), але добра гра триває помітно довше,
+// а сфера, що сиплеться, буває різною.
 'use strict';
 const L = require('./logic.js');
 const C = require('./config.js');
 
-const N = Number(process.argv[2]) || 500;
-const DAYS = Number(process.argv[3]) || C.days;
-
-const can = (s, id) => L.check(s, id).available && L.energyCost(s, id) <= s.energy;
+const N = Number(process.argv[2]) || 400;
 const ok = (s, id) => L.check(s, id).available;
+const free = (s, id) => ok(s, id) && L.spoonCost(s, id) <= s.spoons;   // без позики
+const SOFT = ['people', 'body', 'soul'];
 
-function deadlinePressure(s) {
-  let dl = s.day;
-  while (dl % C.work.deadlineEvery !== 0) dl++;
-  const left = C.work.unitsPerDeadline - s.workWeek;
-  return left / Math.max(1, dl - s.day + 1);
-}
-
-// Розважлива: не позичає, їсть, тримає дедлайн, відповідає друзям.
+// Розважливий: їсть, п'є курс, підтягує найнижчу сферу, не позичає, лишає ложку на себе, коли можна.
 function careful(s, opt = {}) {
-  if (ok(s, 'course')) return 'course';   // курсову пігулку п'є завжди — вона дешева й без слота
-  if (!s.fed && can(s, 'cook')) return 'cook';
-  if (opt.meds != null && ok(s, 'meds') && s.medsToday === 0 && s.money > 90 && L.pain(s) >= opt.meds) return 'meds';
-  if (L.inviteToday(s) && can(s, 'friends')) return 'friends';
-  if (deadlinePressure(s) >= 0.9 && can(s, 'work')) return 'work';
-  // Гравець, що слухається підказки «без вправ уже 2 дн.», поки м'язи не задубіли.
-  if (opt.antiDetrain && (s.daysNoExercise || 0) >= C.night.detrain.afterDays - 1 && L.stateKey(s) !== 'strong' && can(s, 'exercise')) return 'exercise';
-  // Прибрати, поки безлад не почав псувати радість.
-  if ((s.mess || 0) >= C.chores.annoyAt - 1 && can(s, 'clean')) return 'clean';
-  if (s.joy < 40 && can(s, 'friends')) return 'friends';
-  if (s.joy < 55 && can(s, 'create')) return 'create';
-  if (opt.exercise === true && L.stateKey(s) !== 'strong' && can(s, 'exercise')) return 'exercise';
-  // Тренування має сенс, коли −1 завтра перекидає біль через межу стану.
-  if (opt.exercise === 'smart' && can(s, 'exercise')) {
-    const fc = L.forecastNight(s);
-    if (fc && (fc.pain === 4 || fc.pain === 7 || s.trainings % C.night.trainingsPerBaseDrop === 4)) return 'exercise';
+  if (opt.course !== false && ok(s, 'course') && s.money > 30) return 'course';
+  if (L.inviteToday(s) && free(s, 'friends')) return 'friends';
+  if (!s.fed) { if (free(s, 'cook')) return 'cook'; if (ok(s, 'delivery') && s.money > 40) return 'delivery'; }
+  // Гроші: скільки днів протримаємось.
+  const incoming = s.pending.reduce((a, p) => a + p.amount, 0);
+  const runway = (s.money + incoming) / L.dailyCost(s.day);
+  const needs = [
+    ['money', runway * 1.2],
+    ['people', s.people], ['body', s.body + (opt.bodyFirst ? -2 : 0)], ['soul', s.soul],
+  ].sort((a, b) => a[1] - b[1]);
+  for (const [k] of needs) {
+    const id = k === 'money' ? 'work'
+      : k === 'people' ? (free(s, 'friends') ? 'friends' : 'text')
+      : k === 'body' ? (free(s, 'exercise') ? 'exercise' : 'stretch')
+      : (free(s, 'create') ? 'create' : free(s, 'read') ? 'read' : free(s, 'games') ? 'games' : 'clean');
+    if (free(s, id)) return id;
   }
-  if (deadlinePressure(s) > 0 && can(s, 'work')) return 'work';
-  if (can(s, 'create')) return 'create';
-  if (ok(s, 'rest') && s.energy === 0) return 'rest';
-  if (L.pain(s) >= 6 && can(s, 'stretch')) return 'stretch';
-  if (!s.fed && ok(s, 'delivery') && s.money > 70) return 'delivery';
+  if (opt.coffee && ok(s, 'coffee') && s.money > 60) return 'coffee';
   return null;
 }
 
-// Жадібна: використовує всі 4 слоти, позичає, багато працює.
-function greedy(s) {
-  if (!s.fed && ok(s, 'cook')) return 'cook';
-  if (L.inviteToday(s) && ok(s, 'friends')) return 'friends';
-  if (s.joy < 35 && ok(s, 'friends')) return 'friends';
-  if (ok(s, 'work')) return 'work';
-  return null;
+// Не відпочиває: витрачає все й бере наперед.
+function greedy(s) { const n = careful(s); if (n) return n; for (const id of ['work', 'exercise', 'friends', 'create']) if (ok(s, id)) return id; return null; }
+
+// Розміреність: лишає 2 ложки на себе, якщо день не критичний.
+function paced(s) {
+  const n = careful(s);
+  if (!n) return null;
+  const critical = SOFT.some((k) => s[k] <= 3) || !s.fed || (L.inviteToday(s) && n === 'friends');
+  if (!critical && s.spoons - L.spoonCost(s, n) < C.night.earlyRest) return null;
+  return n;
 }
 
 function random(s) {
-  const ids = L.ACTION_IDS.filter((id) => ok(s, id));
-  if (!ids.length || Math.random() < 0.1) return null;
+  const ids = L.ACTION_IDS.filter((id) => free(s, id));
+  if (!ids.length || Math.random() < 0.15) return null;
   return ids[Math.floor(Math.random() * ids.length)];
 }
 
 const STRATS = {
   'розважлива': (s) => careful(s),
-  '+вправи завжди': (s) => careful(s, { exercise: true }),
-  '+вправи з розумом': (s) => careful(s, { exercise: 'smart' }),
-  '+читання для радості': (s) => { const n = careful(s); return n === 'create' && ok(s, 'read') && s.energy >= 1 ? 'read' : n; },
-  '+вправи проти задубіння': (s) => careful(s, { antiDetrain: true }),
-  '+ліки при болю≥6': (s) => careful(s, { meds: 6 }),
-  '+ліки щодня': (s) => careful(s, { meds: 0 }),
-  // Знеболювальне перед роботою, якщо воно переводить біль у легший стан.
-  '+ліки перед роботою': (s) => {
-    const next = careful(s);
-    if (next === 'work' && ok(s, 'meds') && s.medsToday === 0 && s.money > 60 &&
-      L.stateOfPain(Math.max(0, L.pain(s) - C.actions.meds.reliefToday)) !== L.stateKey(s)) return 'meds';
-    return next;
-  },
-  // Кава замість відпочинку: та сама сила, але слот лишається на справу.
-  '+кава замість відпочинку': (s) => {
-    const next = careful(s);
-    if (next === 'rest' && ok(s, 'coffee')) return 'coffee';
-    return next;
-  },
-  // Кава, щоб устигнути ще роботу.
-  '+кава для роботи': (s) => {
-    const next = careful(s);
-    if (next !== 'work' && next !== 'cook' && ok(s, 'coffee') && ok(s, 'work') && s.energy < L.energyCost(s, 'work') &&
-      s.energy + C.actions.coffee.gain >= L.energyCost(s, 'work')) return 'coffee';
-    return next;
-  },
-
-  // Ігри замість творчості/друзів, коли радість хоче підтримки, а сили мало.
-  '+ігри замість творчості': (s) => { const n = careful(s); return (n === 'create' || n === 'rest') && ok(s, 'games') && s.energy >= 1 ? 'games' : n; },
-  '+ігри при сильному болю': (s) => { const n = careful(s); return L.stateKey(s) === 'strong' && n !== 'cook' && n !== 'delivery' && ok(s, 'games') && s.energy >= 1 ? 'games' : n; },
-
-  // Розміреність: на легкому дні не перебирати — зупинитись, коли наступна дія дасть перевантаження.
-  // Вправи і в сильному болю (їх можна, лише ресурсу йде більше відносно): інакше м'язи дубіють і біль не спадає.
-  '+вправи навіть при сильному': (s) => (ok(s, 'exercise') && s.exerciseToday === 0 && L.energyCost(s, 'exercise') <= s.energy && s.fed ? 'exercise' : careful(s, { exercise: true })),
-  '+вправи, розмірено': (s) => {
-    const n = (ok(s, 'exercise') && s.exerciseToday === 0 && L.energyCost(s, 'exercise') <= s.energy && s.fed) ? 'exercise' : careful(s, { exercise: true });
-    if (n && L.stateKey(s) === 'light') {
-      const a = L.clone(s); L.doAction(a, n);
-      // Замість перебору — щось тихе: почитати чи відпочити (не важкі справи й без ресурсу).
-      if (!L.overloadedNow(s) && L.overloadedNow(a)) return ok(s, 'read') ? 'read' : (ok(s, 'rest') ? 'rest' : null);
-    }
-    return n;
-  },
-  // Курс щодня, поки є гроші: пігулка не займає слота.
-  '+курс ліків': (s) => (ok(s, 'course') && s.money > 40 ? 'course' : careful(s)),
-  // Лікар, щойно доступний і є запас на оренду.
-  '+лікар': (s) => (ok(s, 'doctor') && s.money > 160 ? 'doctor' : careful(s)),
-  // Працює насамперед, радістю займається лише коли зовсім погано.
-  'працьоголік': (s) => {
-    if (!s.fed && can(s, 'cook')) return 'cook';
-    if (L.inviteToday(s) && can(s, 'friends') && s.joy < 45) return 'friends';
-    if (can(s, 'work') && deadlinePressure(s) > 0) return 'work';
-    if (s.joy < 25 && can(s, 'create')) return 'create';
-    if (s.joy < 25 && can(s, 'friends')) return 'friends';
-    if (can(s, 'work')) return 'work';
-    if (ok(s, 'rest') && s.energy === 0) return 'rest';
-    return null;
-  },
-  'жадібна': greedy,
+  'без курсу': (s) => careful(s, { course: false }),
+  'тіло понад усе': (s) => careful(s, { bodyFirst: true }),
+  'розмірена': paced,
+  'жадібна (бере наперед)': greedy,
+  'з кавою': (s) => careful(s, { coffee: true }),
   'випадкова': random,
 };
 
-// Позики: повертати — рішення героя, і лише коли друг сам спитає; позичає, коли грошей на дні.
-let LOANS = true;
-function loans(s) {
-  if (!LOANS) return;
-  const ask = L.debtAsk(s);
-  if (ask && s.money >= ask.amount + 5) L.repay(s, ask.name);
-  if (s.money < 30) { const n = (s.friendNames || C.friends.names).find((x) => L.canBorrow(s, x)); if (n) L.borrow(s, n); }
-}
+const SETUPS = {
+  'легко (200 ₴, 4 друзі, біль 2)': { money: 200, friends: 4, basePain: 2 },
+  'за замовч. (160 ₴, 3, біль 4)': {},
+  'тяжко (130 ₴, 2, біль 5)': { money: 130, friends: 2, basePain: 5 },
+};
 
-function play(strat, setup, seed, days) {
-  const s = L.createGame(Object.assign({ seed, days: days || DAYS }, typeof setup === 'object' ? setup : SETUPS[setup] || {}));
+function play(strat, setup, seed) {
+  const s = L.createGame(Object.assign({ seed }, setup));
   while (!s.lost && !s.finished) {
-    loans(s);
-    if (s.lost) break;
     let guard = 0;
-    while (s.slot < L.slotsOf(s) && guard++ < 10) {
-      const id = strat(s);
-      if (!id) break;
-      if (!L.doAction(s, id).ok || s.lost) break;
-    }
-    if (s.lost) break;
-    if (!s.fed && L.check(s, 'delivery').available) L.doAction(s, 'delivery');   // не забуває поїсти
+    while (guard++ < 12) { const id = strat(s); if (!id || !L.doAction(s, id).ok) break; }
     L.endDay(s);
   }
   return s;
 }
 
-// Типові набори обставин замість старих рівнів складності.
-const SETUPS = {
-  'легко (200 ₴, 3 друзі, біль 3)': { money: 200, friends: 3, basePain: 3 },
-  'середньо (170 ₴, 3, біль 4)': { money: 170, friends: 3, basePain: 4 },
-  'тяжко (140 ₴, 2, біль 5)': { money: 140, friends: 2, basePain: 5 },
-};
-
-const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0) + '%';
-const avg = (arr) => (arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—');
-
-module.exports = { STRATS, play, setLoans: (v) => { LOANS = v; } };
-if (require.main === module) for (const diff of Object.keys(SETUPS)) {
-  console.log(`\n=== ${diff}: ${JSON.stringify(SETUPS[diff])}, ${DAYS} днів, ${N} ігор ===`);
-  console.log('стратегія'.padEnd(18), 'дожили'.padEnd(7), 'радість/гроші/лікарня'.padEnd(19),
-    'день пр.'.padEnd(9), 'гроші', ' радість', ' сильн.дні', ' позич.', ' відмов', ' дедл.проп');
+module.exports = { STRATS, SETUPS, play };
+if (require.main === module) for (const [sn, setup] of Object.entries(SETUPS)) {
+  console.log(`\n=== ${sn}: ${N} ігор ===`);
+  console.log('стратегія'.padEnd(24), 'дожили', 'медіана', 'мін–макс', '  гроші/люди/тіло/душа');
   for (const [name, strat] of Object.entries(STRATS)) {
-    const games = [];
-    for (let i = 0; i < N; i++) games.push(play(strat, diff, 1000 + i));
-    const alive = games.filter((g) => !g.lost);
-    const lost = games.filter((g) => g.lost);
-    const by = (c) => lost.filter((g) => g.lost.cause === c).length;
-    console.log(
-      name.padEnd(18),
-      pct(alive.length, N).padEnd(7),
-      `${pct(by('joy'), N)}/${pct(by('money'), N)}/${avg(games.map((g) => g.stats.hospital))}`.padEnd(19),
-      String(avg(lost.map((g) => g.lost.day))).padEnd(9),
-      String(avg(alive.map((g) => g.money))).padStart(5),
-      String(avg(alive.map((g) => g.joy))).padStart(8),
-      String(avg(games.map((g) => g.stats.stateDays.strong))).padStart(10),
-      String(avg(games.map((g) => g.stats.borrowed))).padStart(7),
-      String(avg(games.map((g) => g.stats.invitesRefused))).padStart(7),
-      String(avg(games.map((g) => g.stats.deadlinesMissed))).padStart(9),
-    );
+    const days = [], by = { money: 0, people: 0, body: 0, soul: 0 }; let fin = 0;
+    for (let i = 0; i < N; i++) {
+      const s = play(strat, setup, 1000 + i);
+      if (s.lost) { days.push(s.lost.day); by[s.lost.sphere]++; } else { fin++; days.push(C.days + 1); }
+    }
+    days.sort((a, b) => a - b);
+    const pct = (v) => Math.round((100 * v) / N) + '%';
+    console.log(name.padEnd(24), pct(fin).padEnd(6), String(days[N >> 1]).padEnd(7), (days[0] + '–' + days[N - 1]).padEnd(9),
+      ' ', [by.money, by.people, by.body, by.soul].map(pct).join('/'));
   }
 }

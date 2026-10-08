@@ -22,6 +22,7 @@
     --borrow: #e0703f;
     --joy: #e58fa8;
     --money: #e6c35a;
+    --soul: #8fb4ff;
     --light: #8fcf7e;
     --medium: #e9ac45;
     --strong: #df5b4f;
@@ -313,6 +314,25 @@
   .setup-row small { grid-column: 1 / -1; }
   .setup-row input[type=range] { width: 100%; accent-color: var(--joy, #e8c25a); }
   .setup-row b { text-align: right; }
+  /* Ложки й сфери (переробка ядра). */
+  .spoons { display: flex; flex-wrap: wrap; gap: 3px; }
+  .spoon { width: 14px; height: 26px; fill: #cfd3dc; }
+  .spoon.used { fill: #3b4263; }
+  .spoon.borrow { fill: var(--fatal); }
+  .sph .lbl { color: var(--c); }
+  .meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+  .meter i { height: 12px; border: 2px solid var(--line); }
+  .meter i.on { background: var(--c); border-color: var(--c); }
+  .sph.danger .meter i.on { background: var(--fatal); border-color: var(--fatal); }
+  .sph.danger .val { color: var(--fatal); }
+  .cd .e-cost { color: var(--muted); font-size: 16px; }
+  .cd .e-good { color: var(--light); } .cd .e-bad { color: var(--strong); } .cd .e-doc { color: var(--soul); }
+  .a-fx .people { color: var(--joy); } .a-fx .body { color: var(--light); } .a-fx .soul { color: var(--soul); }
+  .a-fx .pain { color: var(--strong); } .a-fx .good { color: var(--light); } .a-fx .info { color: var(--muted); }
+  .end-chart { width: 100%; height: auto; background: #1a1e2e; border: 2px solid var(--line); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 18px; }
+  .legend i { display: inline-block; width: 16px; height: 4px; vertical-align: middle; margin-right: 6px; background: var(--c); }
+  .hints .good { border-color: var(--light); } .hints .info { border-color: var(--soul); }
 </style>
 </head>
 <body>
@@ -332,18 +352,18 @@
 </div>
 <div id="modal" hidden></div>
 
-<script src="config.js?v=20261008010343"></script>
-<script src="logic.js?v=20261008010343"></script>
-<script src="room.js?v=20261008010343"></script>
-<script src="painfx.js?v=20261008010343"></script>
-<script src="meeting.js?v=20261008010343"></script>
-<script src="friendtalk.js?v=20261008010343"></script>
-<script src="matgame.js?v=20261008010343"></script>
-<script src="readgame.js?v=20261008010343"></script>
-<script src="cookgame.js?v=20261008010343"></script>
-<script src="synthgame.js?v=20261008010343"></script>
-<script src="rungame.js?v=20261008010343"></script>
-<script src="ui.js?v=20261008010343"></script>
+<script src="config.js?v=20261008024103"></script>
+<script src="logic.js?v=20261008024103"></script>
+<script src="room.js?v=20261008024103"></script>
+<script src="painfx.js?v=20261008024103"></script>
+<script src="meeting.js?v=20261008024103"></script>
+<script src="friendtalk.js?v=20261008024103"></script>
+<script src="matgame.js?v=20261008024103"></script>
+<script src="readgame.js?v=20261008024103"></script>
+<script src="cookgame.js?v=20261008024103"></script>
+<script src="synthgame.js?v=20261008024103"></script>
+<script src="rungame.js?v=20261008024103"></script>
+<script src="ui.js?v=20261008024103"></script>
 <div id="tipBox" hidden></div>
 </body>
 </html>

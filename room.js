@@ -264,11 +264,15 @@
     rest: ['####...', '...#...', '..#....', '####.##', '.....#.', '....##.', '.......'],
     sleep: ['..###..', '.##....', '##.....', '##.....', '##.....', '.##....', '..###..'],
     games: ['.......', '.......', '.#####.', '#.#####', '###.#.#', '#.#####', '.##.##.'],
+    text: ['.#####.', '.#...#.', '.#...#.', '.#...#.', '.#####.', '.##.##.', '.#####.'],
+    clean: ['.....#.', '....#..', '...#...', '..#....', '.###...', '#####..', '#.#.#..'],
+    course: ['.......', '..##...', '.####..', '.##.##.', '..####.', '...##..', '.......'],
+    read: ['.......', '##.##..', '#.#.#..', '#.#.#..', '#.#.#..', '##.##..', '.......'],
     coffee: ['..#.#..', '.#.#...', '.......', '#####..', '#####.#', '#####.#', '.###...'],
   };
   const ICON_COL = {
     work: '#2f6f8a', create: '#7a4fa0', friends: '#c0392b', exercise: '#33373f', stretch: '#2f8a7a',
-    cook: '#a0602a', delivery: '#a0602a', meds: '#c0392b', rest: '#2d4763', sleep: '#2d4763', coffee: '#5a3a24', games: '#3f7a3a',
+    cook: '#a0602a', delivery: '#a0602a', meds: '#c0392b', rest: '#2d4763', sleep: '#2d4763', coffee: '#5a3a24', text: '#c0392b', clean: '#2f8a7a', course: '#2f6f8a', read: '#7a4fa0', games: '#3f7a3a',
   };
 
   const GUITAR = ['...KK..', '...KK..', '...KK..', '...NN..', '...NN..', '...NN..', '...NN..', '..BBBB.', '.BBBBBB', '.BBOOBB', '..BBBB.',
@@ -533,24 +537,26 @@
     updateEnding(dt) {
       const c = this.cut;
       const go = (p) => { c.phase = p; c.t = 0; };
-      if (c.ending === 'friends') {
+      if (c.ending === 'friends' || c.ending === 'body') {
         // Останній друг пішов: сісти на мішок, телефон мовчить, світ тьмяніє.
         if (c.phase === 'walk') {
-          c.caption = 'Борг так і не повернуто';
+          c.caption = c.ending === 'body' ? 'Тіло здалося' : 'Люди відвернулися';
           if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('quiet'); }
         } else if (c.phase === 'quiet') {
           c.drain = Math.min(1, c.t / 4);
-          c.caption = c.t < 2.2 ? 'Останній друг перестав відповідати.' : 'Телефон мовчить. Писати більше нікому.';
+          c.caption = c.ending === 'body'
+            ? (c.t < 2.2 ? 'Сил не лишилося навіть підвестися.' : 'Курс лікування доведеться починати знову.')
+            : (c.t < 2.2 ? 'Друзі перестали писати.' : 'Телефон мовчить.');
           if (c.t > 6) go('done');
         }
       } else if (c.ending === 'joy') {
         // Пуф → підвестися → вдягнути все чорне → повільно вийти. Кімната тим часом вицвітає.
         c.drain = Math.min(1, c.drain + dt / 6);
         if (c.phase === 'walk') {
-          c.caption = 'Радість на нулі';
+          c.caption = 'Душа згасла';
           if (!this.path.length) { this.hero.sit = 1; this.hero.sitting = true; this.hero.x = BAG_FRONT[0]; this.hero.y = BAG_FRONT[1]; go('sit'); }
         } else if (c.phase === 'sit') {
-          c.caption = c.t < 1.6 ? 'Радість на нулі' : 'Три ночі. Ніхто так і не прийшов.';
+          c.caption = c.t < 1.6 ? 'Душа згасла' : 'Нічого не хочеться.';
           if (c.t > 3.6) { this.setHeroSit(0); go('dress'); }
         } else if (c.phase === 'dress') {
           // Перевдягається: одяг блимає, поки не стає чорним.
@@ -572,7 +578,7 @@
           if (!this.path.length) go('pack');
         } else if (c.phase === 'pack') {
           c.boxes = Math.min(3, Math.floor(c.t / 0.6) + 1);
-          c.caption = 'Гроші скінчилися. Оренду нема чим платити.';
+          c.caption = 'Гроші скінчилися. Нема чим платити за життя.';
           if (c.t > 2.8) {
             this.path = [...this.findPath(DOOR_IN[0], DOOR_IN[1]), [DOOR[0], DOOR[1]]];
             go('leave');
@@ -586,7 +592,7 @@
       if (c.phase === 'done') { const cb = c.onDone; this.cut = null; cb && cb(); return; }
       this.view.slot = c.slot;
       this.view.night = false;
-      if (c.ending === 'joy' || c.ending === 'friends') this.view.joy = c.joy0 * (1 - c.drain);
+      if (c.ending === 'joy' || c.ending === 'friends' || c.ending === 'body') this.view.joy = c.joy0 * (1 - c.drain);
     }
 
     updateCut(dt) {
