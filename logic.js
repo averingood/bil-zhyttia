@@ -304,7 +304,7 @@
         break;
       case 'coffee':
         s.spoons += a.gain; s.coffeeToday++;
-        note = 'ресурс +' + a.gain + ', загострення вночі ймовірніше (' + Math.round(flareChanceTonight(s) * 100) + '%)';
+        note = 'ресурс +' + a.gain + ', шанс загострення вночі тепер ' + Math.round(flareChanceTonight(s) * 100) + '%';
         break;
       case 'course': {
         s.money -= C.course.money;
@@ -319,7 +319,7 @@
         const before = pain(s);
         s.relief += a.reliefToday;
         s.painkiller = true;
-        note = 'біль ' + before + ' → ' + pain(s) + ', загострення вночі ймовірніше (+' + Math.round(a.flareAdd * 100) + '%)';
+        note = 'біль ' + before + ' → ' + pain(s) + ', шанс загострення вночі тепер ' + Math.round(flareChanceTonight(s) * 100) + '%';
         if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Емоції −' + a.side.soul; }
         break;
       }
@@ -433,7 +433,7 @@
 
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
-    if (exhaustedNow(s)) ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: шанс загострення вночі +' + Math.round(N.exhausted * 100) + '%' });
+    if (exhaustedNow(s)) ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: шанс загострення вночі вищий на ' + Math.round(N.exhausted * 100) + '%' });
     else if (s.spoons >= N.earlyRest) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
     s.extra = Math.max(-2, s.extra);
 
@@ -566,8 +566,8 @@
     if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after) + ' сьогодні', kind: 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: 'день ' + f.day + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
-    if (id === 'meds') fx.push({ t: 'загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
-    if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; загострення ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
+    if (id === 'meds') fx.push({ t: 'шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
+    if (id === 'coffee') fx.push({ t: 'ресурс +' + C.actions.coffee.gain + '; шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '%→' + Math.round(flareChanceTonight(after) * 100) + '%', kind: 'pain' });
     if (after.fed && !s.fed) fx.push({ t: 'їжа на день є', kind: 'info' });
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
@@ -580,7 +580,7 @@
     }
     if (id === 'loan') fx.push({ t: 'віддати ' + C.actions.loan.amount + ' ₴ до дня ' + (s.day + C.actions.loan.dueIn) + ', інакше Стосунки −' + C.actions.loan.late, kind: 'pain' });
     if (id === 'course') fx.push({ t: 'курс ' + (s.courseStreak + 1) + '-й день', kind: 'info' });
-    if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', загострення вночі ймовірніше', kind: 'pain' });
+    if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі вищий', kind: 'pain' });
     return out;
   }
 
@@ -629,13 +629,13 @@
       out.push({ kind: 'info', t: when + ' — прийом у лікаря. ' + v1 + v2 });
     }
     out.push({ kind: 'pain', t: 'Шанс загострення вночі ' + Math.round(flareChanceTonight(s) * 100) + '% — що міцніше Тіло, то менше.' });
-    if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ресурс на нулі: шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%.' });
+    if (s.spoons === 0) out.push({ kind: 'pain', t: 'Ресурс на нулі: шанс загострення вночі вищий на ' + Math.round(C.night.exhausted * 100) + '%.' });
     else if (s.spoons >= C.night.earlyRest) out.push({ kind: 'good', t: 'Лягти, лишивши ресурс ' + C.night.earlyRest + '+, — завтра біль −1.' });
     return out;
   }
 
   function sleepGainText(s) {
-    return s.spoons >= C.night.earlyRest ? 'завтра біль −1' : s.spoons === 0 ? 'загострення ймовірніше (+' + Math.round(C.night.exhausted * 100) + '%)' : 'без змін';
+    return s.spoons >= C.night.earlyRest ? 'завтра біль −1' : s.spoons === 0 ? 'шанс загострення вночі вищий (' + Math.round(flareChanceTonight(s) * 100) + '%)' : 'без змін';
   }
 
   function summary(s) {
