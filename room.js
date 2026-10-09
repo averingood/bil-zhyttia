@@ -1748,6 +1748,18 @@
           if (!open) { ctx.fillStyle = '#f2d36b'; ctx.fillRect(d.anchor[0] - 1, d.anchor[1] - 10, 1, 2); ctx.fillRect(d.anchor[0] - 4, d.anchor[1] - 9, 1, 1); ctx.fillRect(d.anchor[0] + 3, d.anchor[1] - 9, 1, 1); }
         }
       }
+      // Знеболювальне: туман у голові — легке двоїння й засвіт, кімната трохи «пливе». Лише картинка.
+      if (this.view.painkiller && !this.cut) {
+        const t = this.t, dx = Math.round(1 + Math.sin(t * 0.9)), dy = Math.round(Math.sin(t * 0.6) * 0.8);
+        ctx.save();
+        ctx.globalAlpha = 0.22; ctx.drawImage(ctx.canvas, dx, dy);
+        ctx.globalAlpha = 1;
+        const gl = ctx.createRadialGradient(W * 0.62, H * 0.2, 0, W * 0.62, H * 0.2, W * 0.75);
+        gl.addColorStop(0, 'rgba(255,248,230,' + (0.16 + Math.sin(t * 1.3) * 0.03).toFixed(3) + ')');
+        gl.addColorStop(1, 'rgba(255,248,230,0)');
+        ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
       if (this.cut && this.cut.whiteout) {
         ctx.fillStyle = 'rgba(255,250,236,' + (this.cut.whiteout * 0.92) + ')';
         ctx.fillRect(0, 0, W, H);

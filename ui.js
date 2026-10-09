@@ -76,6 +76,7 @@
         joy: game.soul * 10,
         mess: 0,
         invite: phase === 'play' && !!G.inviteToday(game),
+        painkiller: !!game.painkiller,
       });
     }
     // Порожня душа: постоявши без діла, герой сам сідає на мішок.

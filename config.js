@@ -132,7 +132,7 @@
       delivery: { spoons: 0, money: 14, body: 1 },   // поїв — Тілу краще
       coffee:   { spoons: 0, money: 6, gain: 1, flareAdd: 0.20, secondTomorrow: 1 },   // скільки завгодно; з другої чашки — ще й завтра ресурс −1 (поки є що брати із завтра)
       course:   { spoons: 0, perDay: 1 },
-      meds:     { spoons: 0, perDay: 1, money: 12, reliefToday: 2, flareAdd: 0.15, soul: 1, side: { chance: 0.25, soul: 1 } },   // біль −2, Настрій +1; 25% — туман у голові (Настрій −1); загострення вночі +15%
+      meds:     { spoons: 0, perDay: 1, money: 12, reliefToday: 2, flareAdd: 0.15, soul: 1 },   // біль −2, Настрій +1; туман у голові — лише картинка (кімната пливе); загострення вночі +15%
       read:     { spoons: 1, soul: 1, maxPain: 7, finishSoul: 4 },
       // Різке покращення, але дороге: платна процедура (блокада). Біль −3 сьогодні, −2 завтра, −1 післязавтра; Тіло +3.
       block:    { spoons: 1, money: 80, cooldown: 6, reliefToday: 3, reliefNext: [2, 1], body: 3 },
