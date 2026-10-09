@@ -17,8 +17,8 @@
     // Стан болю: для ресурсу, міні-ігор і того, як біль б'є по сферах.
     states: {
       light:  { name: 'Легкий',   min: 1, max: 3 },
-      medium: { name: 'Помітний', min: 4, max: 6 },
-      strong: { name: 'Сильний',  min: 7, max: 10 },
+      medium: { name: 'Помітний', min: 4, max: 7 },
+      strong: { name: 'Сильний',  min: 8, max: 10 },   // обмеження сильного болю — з 8
     },
     // Ресурс зранку за болем (індекс — біль 0..10). У коді поле зветься spoons — від теорії ложок.
     spoons: [6, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2],
@@ -115,7 +115,7 @@
       games:    { spoons: 1, perDay: 1, ease: 1,   // Настрій = скільки перешкод перестрибнув (0–4)
                   tomorrow: 1, tomorrowChance: 0.3, jumps: 4,   // відволікає: тимчасовий біль −1; 30% засидітись
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
-      create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 6 },
+      create:   { spoons: 2, soul: [2, 1, 0, 0], songSessions: 3, songSoul: 3, maxPain: 7 },
       friends:  { spoons: 2, inviteSpoons: 2, perDay: 1, treat: 10, treatChance: 0.2, invitedFood: false, people: { light: 2, medium: 2, strong: 2 }, invited: 0 },
       // зустріч: Стосунки +2, ресурс 2. Покликав сам — у 20% прийдуть голодні: частування treat ₴. Просяться самі — без частування
       // (їжу приносять, лише якщо так кажуть у запрошенні; invitedFood: true — завжди з їжею, але тоді не готуєш і не маєш Тіло +1)
@@ -130,7 +130,7 @@
       coffee:   { spoons: 0, money: 6, gain: 1, flareAdd: 0.20, secondTomorrow: 1 },   // скільки завгодно; з другої чашки — ще й завтра ресурс −1 (поки є що брати із завтра)
       course:   { spoons: 0, perDay: 1 },
       meds:     { spoons: 0, perDay: 1, money: 12, reliefToday: 2, flareAdd: 0.15, side: { chance: 0.25, soul: 1 } },   // замість відкату — шанс загострення вночі +11%
-      read:     { spoons: 1, soul: 1, maxPain: 6, finishSoul: 4 },
+      read:     { spoons: 1, soul: 1, maxPain: 7, finishSoul: 4 },
       // Різке покращення, але дороге: платна процедура (блокада). Біль −3 сьогодні, −2 завтра, −1 післязавтра; Тіло +3.
       block:    { spoons: 1, money: 80, cooldown: 6, reliefToday: 3, reliefNext: [2, 1], body: 3 },
       // Вечір настолок: кличеш усіх друзів. Дорого (ресурс і гроші на частування), раз на тиждень, але Стосунки — найбільше.
