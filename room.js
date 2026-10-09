@@ -1689,7 +1689,7 @@
         [...P(0.45, 0.35, 30), 30, [1.05, 0.95, 0.75]],
       ] : [];
       // Настолки: тепле коло світла над столиком — гірлянда/свічки.
-      if (this.visit && this.visit.board) lights.push([...P(2.9, 4.8, 12), 58, [1.25, 1.02, 0.7]]);
+      if (this.visit && this.visit.board) lights.push([...P(2.9, 4.8, 12), 46, [1.08, 1.02, 0.92]]);   // ледь тепле коло — без перебору
       const p = this.lit.pain;
       const strong = v.state === 'strong';
       const happy = !!(this.cut && this.cut.win && this.cut.bright);   // свято з добрим підсумком: тепло, яскраво, без тіні по краях
@@ -1719,7 +1719,7 @@
               mr = mr + (L2[3][0] - mr) * k; mg = mg + (L2[3][1] - mg) * k; mb = mb + (L2[3][2] - mb) * k;
             }
           }
-          r *= mr * bright * coolR * (happy ? 1.08 : cozy ? 1.16 : 1); g *= mg * bright * (happy ? 1.03 : cozy ? 0.98 : 1); b *= mb * bright * coolB * (happy ? 0.9 : cozy ? 0.7 : 1);
+          r *= mr * bright * coolR * (happy ? 1.08 : cozy ? 1.04 : 1); g *= mg * bright * (happy ? 1.03 : cozy ? 1.0 : 1); b *= mb * bright * coolB * (happy ? 0.9 : cozy ? 0.94 : 1);
           const l = r * 0.3 + g * 0.59 + b * 0.11;
           r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
           if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
