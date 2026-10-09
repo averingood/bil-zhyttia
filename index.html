@@ -392,11 +392,99 @@
   .act .pad:hover { opacity: 1; }
   .act:has(.pad) { padding-right: 28px; }
   .btn .pad { cursor: help; }
+  /* Картка дії: рядок «дає» і рядок «забирає». */
+  .act .a-fx { display: grid; gap: 1px; }
+  .a-row b { font-weight: 400; font-size: .85em; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; }
+  .a-gain b { color: var(--light); } .a-loss b { color: var(--strong); }
+  .a-fx .money { color: var(--money); }
+
+  /* ---------- телефон ---------- */
+  #mStatus, #mBar, .m-close { display: none; }
+  @media (max-width: 700px) {
+    html, body { height: auto; min-height: 100%; }
+    body { font-size: 20px; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+    #app { display: block; height: auto; }
+    #stage { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; }
+    kbd, .act kbd, .ans kbd { display: none !important; }
+    /* Рядок стану: завжди вгорі, торкнись — відкриється вся панель. */
+    #mStatus { display: block; position: sticky; top: 0; z-index: 15; margin: 0 -10px; background: var(--bg); border-bottom: 2px solid var(--line); padding-top: env(safe-area-inset-top); }
+    .ms { display: grid; gap: 2px; padding: 4px 8px 5px; }
+    .ms-row { display: flex; align-items: center; gap: 4px; }
+    .ms-i { background: none; border: 2px solid transparent; color: var(--fg); font: inherit; padding: 2px 6px; min-height: 34px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .ms-i.on { border-color: var(--accent); background: var(--panel-2); }
+    .ms small { color: var(--muted); font-size: 16px; margin-left: 2px; }
+    .ms-day { font: 20px/1 var(--font-display); white-space: nowrap; }
+    .ms-pain { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+    .ms-res { gap: 2px; margin-left: auto; }
+    .ms-res .tri { width: 13px; height: 11px; flex: 0 1 13px; min-width: 8px; }
+    .ms-res { min-width: 0; flex-wrap: nowrap; padding: 2px 4px; }
+    .ms-sphs { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .ms-sph { color: var(--c); justify-content: center; white-space: nowrap; gap: 5px; }
+    .ms-sph b { font: 17px/1 var(--font-display); }
+    .ms-sph small { color: var(--muted); font-size: 15px; margin-left: -2px; }
+    .pix { width: 15px; height: 15px; fill: currentColor; flex: none; }
+    .ms-sph.danger, .ms-sph.danger small { color: var(--fatal); }
+    /* Підказка значка — під панеллю, торкнись її (чи значок ще раз), щоб закрити. */
+    .ms-tip { border-top: 2px solid var(--accent); background: var(--panel); padding: 8px 12px 10px; font-size: 18px; line-height: 1.2; max-height: 55vh; overflow-y: auto; }
+    .ms-tip p { margin: 0 0 5px; } .ms-tip .why { color: var(--muted); } .ms-tip .tl { margin-top: 2px; }
+    .ms-tip .hints { font-size: 18px; }
+    .ms-tip .cal { margin: 4px 0 8px; } .ms-tip .cd { min-height: 54px; font-size: 16px; }
+    .ms-tip .lbl { display: block; margin: 6px 0 2px; }
+    .ms-tip .ms-all { margin-top: 8px; font-size: 17px; padding: 6px 12px; }
+    .ms-fatal { margin: 0; padding: 4px 12px 6px; color: var(--fatal); font-size: 18px; line-height: 1.15; border-top: 1px solid var(--line); }
+    #canvasWrap { order: 1; aspect-ratio: 206 / 172; width: 100%; max-width: 100%; flex: none; }
+    #zoneChips { order: 2; flex-wrap: nowrap; overflow-x: auto; gap: 6px; margin: 0 -10px; padding: 0 10px 2px; scrollbar-width: none; }
+    #zoneChips::-webkit-scrollbar { display: none; }
+    .chip { min-height: 44px; padding: 6px 12px; flex: none; font-size: 20px; }
+    #actionBar { order: 3; height: auto !important; min-height: 0 !important; padding: 8px 10px; }
+    .ab-list { grid-template-columns: 1fr; }
+    .act { min-height: 52px; grid-template-columns: minmax(0, 1fr) auto; }
+    .act:has(.pad) { padding-right: 30px; }
+    .sc-answers { grid-template-columns: 1fr; grid-auto-rows: minmax(52px, auto); min-height: 0; }
+    .ans { min-height: 52px; }
+    .sc-answers.cook-opts { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(48px, auto); }
+    .cook-opts .ans { min-height: 48px; font-size: 18px; overflow-wrap: anywhere; }
+    body.busy #zoneChips { display: none; }
+    /* Меню міні-ігор — поверх усього, не ховається під нижню панель. */
+    .games-menu { position: fixed; top: calc(80px + env(safe-area-inset-top)); left: 10px; right: 10px; z-index: 40; max-height: calc(100vh - 160px); overflow-y: auto; min-width: 0; }
+    .mat-hint { font-size: 15px; line-height: 1.15; top: 44px; padding: 5px 9px; width: 94%; }
+    .mat-hint b { display: none; }
+    .sc-msg { white-space: normal; overflow: visible; }   /* у сценах і вікнах зони не потрібні */
+    .scene-tog { min-height: 36px; }
+    /* Панель стану — шторка на весь екран. */
+    #panel { display: none; position: fixed; inset: 0; z-index: 20; overflow-y: auto; border: 0; padding: 12px 14px calc(80px + env(safe-area-inset-bottom)); padding-top: calc(12px + env(safe-area-inset-top)); }
+    body.sheet #panel { display: grid; }
+    body.sheet { overflow: hidden; }
+    .m-close { display: block; justify-self: end; background: var(--panel-2); border: 2px solid var(--line); color: var(--fg); font: inherit; padding: 6px 14px; min-height: 44px; cursor: pointer; }
+    .sec.tipped { cursor: pointer; }
+    #panel .btns { display: none; }   /* ці кнопки — у нижньому рядку */
+    .sec.open .tip { display: block; background: var(--panel-2); border-left: 3px solid var(--accent); padding: 6px 10px; font-size: 19px; }
+    .sec.open .tip p { margin: 0 0 4px; }
+    .sec.open .tip .why { color: var(--muted); }
+    /* Кнопки внизу — завжди під пальцем. */
+    #mBar { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 6px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 22;
+      background: var(--panel); border-top: 2px solid var(--line); padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+    #mBar[hidden] { display: none; }
+    #mBar .btn { min-height: 48px; padding: 6px 8px; }
+    /* Вікна: на всю ширину, з прокруткою. */
+    #modal { padding: 8px; place-items: safe center; overflow-y: auto; z-index: 60; }
+    .dlg { padding: 16px 14px; gap: 12px; max-height: none; }
+    .dlg h1 { font-size: 36px; } .dlg h2 { font-size: 26px; }
+    .setup-row { grid-template-columns: 1fr auto; }
+    .setup-row input[type=range] { grid-column: 1 / -1; grid-row: 2; }
+    .row .btn { min-height: 48px; flex: 1 1 auto; }
+    .cols { grid-template-columns: 1fr; }
+    #toast { bottom: 8px; font-size: 18px; }
+    .delta { font-size: 18px; top: 26%; }
+    .scene-tog { font-size: 17px; padding: 2px 8px; }
+    #cutCaption { white-space: normal; text-align: center; width: max-content; max-width: 92%; font-size: 19px; }
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <main id="stage">
+    <div id="mStatus" aria-label="Стан дня коротко"></div>
     <div id="canvasWrap">
       <canvas id="room" aria-label="Квартира"></canvas>
       <button id="endTog" class="scene-tog skip-btn" type="button" hidden>Підсумок</button>
@@ -412,20 +500,21 @@
   </main>
   <aside id="panel" aria-label="Стан дня"></aside>
 </div>
+<nav id="mBar" aria-label="Головні дії"></nav>
 <div id="modal" hidden></div>
 <div id="tipBox" hidden></div>
 
-<script src="config.js?v=20261009163155"></script>
-<script src="logic.js?v=20261009163155"></script>
-<script src="room.js?v=20261009163155"></script>
-<script src="painfx.js?v=20261009163155"></script>
-<script src="meeting.js?v=20261009163155"></script>
-<script src="friendtalk.js?v=20261009163155"></script>
-<script src="matgame.js?v=20261009163155"></script>
-<script src="readgame.js?v=20261009163155"></script>
-<script src="cookgame.js?v=20261009163155"></script>
-<script src="synthgame.js?v=20261009163155"></script>
-<script src="rungame.js?v=20261009163155"></script>
-<script src="ui.js?v=20261009163155"></script>
+<script src="config.js?v=20261009193036"></script>
+<script src="logic.js?v=20261009193036"></script>
+<script src="room.js?v=20261009193036"></script>
+<script src="painfx.js?v=20261009193036"></script>
+<script src="meeting.js?v=20261009193036"></script>
+<script src="friendtalk.js?v=20261009193036"></script>
+<script src="matgame.js?v=20261009193036"></script>
+<script src="readgame.js?v=20261009193036"></script>
+<script src="cookgame.js?v=20261009193036"></script>
+<script src="synthgame.js?v=20261009193036"></script>
+<script src="rungame.js?v=20261009193036"></script>
+<script src="ui.js?v=20261009193036"></script>
 </body>
 </html>

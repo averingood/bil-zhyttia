@@ -456,7 +456,7 @@
     const final = docDay === D.days[D.days.length - 1];
     // Лише призначення — без наслідків: з ними гравець стикається на прийомі.
     openModal(`<h2>Тиждень ${w} з ${D.days.length}</h2>
-      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень${final ? '' : ', і покаже, як на це відреагував твій мінімум болю'}.</p>
+      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень${final ? '' : ', і покаже, як на це відреагував твій організм'}.</p>
       <p>Вам прописано:</p>
       <ul class="tl">
         <li><b>Пігулки з курсу</b> (аптечка): 1 в день${!D.pillsWeeks[w - 1] ? ' — підтримуюча доза, ' + C.course.money[w - 1] + ' ₴, без пропусків: пропуск піднімає мінімум болю' : w > 1 ? ' — доза вища, ' + C.course.money[w - 1] + ' ₴' : ''}</li>
@@ -515,8 +515,8 @@
     const meta = 'Лишилось ресурсу: ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
     if (!z) {
       el.innerHTML = banner + `<div class="ab-head"><span class="ab-zone">${room.walking ? 'Іде…' : 'Квартира'}</span><span class="ab-meta">${meta}</span></div>
-        <p class="ab-empty">Клікни на меблі або йди стрілками. Біля зони з'являться дії, клавіші 1–9 їх обирають.
-        ${game.spoons === 0 ? '<br>Ресурс скінчився. Можна взяти наперед — або лягти (E).' : ''}</p>`;
+        <p class="ab-empty">${isPhone() ? 'Торкнись меблів у кімнаті або зони нижче — з\'являться дії.' : 'Клікни на меблі або йди стрілками. Біля зони з\'являться дії, клавіші 1–9 їх обирають.'}
+        ${game.spoons === 0 ? '<br>Ресурс скінчився. Можна взяти наперед — або лягти (' + (isPhone() ? '«Завершити день» унизу' : 'E') + ').' : ''}</p>`;
       bindInvite(el);
       return;
     }
@@ -596,13 +596,18 @@
     let body;
     if (!a.available) body = `<span class="a-why">${esc(a.reason)}</span>`;
     else {
-      body = `<span class="a-fx">${a.effects.map((f) => `<span class="${f.kind}">${esc(f.t)}</span>`).join(' · ')}</span>`;
+      // Окремо: що дає, яка ціна (гроші, ресурс, біль, ризики) і просто довідка.
+      const kindOf = (f) => f.kind === 'info' ? 'info' : f.kind === 'pain' ? 'loss' : f.kind === 'good' ? 'gain' : /−/.test(f.t) && !/\+/.test(f.t) ? 'loss' : 'gain';
+      // Ціна: гроші, ресурс і все, що дія забирає чи чим ризикуєш.
+      const extra = { loss: a.cost ? [{ t: 'ресурс ' + a.cost, kind: 'energy' }] : [] };
+      const row = (k, label) => { const fx = a.effects.filter((f) => kindOf(f) === k).concat(extra[k] || []); return fx.length ? `<span class="a-row a-${k}">${label ? '<b>' + label + '</b>' : ''}${fx.map((f) => `<span class="${f.kind}">${esc(f.t)}</span>`).join(' · ')}</span>` : ''; };
+      body = `<span class="a-fx">${row('gain', 'дає')}${row('loss', 'ціна')}${row('info', '')}</span>`;
       if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра' + (C.borrowPain ? ' — завтра біль +' + C.borrowPain * a.borrow : '') + '.'}</span>`;
     }
     const cls = ['act', a.available ? '' : 'off', armed === a.id ? 'armed' : ''].join(' ');
     const pad = gameOn(a.id) && a.available ? padIcon() : '';
     return `<button class="${cls}" data-id="${a.id}" aria-disabled="${!a.available}">
-      <kbd>${i + 1}</kbd><span class="a-name">${esc(a.label)}</span><span class="a-cost">${cost}</span>${body}${pad}</button>`;
+      <kbd>${i + 1}</kbd><span class="a-name">${esc(a.label)}</span><span class="a-cost">${a.available ? '' : cost}</span>${body}${pad}</button>`;
   }
 
   function renderChips() {
@@ -619,6 +624,12 @@
 
   // Гроші показуємо в ₴, а шкалу — по 20 ₴ на поділку.
   // «1–2 → 6, 3–4 → 5, …» із таблиці ресурсу за болем.
+  // «Біль 1–2 → 6» — по рядку на кожен щабель.
+  function spoonRows() {
+    const out = []; let from = 1;
+    for (let p = 1; p <= C.painMax; p++) if (p === C.painMax || C.spoons[p + 1] !== C.spoons[p]) { out.push('<li>Біль ' + (from === p ? p : from + '–' + p) + ' → ' + C.spoons[p] + '</li>'); from = p + 1; }
+    return out.join('');
+  }
   function spoonRanges() {
     const out = []; let from = 1;
     for (let p = 1; p <= C.painMax; p++) if (p === C.painMax || C.spoons[p + 1] !== C.spoons[p]) { out.push((from === p ? p : from + '–' + p) + ' → ' + C.spoons[p]); from = p + 1; }
@@ -629,13 +640,13 @@
     const v = isMoney ? Math.round(s.money / 20) : s[k];
     const danger = isMoney ? s.money < G.dailyCost(s.day) * 2 : v <= 2;
     const cells = Array.from({ length: C.sphereMax }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('');
-    return `<div class="sec tipped sph ${danger ? 'danger' : ''}" tabindex="0" style="--c:${SPH_COLOR[k]}">
+    return `<div class="sec tipped sph ${danger ? 'danger' : ''}" tabindex="0" data-k="${k}" style="--c:${SPH_COLOR[k]}">
       <div class="sec-h"><span class="lbl">${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
       <div class="meter">${cells}</div>
       <div class="tip">${tip}<p class="why">${isMoney ? 'На нулі: ' + C.graceMoney + ' дні знайти гроші на оренду, інакше виселять.'
-        : k === 'people' ? 'На нулі: не кінець, але самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.'
-        : k === 'soul' ? 'На нулі: не кінець, але ' + C.apathy.map((id, i) => { const l = G.ACTIONS[id].label; return i && l !== l.toUpperCase() ? l.toLowerCase() : l; }).join(', ') + ' — не під силу.'
-        : 'На нулі: наступного дня підніми вище нуля — інакше госпіталізація і кінець.'}</p></div></div>`;
+        : k === 'people' ? 'На нулі: самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.'
+        : k === 'soul' ? 'На нулі: ' + C.apathy.map((id, i) => { const l = G.ACTIONS[id].label; return i && l !== l.toUpperCase() ? l.toLowerCase() : l; }).join(', ') + ' — не під силу.'
+        : 'На нулі: наступного дня підніми вище нуля — інакше госпіталізація і кінець гри.'}</p></div></div>`;
   }
 
   function renderPanel() {
@@ -656,7 +667,7 @@
     for (let i = 0; i < eaten; i++) tri += triSvg('eaten');
 
     const cal = G.calendar(s, 5).map((d, i) => `<div class="cd ${i === 0 ? 'today' : ''}"><span class="n">${d.day}</span>
-      <span class="e-cost">−${d.cost}₴</span>${d.events.map((e) => `<span class="e-${e.k.split(' ')[0]} ${e.k.split(' ')[1] || ''}">${esc(e.t)}</span>`).join('')}</div>`).join('');
+      <span class="e-cost">−${d.cost} ₴</span>${d.events.map((e) => `<span class="e-${e.k.split(' ')[0]} ${e.k.split(' ')[1] || ''}">${esc(e.t)}</span>`).join('')}</div>`).join('');
 
     const hints = G.hints(s);
     const fc = G.forecastNight(s);
@@ -665,71 +676,68 @@
 
     el.style.boxShadow = `inset 0 0 ${Math.max(0, p - 3) * 9}px ${Math.max(0, p - 3) * 3}px rgba(5,5,12,.75)`;
     el.innerHTML = `
+      <button class="m-close" id="mClose" type="button" aria-label="Закрити стан">✕ Закрити</button>
       <div class="p-head">
         ${s.finished ? `<div class="p-day">День ${s.days + 1}</div><span class="sub">курс завершено!</span>`
           : s.lost ? `<div class="p-day">День ${s.day}</div><span class="sub">кінець</span>`
           : `<div class="p-day">День ${s.day} <small>з ${s.days}</small></div><span class="sub">курс лікування</span>`}
       </div>
 
-      <div class="sec tipped" tabindex="0">
+      <div class="sec tipped" tabindex="0" data-k="pain">
         <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${p}</span> <span class="sub">мінімум ${G.minNow(s)}${G.minNow(s) < s.base ? ' (блокада)' : ''}</span></span></div>
         <div class="pain-scale">${Array.from({ length: 10 }, (_, i) => `<i class="${i < G.minNow(s) ? 'floor' : i < p ? 'over' : ''}"></i>`).join('')}</div>
         <div class="tip">
           <p><b>Зараз:</b> біль ${p}, мінімум ${G.minNow(s)}${G.minNow(s) < s.base ? ' — блокада до дня ' + s.blockMin.until + ', потім знову ' + s.base : ''}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
             <li><b>Піднімають:</b> загострення вночі (+1…+4), ресурс, узятий наперед (+${C.borrowPain} за кожен), голод з ${C.hungry.painFrom}-го дня поспіль (+1 щоночі).</li>
-            <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}; сон — на стільки, скільки ресурсу лишив. Нижче мінімуму — ніколи.</li>
+            <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}; сон — на стільки, скільки ресурсу лишив невикористаним. Нижче мінімуму — ніколи.</li>
             <li><b>Блокада</b> (${C.actions.block.money} ₴) — єдине, що опускає сам мінімум: −${C.actions.block.minDrop} на ${C.actions.block.minDays} дні.</li>
-            <li><b>Мінімум</b> реагує на лікування — пігулки й ЛФК за тиждень; що вийшло, видно на прийомі лікаря (дні ${C.doctor.days.slice(0, -1).join(' і ')}). На останньому тижні кожен пропуск пігулки одразу піднімає мінімум на 1.</li>
-            <li><b>Заважає:</b> менше ресурсу й заробітку; з болем ${C.states.strong.min}+ не пишеш, не читаєш, не готуєш.</li>
+            <li><b>Мінімум</b> реагує на лікування — пігулки й ЛФК за тиждень.</li>
+            <li>З болем ${C.states.strong.min}+ не пишеш, не читаєш, не готуєш.</li>
           </ul>
         </div>
       </div>
 
-${ended ? '' : `      <div class="sec tipped" tabindex="0">
+${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
         <div class="sec-h"><span class="lbl">Ресурс</span></div>
         <div class="tris">${tri}</div>
         <div class="tip">
-          <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}, виданих зранку${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + ' — біль забрав ' + eaten + '.' : ''}</p>
+          <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + '.' : ''}</p>
+          <p><b>Базовий ресурс на ранок</b> (залежно від болю):</p>
+          <ul class="tl">${spoonRows()}</ul>
           <ul class="tl">
-            <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
-            <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра: завтра на стільки менше ресурсу${C.borrowPain ? ' і біль +' + C.borrowPain + ' за кожен' : ''}.</li>
-            <li><b>Лишиш ресурс</b> — завтра біль менший на стільки, скільки лишив (не нижче мінімуму).</li>
+            <li><b>Бонус:</b> Настрій ${L.soulHigh}+ дає +1 ресурс.</li>
+            <li>За кожен позичений ресурс сьогодні: −1 ресурс${C.borrowPain ? ' і +' + C.borrowPain + ' біль' : ''} завтра (можна позичити до ${C.maxBorrow} ресурсів з наступного дня).</li>
+            <li>Залишок ресурсу знижує завтрашній біль на кількість збереженого ресурсу (але не нижче мінімуму).</li>
           </ul>
         </div>
       </div>
 
 `}
-      ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі оренда ${G.dailyCost(s.day)} ₴.${s.loans.length ? ' Борги: ' + s.loans.map((l) => esc(l.from) + ' ' + l.amount + ' ₴ до дня ' + l.due).join(', ') + '.' : ''}</p>
+      ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴${s.pending.length ? ', надійде: ' + incoming : ''}; уночі оренда ${G.dailyCost(s.day)} ₴.${s.loans.length ? ' Борги: ' + s.loans.map((l) => esc(l.from) + ' ' + l.amount + ' ₴ до дня ' + l.due).join(', ') + '.' : ''}</p>
         <ul class="tl">
           <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші ${C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'}), підробіток від друга.</li>
           <li><b>Витрати:</b> оренда щоночі ${C.costs.join(' / ')} ₴ по тижнях, пігулки ${C.course.money.join(' / ')} ₴, двічі на тиждень — несподіваний рахунок.</li>
-          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів, Стосунки −${C.actions.loan.people}. Поки винен — цей друг не приходить; віддав — Стосунки +${C.actions.loan.repayPeople}.</li>
+          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів, Стосунки −${C.actions.loan.people}. Поки винен — цей друг не приходить; повернув — Стосунки +${C.actions.loan.repayPeople}.</li>
         </ul>`)}
       ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> зустріч +${C.actions.friends.people.light} (удала розмова ще +1), написати +${C.actions.text.people}, настолки +${C.actions.board.people} за кожного гостя, віддати борг +${C.actions.loan.repayPeople}.</li>
-          <li><b>Втрати:</b> відмова на запрошення, невдала розмова, позика, підробіток, голодні гості без частування — по −1; удари життя; щоночі тане.</li>
+          <li><b>Підняти:</b> зустріч +${C.actions.friends.people.light} (удала розмова ще +1), написати +${C.actions.text.people}, настолки +${C.actions.board.people} за кожного гостя, повернути борг +${C.actions.loan.repayPeople}.</li>
+          <li><b>Втрати:</b> відмова на запрошення, невдала розмова, позика, підробіток, голодні гості без частування — по −1; удари життя; щоночі −${C.decay}.</li>
           <li><b>Дає:</b> підробіток — з ${L.gigLow.min} зрідка (+${L.gigLow.pay} ₴), з ${L.peopleGood} частіше (+${C.actions.gig.pay} ₴).</li>
         </ul>`)}
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
-          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body}, розтяжка +${C.actions.stretch.body}, їжа (готувати чи доставка) +${C.actions.cook.body}, процедура +${C.actions.block.body}.</li>
-          <li><b>Втрати:</b> без їжі −${C.hungry.body}, щодня поспіль сильніше (−${C.hungry.body * 2}, −${C.hungry.body * 3}…); удари життя; щоночі тане.</li>
-          <li><b>Дає:</b> що міцніше, то рідше загострення — шанс уночі: ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : i === a.length - 1 ? 'нижче' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
-          <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — укол, Тіло +${C.doctor.rescue}${C.doctor.rescueCost ? ' за ' + C.doctor.rescueCost + ' ₴' : ', безкоштовно'}.</li>
+          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body}, розтяжка +${C.actions.stretch.body}, їжа +${C.actions.cook.body}, блокада +${C.actions.block.body}; укол лікаря (якщо Тіло ${C.doctor.rescueBody} і нижче) +${C.doctor.rescue}, швидка +${C.hospital.body}.</li>
+          <li><b>Втрати:</b> без їжі −${C.hungry.body}, далі щодня поспіль −${C.hungry.body * 2}, −${C.hungry.body * 3}…; удари життя; щоночі −${C.decay}.</li>
+          <li><b>Шанс загострення:</b> ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
         </ul>`)}
       ${sphereSec(s, 'soul', `<p><b>Зараз:</b> ${s.soul}.${s.soul >= L.soulGood ? ' Спокій допомагає.' : s.soul <= L.soulBad ? ' Пригніченість шкодить.' : ''}</p>
-        <p>${(() => {
-          const A = C.actions.create, R = C.actions.read, b = G.bookNow(s);
-          const song = s.song.title && s.song.done ? 'Пісня «' + esc(s.song.title) + '»: ' + s.song.done + ' з ' + A.songSessions : 'Нова пісня: ' + A.songSessions + ' сесії';
-          const book = !b ? 'книжки прочитані' : (s.book.done ? 'книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] : 'книжка «' + esc(b[0]) + '»: ' + b[1] + ' ' + (b[1] % 10 >= 2 && b[1] % 10 <= 4 && (b[1] % 100 < 12 || b[1] % 100 > 14) ? 'сесії' : b[1] % 10 === 1 && b[1] % 100 !== 11 ? 'сесія' : 'сесій'));
-          return song + ' (дописана +' + A.songSoul + '); ' + book + (b ? ' (дочитана +' + R.finishSoul + ')' : '') + '.';
-        })()}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> пісня 0…+${C.actions.create.notes}, ігри 0…+${C.actions.games.jumps}, книжка +${C.actions.read.soul}, смачна їжа +${C.actions.cook.soulIfTasty}, настолки +${C.actions.board.soul} за кожного гостя, знеболювальне +${C.actions.meds.soul}.</li>
-          <li><b>Втрати:</b> день у сильному болю −${L.strongSoul}, невдала розмова, відмова від підробітку — по −1; удари життя; щоночі тане.</li>
-          <li><b>Дає:</b> ${L.soulHigh}+ — ресурс +1 зранку, ${L.soulGood}+ — шанс загострення −${Math.round(L.soulFlare * 100)}% і +${L.soulPay} ₴ за роботу; ${L.soulBad} і нижче — шанс загострення +${Math.round(L.soulFlare * 100)}%, за роботу −${L.soulPay} ₴.</li>
+          <li><b>Підняти:</b> пісня 0…+${C.actions.create.notes}, ігри 0…+${C.actions.games.jumps}, книжка +${C.actions.read.soul}, смачна їжа +${C.actions.cook.soulIfTasty}, настолки +${C.actions.board.soul} за гостя, знеболювальне +${C.actions.meds.soul}.</li>
+          <li><b>Втрати:</b> день у сильному болю −${L.strongSoul}; невдала розмова, відмова від підробітку −1; удари життя; щоночі −${C.decay}.</li>
+          <li><b>${L.soulGood}+:</b> ресурс +1 зранку, шанс загострення −${Math.round(L.soulFlare * 100)}%, робота +${L.soulPay} ₴.</li>
+          <li><b>${L.soulBad} і нижче:</b> шанс загострення +${Math.round(L.soulFlare * 100)}%, робота −${L.soulPay} ₴.</li>
         </ul>`)}
 
       ${ended ? `<div class="btns end-btns">
@@ -762,6 +770,9 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0">
       ${!ended && fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost, fc))}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
+    // Телефон: розгорнута підказка секції лишається розгорнутою після перемальовки.
+    if (openSec != null) { const sec = el.querySelectorAll('.sec.tipped')[openSec]; if (sec) sec.classList.add('open'); }
+    $('mClose').onclick = () => setSheet(false);
     if ($('endBtn')) $('endBtn').onclick = endDayClick;
     $('journalBtn').onclick = showJournal;
     if ($('restartBtn')) $('restartBtn').onclick = askRestart;
@@ -827,9 +838,17 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0">
   }
   function hideTip() { tipIndex = null; $('tipBox').hidden = true; }
   const secIndex = (el) => { const sec = el && el.closest && el.closest('#panel .sec.tipped'); return sec ? [...document.querySelectorAll('#panel .sec.tipped')].indexOf(sec) : -1; };
-  $('panel').addEventListener('pointerover', (e) => { const i = secIndex(e.target); if (i >= 0 && i !== tipIndex) showTip(i); else if (i < 0) hideTip(); });
+  // Телефон (і будь-який дотик): наведення немає — підказка розгортається під секцією по торканню.
+  $('panel').addEventListener('pointerover', (e) => { if (e.pointerType === 'touch' || isPhone()) return; const i = secIndex(e.target); if (i >= 0 && i !== tipIndex) showTip(i); else if (i < 0) hideTip(); });
   $('panel').addEventListener('pointerleave', hideTip);
-  $('panel').addEventListener('focusin', (e) => { const i = secIndex(e.target); if (i >= 0) showTip(i); });
+  $('panel').addEventListener('focusin', (e) => { if (isPhone()) return; const i = secIndex(e.target); if (i >= 0) showTip(i); });
+  $('panel').addEventListener('click', (e) => {
+    if (!isPhone() || e.target.closest('button, a, input')) return;
+    const i = secIndex(e.target);
+    if (i < 0) return;
+    openSec = openSec === i ? null : i;
+    document.querySelectorAll('#panel .sec.tipped').forEach((sec, k) => sec.classList.toggle('open', k === openSec));
+  });
   $('panel').addEventListener('focusout', hideTip);
   $('panel').addEventListener('scroll', () => { if (tipIndex != null) showTip(tipIndex); });
 
@@ -850,7 +869,87 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0">
   function renderAll() {
     // Кінець гри: кімната на весь кадр — без рядка дій і зон; кнопки — внизу правої панелі.
     document.body.classList.toggle('ended', !!game && !!(game.finished || game.lost) && phase !== 'night' && phase !== 'report' && phase !== 'doctor');
-    renderPanel(); renderActions(); renderChips(); renderSceneToggle();
+    renderPanel(); renderActions(); renderChips(); renderSceneToggle(); renderMobile();
+  }
+
+  // ---------- телефон ----------
+  // Вузький екран: над кімнатою — стиснутий рядок стану (торкнись — відкриється вся панель шторкою),
+  // унизу — завжди під рукою «Стан», «Щоденник», «Завершити день».
+  const PHONE = window.matchMedia('(max-width: 700px)');
+  const isPhone = () => PHONE.matches;
+  let openSec = null;   // яка підказка секції розгорнута на телефоні
+  let mTip = null;      // яка підказка зі значка верхньої панелі відкрита
+  // Підказка значка — той самий текст, що й на панелі; «Плани» — найближчі події.
+  function mTipHTML(k) {
+    if (k === 'plans') {
+      // День: календар на кілька днів і плани; звідси ж — уся панель (там «Почати заново»).
+      const cal = $('panel').querySelector('.cal'), h = $('panel').querySelector('.hints');
+      return (cal ? '<span class="lbl">Календар</span>' + cal.outerHTML : '') + (h ? '<span class="lbl">Плани</span>' + h.outerHTML : '')
+        + '<button type="button" class="btn ms-all" data-all-panel>Уся панель стану</button>';
+    }
+    const sec = $('panel').querySelector('.sec[data-k="' + k + '"]');
+    if (!sec) return '';
+    const name = sec.querySelector('.lbl');
+    return '<p><b>' + (name ? esc(name.textContent) : '') + '</b></p>' + sec.querySelector('.tip').innerHTML;
+  }
+  function setSheet(on) {
+    document.body.classList.toggle('sheet', !!on);
+    if (on) $('panel').scrollTop = 0;
+    renderMobile();
+  }
+  PHONE.addEventListener && PHONE.addEventListener('change', () => { if (!isPhone()) setSheet(false); hideTip(); renderAll(); });
+  // Піксельні іконки сфер (7×7): монета, серце, людина з руками вгору, усмішка.
+  const PIX = {
+    money: ['..###..', '.#...#.', '#..#..#', '#..#..#', '#..#..#', '.#...#.', '..###..'],
+    people: ['.##.##.', '#######', '#######', '#######', '.#####.', '..###..', '...#...'],
+    body: ['#..#..#', '#.###.#', '.#####.', '..###..', '..###..', '..#.#..', '.##.##.'],
+    soul: ['.#####.', '#######', '##.#.##', '#######', '#.###.#', '##...##', '.#####.'],
+  };
+  function pixIcon(k) {
+    const rows = PIX[k];
+    let r = '';
+    rows.forEach((line, y) => [...line].forEach((ch, x) => { if (ch === '#') r += `<rect x="${x}" y="${y}" width="1" height="1"/>`; }));
+    return `<svg class="pix" viewBox="0 0 7 7" aria-hidden="true" shape-rendering="crispEdges">${r}</svg>`;
+  }
+  function renderMobile() {
+    const top = $('mStatus'), bar = $('mBar');
+    if (!game || phase === 'setup') { top.innerHTML = ''; bar.innerHTML = ''; document.body.classList.remove('sheet'); return; }
+    const s = panelView || game, p = G.pain(s), st = G.stateKey(s), ended = !!(s.finished || s.lost);
+    // Значки: кожен — окрема кнопка; торкнувся — під панеллю його підказка. Сфери показують і максимум (/10).
+    const sph = ['money', 'people', 'body', 'soul'].map((k) => {
+      const v = k === 'money' ? s.money : s[k];
+      const danger = k === 'money' ? s.money < G.dailyCost(s.day) * 2 : v <= 2;
+      return `<button type="button" class="ms-i ms-sph${danger ? ' danger' : ''}${mTip === k ? ' on' : ''}" data-tip="${k}" style="--c:${SPH_COLOR[k]}" aria-label="${G.SPHERES[k].name}">${pixIcon(k)}<b>${v}</b><small>${k === 'money' ? '₴' : '/' + C.sphereMax}</small></button>`;
+    }).join('');
+    // Ресурс — ті самі трикутники, що й на панелі: повні, витрачені, узяті наперед і рябі червоні — з'їдені болем.
+    const trisEl = $('panel').querySelector('.sec[data-k="res"] .tris');
+    const tris = ended || !trisEl ? '' : trisEl.innerHTML;
+    const fatal = ended ? null : G.hints(s).find((h) => h.kind === 'fatal');
+    top.innerHTML = `<div class="ms">
+        <div class="ms-row">
+          <button type="button" class="ms-i ms-day${mTip === 'plans' ? ' on' : ''}" data-tip="plans" aria-label="Плани">${s.finished ? 'День ' + (s.days + 1) : 'День ' + s.day}<small>/${s.days}</small></button>
+          <button type="button" class="ms-i ms-pain${mTip === 'pain' ? ' on' : ''}" data-tip="pain" aria-label="Біль"><small>біль</small><span class="state-tag" style="--c:${STATE_COLOR[st]}">${p}</span><small>мін ${G.minNow(s)}</small></button>
+          ${ended ? '' : `<button type="button" class="ms-i ms-res${mTip === 'res' ? ' on' : ''}" data-tip="res" aria-label="Ресурс">${tris}</button>`}
+        </div>
+        <div class="ms-sphs">${sph}</div>
+      </div>${fatal ? `<p class="ms-fatal">${esc(fatal.t)}</p>` : ''}${mTip ? `<div class="ms-tip">${mTipHTML(mTip)}</div>` : ''}`;
+    top.querySelectorAll('[data-tip]').forEach((b) => { b.onclick = () => { mTip = mTip === b.dataset.tip ? null : b.dataset.tip; renderMobile(); }; });
+    const tipEl = top.querySelector('.ms-tip');
+    if (tipEl) tipEl.onclick = (e) => { const all = e.target.closest('[data-all-panel]'); mTip = null; if (all) setSheet(true); else renderMobile(); };
+    const busy = phase !== 'play' && phase !== 'end';
+    bar.hidden = busy;
+    document.body.classList.toggle('busy', phase !== 'play');
+    bar.innerHTML = ended
+      ? `<button class="btn primary" data-m="sum">Підсумок</button><button class="btn" data-m="journal">Щоденник</button><button class="btn" data-m="new">Нова гра</button>`
+      : `<button class="btn" data-m="state">${document.body.classList.contains('sheet') ? 'Сховати' : 'Календар'}</button><button class="btn" data-m="journal">Щоденник</button><button class="btn primary ${s.spoons === 0 ? 'pulse' : ''}" data-m="end">Завершити день</button>`;
+    bar.querySelectorAll('[data-m]').forEach((b) => { b.onclick = () => {
+      const m = b.dataset.m;
+      if (m === 'state') { if (document.body.classList.contains('sheet')) setSheet(false); else { mTip = mTip === 'plans' ? null : 'plans'; window.scrollTo(0, 0); renderMobile(); } }
+      else if (m === 'journal') { setSheet(false); showJournal(); }
+      else if (m === 'end') { setSheet(false); endDayClick(); }
+      else if (m === 'sum') { if (phase === 'end') showEnd(); }
+      else if (m === 'new') showSetup();
+    }; });
   }
 
   function canSkipAnim() { return (room.visit && !(room.visit.hold && (phase === 'scene' || phase === 'doctor') && sceneAbort)) || !!room.bubble || workingT > 0; }
@@ -908,13 +1007,13 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0">
         <b id="su-${key}-v">${setupChoice[key]}${unit}</b><small>${note}</small></label>`;
     openModal(`
       <h1>Біль життя</h1>
-      <p>Ти живеш із хронічним болем. Попереду — ${C.days} ${dayWord(C.days)} лікування.</p>
+      <p>У тебе хронічний біль. Попереду ${C.days}-денний курс лікування.</p>
       <p>Щоранку біль вирішує, скільки в тебе сил — <b>ресурсу</b>. Кожна справа коштує ресурсу й підтримує одну з чотирьох сфер: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b>, <b>Настрій</b>. Щоночі сфери трохи тануть, а часом життя ще й б'є.</p>
-      <p><b>Біль</b> не опускається нижче свого мінімуму. Загострення піднімають його; сон знімає стільки, скільки ресурсу лишив на себе. Лікуєшся як слід — мінімум знижується; що вийшло, видно на прийомі в лікаря.</p>
+      <p><b>Біль</b> не опускається нижче свого мінімуму. Загострення піднімають його; сон знімає стільки, скільки ресурсу лишив невикористаним. Лікуєшся як слід — мінімум знижується; результати лікування підбиваються на прийомах лікаря.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
-        ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі оренда, щотижня дорожче')}
+        ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі знімається оренда, яка дорожчає щотижня')}
       </div>
-      <p class="sub">Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J — щоденник, M — міні-ігри.</p>
+      <p class="sub">${isPhone() ? 'Керування: торкайся меблів чи зон під кімнатою; угорі — стан дня (торкнись, щоб розгорнути), унизу — «Завершити день».' : 'Керування: клік по меблях або стрілки/WASD, цифри обирають дію, E завершує день, J — щоденник, M — міні-ігри.'}</p>
       <div class="row"><button class="btn primary" id="startBtn">Почати</button></div>
     `, false);
     for (const k of ['money']) {

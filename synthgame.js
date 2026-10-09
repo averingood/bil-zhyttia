@@ -125,7 +125,7 @@
 
     o.bar.innerHTML = `<div class="sc-head"><span class="ab-zone">Синтезатор</span><span class="ab-meta" id="scCount"></span></div>
       <div class="sc-bar"><span class="mat-input"></span><span class="sc-repeat"></span></div>
-      <div class="sc-answers"><p class="mat-input" style="font-size:20px;color:var(--muted)">Зіграй три ноти: клікни по клавішах або натискай літери на клавіатурі.</p>
+      <div class="sc-answers"><p class="mat-input" style="font-size:20px;color:var(--muted)">${window.matchMedia && matchMedia('(max-width: 700px)').matches ? 'Зіграй три ноти: торкайся клавіш синтезатора.' : 'Зіграй три ноти: клікни по клавішах або натискай літери на клавіатурі.'}</p>
 </div>
       <p class="sc-msg"></p>`;
     fit();
