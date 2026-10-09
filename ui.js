@@ -940,7 +940,7 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0">
   function journalHTML() {
     return game.journal.slice().reverse().map((j) => {
       const part = (k, arr) => arr.length ? `<div><span class="k">${k}</span><ul>${arr.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
-      const head = j.hospital ? 'у лікарні' : 'ранковий біль ' + j.morningPain + ', ' + C.states[j.state].name.toLowerCase();
+      const head = 'ранковий біль ' + j.morningPain + ', ' + C.states[j.state].name.toLowerCase();
       return `<section class="jday"><h3>День ${j.day} · ${head}</h3>
         ${part('Зроблено', j.did)}${part('Відмовився і втратив', j.refused)}${part('Хотів, але не міг', j.tried)}${part('Ніч', j.night)}
         ${!j.did.length && !j.refused.length && !j.tried.length && !j.night.length ? '<p class="sub">Поки нічого.</p>' : ''}</section>`;
