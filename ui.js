@@ -639,7 +639,7 @@
         <div class="tip">
           <p><b>Зараз:</b> біль ${p}, мінімум ${G.minNow(s)}${G.minNow(s) < s.base ? ' — блокада до дня ' + s.blockMin.until + ', потім знову ' + s.base : ''}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
-            <li><b>Піднімають:</b> загострення вночі (+1…+4), ресурс, узятий наперед (+${C.borrowPain} за кожен).</li>
+            <li><b>Піднімають:</b> загострення вночі (+1…+4), ресурс, узятий наперед (+${C.borrowPain} за кожен), голод з ${C.hungry.painFrom}-го дня поспіль (+1).</li>
             <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}; уночі −1. Нижче мінімуму — ніколи.</li>
             <li><b>Блокада</b> (${C.actions.block.money} ₴) — єдине, що опускає сам мінімум: −${C.actions.block.minDrop} на ${C.actions.block.minDays} дні.</li>
             <li><b>Мінімум</b> реагує на лікування — пігулки й ЛФК за тиждень; що вийшло, видно на прийомі лікаря (дні ${C.doctor.days.slice(0, -1).join(' і ')}). На останньому тижні кожен пропуск пігулки одразу піднімає мінімум на 1.</li>

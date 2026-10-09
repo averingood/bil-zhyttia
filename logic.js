@@ -699,6 +699,8 @@
 
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
+    // Довго без їжі — ще й болить сильніше.
+    if (!s.fed && C.hungry.painFrom && s.hungryStreak >= C.hungry.painFrom) { s.extra += 1; ev.push({ kind: 'pain', text: 'Голодний ' + s.hungryStreak + '-й день поспіль: завтра біль +1' }); }
     // Висока доза: пропущена пігулка — біль повертається вже завтра.
     const miss = C.course.missMin[weekIdx(s.day)];
     if (miss && s.courseToday !== s.day && s.day < s.days) {
