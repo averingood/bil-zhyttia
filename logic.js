@@ -166,8 +166,8 @@
     if (!g) return null;
     s.gig = null;
     s.soul = clampS(s.soul - C.actions.gig.refuse);
-    journalFor(s, s.day).refused.push(g.from + ' пропонував' + (C.friends.female.includes(g.from) ? 'а' : '') + ' підробіток — відмовився: Настрій −' + C.actions.gig.refuse);
-    return { name: g.from, text: g.from + ' пропонував' + (C.friends.female.includes(g.from) ? 'а' : '') + ' підробіток — відмовився: Настрій −' + C.actions.gig.refuse };
+    journalFor(s, s.day).refused.push(g.from + (C.friends.female.includes(g.from) ? ' пропонувала' : ' пропонував') + ' підробіток — відмовився: Настрій −' + C.actions.gig.refuse);
+    return { name: g.from, text: g.from + (C.friends.female.includes(g.from) ? ' пропонувала' : ' пропонував') + ' підробіток — відмовився: Настрій −' + C.actions.gig.refuse };
   }
   function inviteToday(s) {
     const inv = s.invites[s.day];
@@ -216,7 +216,7 @@
     const cost = spoonCost(s, id);
     if (cost == null) return no('При сильному болю (' + C.states.strong.min + '+) на це немає сил');
     if (a.perDay && (s.used[id] || 0) >= a.perDay) return no('Сьогодні вже було');
-    const price = (a.money || 0) + (id === 'course' ? C.course.money : 0);
+    const price = (a.money || 0) + (id === 'course' ? pillPrice(s) : 0);
     if (price && s.money < price) return no('Не вистачає грошей');
     if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ресурсу, навіть якщо взяти наперед');
     const p = pain(s);
@@ -302,13 +302,14 @@
         break;
       }
       case 'games': {
-        const run = opts.runner || { cleared: rand(s) < (a.painChance[st] || 0.25) ? 1 + Math.floor(rand(s) * 2) : a.jumps };
-        const gain = a.soul + Math.floor(run.cleared / a.perJumps) - 1;
+        // Без міні-гри: біль іноді збиває на випадковій перешкоді.
+        const run = opts.runner || { cleared: rand(s) < (a.painChance[st] || 0.25) ? Math.floor(rand(s) * a.jumps) : a.jumps };
+        const gain = run.cleared;   // Настрій — за кожну перестрибнуту перешкоду, від 0 до 4
         s.soul = clampS(s.soul + gain);
         ease(s, a.ease);   // гра відволікає від болю
         const late = rand(s) < a.tomorrowChance;
         if (late) s.spoonTomorrow += a.tomorrow;
-        note = 'Настрій +' + gain + ', біль відступив на ' + a.ease + (late ? '; засидівся — завтра ресурс −' + a.tomorrow : '');
+        note = (gain ? 'Настрій +' + gain : 'впав на першій перешкоді — Настрій без змін') + ', біль відступив на ' + a.ease + (late ? '; засидівся — завтра ресурс −' + a.tomorrow : '');
         break;
       }
       case 'create': {
@@ -405,7 +406,8 @@
       }
       case 'delivery':
         s.fed = true; s.foodType = 'delivery';
-        note = 'їжа є, −' + a.money + ' ₴';
+        s.body = clampS(s.body + (a.body || 0));
+        note = 'їжа є' + (a.body ? ', Тіло +' + a.body : '') + ', −' + a.money + ' ₴';
         break;
       case 'coffee':
         s.spoons += a.gain; s.coffeeToday++;
@@ -414,11 +416,12 @@
         if (s.coffeeToday >= 2 && a.secondTomorrow) { s.spoonTomorrow += a.secondTomorrow; note = s.coffeeToday + '-га кава: ' + note + ', завтра ресурс −' + a.secondTomorrow; }
         break;
       case 'course': {
-        s.money -= C.course.money;
+        const price = pillPrice(s);
+        s.money -= price;
         s.courseToday = s.day;
         s.pillDays.push(s.day);
         s.stats.coursePills++;
-        note = 'пігулка з курсу, −' + C.course.money + ' ₴';   // скільки випив за тиждень — гравець пам'ятає сам; лікар перевірить
+        note = 'пігулка з курсу, −' + price + ' ₴';   // скільки випив за тиждень — гравець пам'ятає сам; лікар перевірить
         break;
       }
       case 'meds': {
@@ -447,7 +450,7 @@
       case 'gig': {
         s.money += a.pay; s.stats.earned += a.pay;
         s.people = clampS(s.people - (a.people || 0));
-        note = s.gig.from + ' підкинув' + (C.friends.female.includes(s.gig.from) ? 'а' : '') + ' підробіток: +' + a.pay + ' ₴ одразу' + (a.people ? '; брати гроші від друга незручно: Стосунки −' + a.people : '');
+        note = s.gig.from + (C.friends.female.includes(s.gig.from) ? ' підкинула' : ' підкинув') + ' підробіток: +' + a.pay + ' ₴ одразу' + (a.people ? '; брати гроші від друга незручно: Стосунки −' + a.people : '');
         s.gig = null;
         break;
       }
@@ -461,7 +464,9 @@
         s.stats.meetings++; s.stats.boards = (s.stats.boards || 0) + 1;
         // Хто де сяде — щоразу інакше.
         for (let i = guests.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [guests[i], guests[k]] = [guests[k], guests[i]]; }
-        note = 'вечір настолок: прийшли ' + guests.join(', ') + '; Стосунки +' + gainB + ', Настрій +' + a.soul + ', −' + a.money + ' ₴ на частування';
+        // Їли разом — голодним цього дня вже не будеш.
+        const ate = !s.fed; if (ate) { s.fed = true; s.foodType = 'shared'; }
+        note = 'вечір настолок: прийшли ' + guests.join(', ') + '; Стосунки +' + gainB + ', Настрій +' + a.soul + ', −' + a.money + ' ₴ на частування' + (ate ? ', поїли разом' : '');
         tags.push({ t: 'настолки: прийшли ' + guests.length + ' — Стосунки +' + gainB, k: 'good', covers: ['people'] });
         break;
       }
@@ -542,23 +547,31 @@
   function doctorVisit(s) {
     const D = C.doctor, d = s.day, lines = [];
     const before = s.base, final = d === D.days[D.days.length - 1];
-    const pills = inWeek(s.pillDays, d), lfk = inWeek(s.lfkDays, d);
+    const pills = inWeek(s.pillDays, d), lfk = inWeek(s.lfkDays, d), wk = weekIdx(d), keep = D.pills.keep[wk];
     let shift = 0;
     if (pills >= D.pills.full) { shift--; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ', без пропусків. Молодець, базовий біль відступає.', k: 'good' }); }
-    else if (pills >= D.pills.keep) lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — один пропуск. Тримаєшся, але без покращення.', k: '' });
+    else if (pills >= keep) lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — один пропуск. Тримаєшся, але без покращення.', k: '' });
+    else if (pills >= D.pills.keep[0]) { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — на такій дозі навіть один пропуск відкочує: базовий біль посилюється.', k: 'bad' }); }
     else { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — забагато пропусків. Без курсу базовий біль посилюється.', k: 'bad' }); }
-    if (lfk >= D.lfk.good) { shift--; lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + ' за тиждень. Суглоби дякують — базовий біль відступає.', k: 'good' }); }
-    else if (lfk > 0) lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + ' за тиждень. Замало — треба хоча б ' + D.lfk.good + '.', k: '' });
-    else { shift++; lines.push({ t: 'ЛФК: жодного разу. Без руху все дубіє — базовий біль посилюється.', k: 'bad' }); }
+    if (D.lfkWeeks[wk]) {
+      if (lfk >= D.lfk.good) { shift--; lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + ' за тиждень. Суглоби дякують — базовий біль відступає.', k: 'good' }); }
+      else if (lfk > 0) lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + ' за тиждень. Замало — треба хоча б ' + D.lfk.good + '.', k: '' });
+      else { shift++; lines.push({ t: 'ЛФК: жодного разу. Без руху все дубіє — базовий біль посилюється.', k: 'bad' }); }
+    }
+    // Наступний тиждень: доза вища (і дорожча); на останній — ЛФК на власний розсуд.
+    if (!final) {
+      const nw = wk + 1;
+      lines.push({ t: 'З завтра підвищую дозу: пігулка тепер ' + C.course.money[nw] + ' ₴' + (D.pills.keep[nw] >= D.pills.full ? ', і без жодного пропуску' : '') + '.' + (!D.lfkWeeks[nw] ? ' ЛФК — як самі захочете.' : ''), k: '' });
+    }
     s.baseShift += shift;
     recalcBase(s);
     if (s.body <= D.rescueBody) {
-      if (s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло слабке — поставлю укол: Тіло +' + D.rescue + ', −' + D.rescueCost + ' ₴.', k: 'good' }); }
+      if (s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло слабке — поставлю укол: Тіло +' + D.rescue + (D.rescueCost ? ', −' + D.rescueCost + ' ₴' : ', безкоштовно') + '.', k: 'good' }); }
       else lines.push({ t: 'Тіло слабке, укол би допоміг — але на нього (' + D.rescueCost + ' ₴) грошей немає.', k: 'bad' });
     }
     const after = s.base;
     const verdict = after < before ? 'базовий біль ' + before + ' → ' + after : after > before ? 'базовий біль ' + before + ' → ' + after : 'базовий біль без змін (' + after + ')';
-    lines.push({ t: final ? 'Курс завершено. За три тижні базовий біль ' + s.baseStart + ' → ' + after + '.' : 'Отже, ' + verdict + '. Побачимось через тиждень.', k: after < before ? 'good' : after > before ? 'bad' : '' });
+    lines.push({ t: final ? 'Добре. Ваш базовий біль тепер ' + after + ' (на початку курсу був ' + s.baseStart + '). Лікування завершено — можете жити.' : 'Отже, ' + verdict + '. Побачимось через тиждень.', k: after < before ? 'good' : after > before ? 'bad' : '' });
     const v = { day: d, final, pills, lfk, before, after, lines, summary: (final ? 'Фінальний огляд лікаря: ' : 'Огляд лікаря: ') + verdict };
     s.doctorVisits.push(v);
     journalFor(s, d).night.push(v.summary);
@@ -585,7 +598,9 @@
   const exhaustedNow = (s) => s.spoons === 0 || s.borrowed > 0;
   function flareChanceTonight(s) {
     const t = C.links.bodyFlare.find(([min]) => s.body >= min);
-    return Math.min(1, Math.max(0, (t ? t[1] : 0.3) + s.coffeeToday * C.actions.coffee.flareAdd + (exhaustedNow(s) ? C.night.exhausted : 0) + (s.painkiller ? C.actions.meds.flareAdd : 0) + soulFlareMod(s)));
+    const base = Math.max(0, (t ? t[1] : 0.3) + s.coffeeToday * C.actions.coffee.flareAdd + (exhaustedNow(s) ? C.night.exhausted : 0) + (s.painkiller ? C.actions.meds.flareAdd : 0) + soulFlareMod(s));
+    // Щотижня загострення частішають; межа — flareCap.
+    return Math.min(C.flareCap, base + C.flareWeek[weekIdx(s.day)]);
   }
   // Настрій тримають біль: спокій — рідше загострення, пригніченість — частіше.
   function soulFlareMod(s) { const L = C.links; return s.soul >= L.soulGood ? -L.soulFlare : s.soul <= L.soulBad ? L.soulFlare : 0; }
@@ -597,7 +612,10 @@
     return t[t.length - 1][0];
   }
   const weekOf = (d) => Math.max(0, Math.floor((d - 1) / 7));
-  const pressureOf = (d) => C.pressure[Math.min(C.pressure.length - 1, Math.max(0, d))];
+  // Тиждень курсу: 0, 1, 2 (для ударів, частоти загострень і дози ліків).
+  const weekIdx = (d) => Math.min(2, Math.max(0, Math.floor((d - 1) / 7)));
+  const pillPrice = (s) => C.course.money[weekIdx(s.day)];
+  const pressureOf = () => 0;   // стара таблиця тиску — більше не діє (удари тепер окремі)
   const dailyCost = (d) => C.costs[Math.min(C.costs.length - 1, weekOf(d))];
 
   // ---------- ніч ----------
@@ -611,13 +629,20 @@
 
     const ref = refuseInvite(s);
     if (ref) ev.push({ kind: 'friends', text: ref.text });
+    // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі її не чіпає ніщо (ні голод, ні танення, ні тиск).
+    s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
+    const safe = {};
+    for (const k of FATAL) if (s.crisis[k] != null && s[k] > 0) {
+      delete s.crisis[k]; safe[k] = true;
+      ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля' });
+    }
     let hunger = null;   // якщо вночі лікарня — там нагодують, і голод скасовується
     if (!s.fed) {
       s.hungryStreak = (s.hungryStreak || 0) + 1;
-      const H = C.hungry.body, loss = H[Math.min(H.length, s.hungryStreak) - 1];
+      const H = C.hungry.body, loss = safe.body ? 0 : H[Math.min(H.length, s.hungryStreak) - 1];
       s.body = clampS(s.body - loss); s.stats.hungry++;
       hunger = { loss, ev: { kind: 'bad', text: (s.hungryStreak > 1 ? 'Знову без їжі' : 'Без їжі') + ': Тіло −' + loss } };
-      ev.push(hunger.ev);
+      if (loss) ev.push(hunger.ev);
     } else s.hungryStreak = 0;
     // Оплата, що настає завтра, приходить уночі — до витрат.
     const due = s.pending.filter((x) => x.day <= s.day + 1);
@@ -631,31 +656,24 @@
     s.money -= cost;
     ev.push({ kind: 'money', text: 'Витрати на життя: −' + cost + ' ₴' });
 
-    // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі вона в безпеці.
-    s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
-    const safe = {};
-    for (const k of FATAL) if (s.crisis[k] != null && s[k] > 0) {
-      delete s.crisis[k]; safe[k] = true;
-      ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля, цієї ночі в безпеці' });
-    }
     // Сфери тануть: самі собою і від тиску життя.
     for (const k of SOFT) if (!safe[k]) s[k] = clampS(s[k] - C.decay);
     ev.push({ kind: 'info', text: 'Сфери тануть самі собою: ' + SOFT.filter((k) => !safe[k]).map((k) => SPHERES[k].name).join(', ') + ' −' + C.decay });
-    const pr = pressureOf(s.day);
-    if (pr) {
-      // Пощада: сфери на межі (≤ mercy) тиск обходить, поки є інші — щоб було з чого виплутатись.
-      // Не більше perSphere ударів на одну сферу за ніч; сфери на межі (≤ mercy) — обходить, поки є інші.
-      let pool = []; const hit = [], got = {};
-      for (let i = 0; i < pr; i++) {
-        if (!pool.length) {
-          pool = SOFT.filter((k) => !safe[k] && s[k] > C.mercy && (got[k] || 0) < C.perSphere);
-          if (!pool.length) pool = SOFT.filter((k) => !safe[k] && (got[k] || 0) < C.perSphere);
-          if (!pool.length) break;
+    // Удар життя: не щоночі — з шансом, що росте щотижня; щонайбільше один за ніч.
+    // Справедливо: сфери на межі (≤ mercy) і щойно врятовані обходить, поки є інші.
+    {
+      const B = C.blows, w = weekIdx(s.day);
+      if (rand(s) < B.chance[w]) {
+        let pool = SOFT.filter((k) => !safe[k] && s[k] > C.mercy);
+        if (!pool.length) pool = SOFT.filter((k) => !safe[k]);
+        if (pool.length) {
+          const k = pick(s, pool), size = B.size[w];
+          const f = pick(s, s.friendNames), fem = C.friends.female.includes(f);
+          const text = pick(s, B[k]).replace('{fi}', (C.friends.instr || {})[f] || f).replace('{f}', f).replace('{a}', fem ? 'лася' : 'вся').replace('{b}', fem ? 'ла' : 'в');
+          s[k] = clampS(s[k] - size);
+          ev.push({ kind: 'bad', blow: true, text: text + ': ' + SPHERES[k].name + ' −' + size });
         }
-        const k = pool.splice(Math.floor(rand(s) * pool.length), 1)[0]; s[k] = clampS(s[k] - 1); hit.push(SPHERES[k].name); got[k] = (got[k] || 0) + 1;
       }
-      const by = {}; hit.forEach((n) => { by[n] = (by[n] || 0) + 1; });
-      ev.push({ kind: 'bad', text: 'Життя тисне: ' + Object.entries(by).sort((a, b) => b[1] - a[1]).map(([n, c]) => n + ' −' + c).join(', ') });
     }
     if (st === 'strong' && s.soul > C.mercy) { s.soul = clampS(s.soul - L.strongSoul); ev.push({ kind: 'pain', text: 'День у сильному болю пригнічує: Настрій −' + L.strongSoul }); }
 
@@ -721,7 +739,7 @@
     if (rawPain(s) >= C.painMax && s.day < s.days) {
       hospital = true;
       s.money -= C.hospital.cost; s.stats.hospital++;
-      if (hunger) { s.body = clampS(s.body + hunger.loss); s.stats.hungry--; s.hungryStreak = 0; ev.splice(ev.indexOf(hunger.ev), 1); }
+      if (hunger) { s.body = clampS(s.body + hunger.loss); s.stats.hungry--; s.hungryStreak = 0; const hi = ev.indexOf(hunger.ev); if (hi >= 0) ev.splice(hi, 1); }
       s.extra = C.hospital.extraAfter;
       const rest = ev.findIndex((e) => e.text.startsWith('Лишив сил на себе')); if (rest >= 0) ev.splice(rest, 1);   // біль і так — базовий
       const bodyWas = s.body;
@@ -749,6 +767,7 @@
   // В останній день курсу часу вже немає: нуль — кінець.
   function checkLose(s, day, ev) {
     if (s.lost) return;
+    if (day >= s.days) return;   // дожив до кінця курсу — уночі вже ніхто не виселяє й не госпіталізує: свято
     ev = ev || [];
     s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
     const lose = (k) => { s.lost = { cause: SPHERES[k].ending, sphere: k, day, sphereName: SPHERES[k].name, text: SPHERES[k].fall }; };
@@ -811,7 +830,7 @@
       let txt = SPHERES[k].name + ' ' + signed(after[k] - s[k]);
       // Де результат залежить від міні-гри — кажемо чесно, від чого.
       if (id === 'cook' && k === 'soul') txt = SPHERES[k].name + ' +' + C.actions.cook.soulIfTasty + ', якщо смачно';
-      if (id === 'games' && k === 'soul') { const g = C.actions.games; txt = SPHERES[k].name + ' +' + (g.soul - 1) + '…+' + (after[k] - s[k]) + ' (що далі пробіжиш)'; }
+      if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
       fx.push({ t: txt, kind: k });
     }
     // Самотність: дія підняла б Настрій, але стеля — поки Стосунки на нулі.
@@ -878,7 +897,6 @@
       for (const l of s.loans) if (l.due === d) ev.push({ t: 'борг −' + l.amount + '₴', k: 'bad' });
       if (s.gig && s.gig.day === d) ev.push({ t: 'підробіток', k: 'pay' });
       if (s.bill && s.bill.due === d) ev.push({ t: '−' + s.bill.amount + '₴', k: 'bad' });
-      if (pressureOf(d) > pressureOf(d - 1)) ev.push({ t: 'тиск ' + pressureOf(d), k: 'bad' });
       out.push({ day: d, cost: dailyCost(d), events: ev });
     }
     return out;
@@ -907,7 +925,6 @@
       if (s.bill && s.bill.due === d.day) out.push({ kind: 'money', t: w + ': ' + s.bill.name.toLowerCase() + ' — заплатити ' + s.bill.amount + ' ₴ (знімуть уночі).' });
       if (s.gig && s.gig.day === d.day) out.push({ kind: 'money', t: w + ': ' + s.gig.from + ' пропонує підробіток, +' + C.actions.gig.pay + ' ₴. Не візьмеш — Настрій −' + C.actions.gig.refuse + '.' });
       for (const l of s.loans) if (l.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + nDat(l.from) + ', ' + l.amount + ' ₴.' });
-      if (d.day > s.day && pressureOf(d.day) > pressureOf(d.day - 1)) out.push({ kind: 'bad', t: w + ': життя тисне сильніше.' });
       if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': витрати на життя зростуть до ' + dailyCost(d.day) + ' ₴ за ніч.' });
     }
     if (!out.length) out.push({ kind: 'info', t: 'Найближчі дні в календарі порожні.' });
@@ -951,7 +968,7 @@
   const api = {
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
-    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho, autoTalkKinds, rollHungry,
+    gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho, autoTalkKinds, rollHungry, pillPrice,
     pillsInWeek, lfkInWeek, pain, rawPain, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },

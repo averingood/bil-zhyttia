@@ -533,6 +533,13 @@
     skipCut() {
       const c = this.cut;
       if (!c) return;
+      // Свято не обриваємо: гості одразу на місцях, далі воно триває.
+      if (c.win) {
+        c.medics.forEach((m) => { const end = m.path[m.path.length - 1]; if (end) { m.x = end[0]; m.y = end[1]; } m.path = []; m.wait = 0; });
+        if (c.phase === 'enter') { c.phase = 'party'; c.t = 5.3; }
+        if (!c.shown) { c.shown = true; c.onDone && c.onDone(); }
+        return;
+      }
       this.cut = null;
       this.heroAway = false;
       this.hero.x = 5; this.hero.y = 3.2; this.path = [];
@@ -549,8 +556,8 @@
 
     // Дострокове завершення: коротка сцена перед підсумком.
     // kind: 'joy' — радість на нулі, 'money' — гроші скінчились.
-    playEnding(kind, onDone) {
-      if (kind === 'win') { this.playWin(onDone); return; }
+    playEnding(kind, onDone, opts) {
+      if (kind === 'win') { this.playWin(onDone, opts); return; }
       // Тіло здалося — госпіталізація: та сама сцена швидкої, але додому вже не повертаєшся.
       if (kind === 'body') { this.playHospital(1, 0, onDone); this.cut.final = true; this.cut.slot = this.view.slot; return; }   // лежить у ліжку, швидка, ноші
       this.endVisit(true);
@@ -563,35 +570,42 @@
       this.target = null;
     }
 
-    // Перемога: дожив до кінця курсу. Приходять друзі й лікар, свято, на столі гроші, аптечки вже немає.
-    playWin(onDone) {
+    // Свято в кінці курсу: приходять друзі, яким ти нічого не винен. Без кінця — можна дивитися.
+    // opts: { guests: [імена], joy: 0–100, pain: 1–10, boxes: треба з'їжджати }. Кімната — за підсумковим болем і настроєм.
+    playWin(onDone, opts) {
+      opts = opts || {};
       this.endVisit(true);
       this.bubble = null; this.heroAway = false; this.slumpPending = false;
       this.hero.sitting = false; this.hero.sit = 0; this.hero.black = false;
       this.hero.x = 4.3; this.hero.y = 4.7; this.path = []; this.target = null;
-      const spots = [[3.2, 3.9], [3.3, 5.7], [4.6, 6.5], [5.5, 6.0], [5.9, 4.6], [5.6, 3.4]];   // п'ятеро друзів і лікар
-      const guests = ['Дідуслав', 'Ковбасій', 'Любава', 'Одарка', 'Андрій'].sort(() => Math.random() - 0.5).map((n) => { const l = friendLook(n); return { pal: l.pal, long: l.long }; })
-        .concat([{ pal: MEDICS[0], long: false, doctor: true }]);
-      const medics = guests.map((g, i) => {
-        const m = { x: DOOR[0] + (i % 2) * 0.5, y: DOOR[1] + (i % 2) * 0.3, pal: g.pal, long: g.long, doctor: g.doctor, path: [], wait: i * 0.7 };
+      const spots = [[3.2, 3.9], [3.3, 5.7], [4.6, 6.5], [5.5, 6.0], [5.9, 4.6]];
+      const names = (opts.guests || ['Дідуслав', 'Ковбасій', 'Любава', 'Одарка', 'Андрій']).slice().sort(() => Math.random() - 0.5);
+      const medics = names.map((n, i) => {
+        const l = friendLook(n);
+        const m = { x: DOOR[0] + (i % 2) * 0.5, y: DOOR[1] + (i % 2) * 0.3, pal: l.pal, long: l.long, path: [], wait: i * 0.7 };
         m.path = [[DOOR_IN[0] + (i % 2) * 0.5, DOOR_IN[1]], ...this.findPath(spots[i][0], spots[i][1], DOOR_IN[0] + (i % 2) * 0.5, DOOR_IN[1])];
         return m;
       });
-      this.cut = { ending: 'win', win: true, phase: 'enter', t: 0, onDone, slot: 1, caption: '', flash: 0, medics, confetti: [] };
+      const joy = opts.joy != null ? opts.joy : 100, pain = opts.pain != null ? opts.pain : 1;
+      this.cut = { ending: 'win', win: true, phase: 'enter', t: 0, onDone, slot: 1, caption: '', flash: 0, medics, confetti: [],
+        joy, pain, alone: !names.length, boxes: opts.boxes ? 3 : 0, bright: joy >= 60 && pain <= 4, shown: false };
     }
 
     updateEnding(dt) {
       const c = this.cut;
       const go = (p) => { c.phase = p; c.t = 0; };
       if (c.ending === 'win') {
-        // Свято: світло, ніякої тіні болю.
-        this.view.joy = 100; this.view.pain = 1; this.view.state = 'light';
-        this.lit.joy = 100; this.lit.pain = 1;
+        // Свято таке, яким є підсумок: кімната за болем і настроєм наприкінці.
+        this.view.joy = c.joy; this.view.pain = c.pain; this.view.state = c.pain >= 7 ? 'strong' : c.pain >= 4 ? 'medium' : 'light';
+        this.lit.joy = c.joy; this.lit.pain = c.pain;
         const h = this.hero;
         const face = (a) => { const dx = h.x - a.x, dy = h.y - a.y; a.back = dx + dy < 0; if (Math.abs(dx - dy) > 0.05) a.dir = dx - dy > 0 ? 1 : -1; };
         // Конфеті сиплеться згори, поки триває свято.
         if (c.phase !== 'enter' || c.t > 1) {
-          for (let k = 0; k < 3; k++) if (Math.random() < 0.5) c.confetti.push({ x: Math.random(), y: -0.02, v: 0.12 + Math.random() * 0.15, w: Math.random() * 6, col: ['#e2584a', '#f2d36b', '#6fcf8a', '#7ab0e8', '#e58fa8'][Math.floor(Math.random() * 5)] });
+          // Конфеті — за настроєм: яскраве, приглушене чи сіре.
+          const pal = c.joy >= 60 ? ['#e2584a', '#f2d36b', '#6fcf8a', '#7ab0e8', '#e58fa8'] : c.joy >= 35 ? ['#a8665c', '#b9a66e', '#7e9a82', '#7f93a8', '#a58290'] : ['#6f7480', '#8a8a8a', '#5c6270', '#9a948a', '#4d525c'];
+          const rate = c.joy >= 60 ? 0.5 : c.joy >= 35 ? 0.3 : 0.15;
+          for (let k = 0; k < 3; k++) if (Math.random() < rate) c.confetti.push({ x: Math.random(), y: -0.02, v: (c.joy >= 35 ? 0.12 : 0.07) + Math.random() * 0.15, w: Math.random() * 6, col: pal[Math.floor(Math.random() * pal.length)] });
           c.confetti.forEach((p) => { p.y += p.v * dt; p.w += dt * 4; });
           c.confetti = c.confetti.filter((p) => p.y < 1.05);
         }
@@ -601,12 +615,14 @@
           for (const m of c.medics) { if ((m.wait -= dt) > 0) { done = false; continue; } if (!this.moveActor(m, dt, 2.2)) done = false; }
           if (done) { c.medics.forEach(face); go('party'); }
         } else if (c.phase === 'party') {
+          // Свято без кінця: підписи один раз, далі просто живе кімната.
           c.medics.forEach(face);
-          c.caption = c.t < 2.6 ? 'Курс лікування завершено' : c.t < 5.2 ? 'Друзі прийшли привітати' : c.t < 7.6 ? 'Лікар аплодує' : 'Ти молодець';
-          c.clap = c.t > 5.2;
-          if (c.t > 11) go('done');
+          const first = c.alone ? ['Курс лікування завершено', 'Святкуєш сам'] : ['Курс лікування завершено', 'Друзі прийшли привітати'];
+          c.caption = c.t < 2.6 ? first[0] : c.t < 5.2 ? first[1] : c.boxes && c.t < 7.8 ? 'Коробки зібрані — доведеться з’їжджати' : '';
+          // Друзі по черзі пританцьовують.
+          c.medics.forEach((m, i) => { m.moving = Math.floor(c.t * 1.5 + i) % 3 === 0; m.walkT = (m.walkT || 0) + dt; });
+          if (!c.shown && c.t > 5.4) { c.shown = true; const cb = c.onDone; cb && cb(); }
         }
-        if (c.phase === 'done') { const cb = c.onDone; this.cut = null; cb && cb(); }
         return;
       }
       if (c.ending === 'friends') {
@@ -1059,9 +1075,8 @@
       // Ноші між медиками — окремий «актор» посередині, щоб правильно ховатись за меблями.
       if (this.cut && this.cut.stretcher && this.cut.medics.length === 2) {
         const [m0, m1] = this.cut.medics;
-        // Ноші — поверх обох медиків (вони тримають їх у руках), інакше передній закриває їх повністю.
-        const front = m0.x + m0.y > m1.x + m1.y ? m0 : m1;
-        actors.push({ a: { x: front.x + 0.02, y: front.y + 0.02 }, draw: () => this.drawStretcher(ctx, m0, m1) });
+        // Ноші — між медиками за глибиною: задній позаду, передній трохи закриває свій край.
+        actors.push({ a: { x: (m0.x + m1.x) / 2, y: (m0.y + m1.y) / 2 }, draw: () => this.drawStretcher(ctx, m0, m1) });
       }
       if (this.visit) for (const f of this.visit.friends) if (!(f.sit > 0)) actors.push({ a: f, draw: () => this.drawWalker(ctx, f, f.pal, f.long) });
       const placed = actors.map((ac) => {
@@ -1584,15 +1599,13 @@
       quad(-L + 0.2, L - 0.4, -Wd + 0.08, Wd - 0.08, Z + 3, '#7aa0cf');
       // Голова на подушці біля переднього краю.
       quad(L - 0.26, L - 0.04, -Wd + 0.06, Wd - 0.06, Z + 2, '#f3f4f2');
-      // Герой: голова більша, з волоссям, очима й плечима над ковдрою — щоб було видно, кого несуть.
-      const hp = pt(L - 0.15, 0, Z + 4).map(Math.round), sp = pt(L - 0.36, 0, Z + 4).map(Math.round);
-      ctx.fillStyle = '#24160f'; ctx.fillRect(sp[0] - 5, sp[1] - 2, 11, 4);
-      ctx.fillStyle = PAL.hood; ctx.fillRect(sp[0] - 4, sp[1] - 1, 9, 2);                    // плечі в худі
-      ctx.fillStyle = '#24160f'; ctx.fillRect(hp[0] - 4, hp[1] - 5, 9, 9);
-      ctx.fillStyle = PAL.skin; ctx.fillRect(hp[0] - 3, hp[1] - 3, 7, 6);
-      ctx.fillStyle = PAL.hair; ctx.fillRect(hp[0] - 3, hp[1] - 4, 7, 2); ctx.fillRect(hp[0] - 3, hp[1] - 2, 1, 2);
-      ctx.fillStyle = '#1d1d24'; ctx.fillRect(hp[0] - 1, hp[1], 1, 1); ctx.fillRect(hp[0] + 2, hp[1], 1, 1);   // заплющені очі
-      ctx.fillStyle = PAL.skinD; ctx.fillRect(hp[0], hp[1] + 2, 2, 1);
+      // Герой: голова на подушці — лежить на ношах, а не стирчить угору; плечі над ковдрою.
+      const hp = pt(L - 0.15, 0, Z + 2).map(Math.round), sp = pt(L - 0.34, 0, Z + 2).map(Math.round);
+      ctx.fillStyle = PAL.hood; ctx.fillRect(sp[0] - 3, sp[1] - 1, 7, 2);                    // плечі в худі
+      ctx.fillStyle = '#24160f'; ctx.fillRect(hp[0] - 3, hp[1] - 3, 7, 5);
+      ctx.fillStyle = PAL.skin; ctx.fillRect(hp[0] - 2, hp[1] - 2, 5, 3);
+      ctx.fillStyle = PAL.hair; ctx.fillRect(hp[0] - 2, hp[1] - 3, 5, 1);
+      ctx.fillStyle = '#1d1d24'; ctx.fillRect(hp[0] - 1, hp[1] - 1, 1, 1); ctx.fillRect(hp[0] + 1, hp[1] - 1, 1, 1);   // заплющені очі
     }
 
     drawWalker(ctx, h, pal, long) {
@@ -1679,7 +1692,7 @@
       if (this.visit && this.visit.board) lights.push([...P(2.9, 4.8, 12), 58, [1.25, 1.02, 0.7]]);
       const p = this.lit.pain;
       const strong = v.state === 'strong';
-      const happy = !!(this.cut && this.cut.win);   // перемога: тепло, яскраво, без тіні по краях
+      const happy = !!(this.cut && this.cut.win && this.cut.bright);   // свято з добрим підсумком: тепло, яскраво, без тіні по краях
       const cozy = !!(this.visit && this.visit.board);   // настолки: лампове тепле світло
       // Біль звужує кадр: краї гаснуть дизерингом, кольори вицвітають.
       const r0 = happy ? 9 : 1.34 - p * 0.088 + (strong ? Math.sin(this.t * 1.7) * 0.035 : 0) - 0.2 * (root.PainFX ? root.PainFX.gloomOf(this.lit.joy) : 0);
@@ -1726,8 +1739,7 @@
           ctx.fillStyle = p.col;
           ctx.fillRect(Math.round(p.x * W + Math.sin(p.w) * 3), Math.round(p.y * H), Math.sin(p.w * 1.3) > 0 ? 2 : 1, 2);
         }
-        // Лікар аплодує: над ним сходяться долоні.
-        const d = this.cut.clap && this.cut.medics.find((m) => m.doctor);
+        const d = null;
         if (d && d.anchor) {
           const open = Math.floor(this.t * 6) % 2;
           ctx.fillStyle = '#e0ac84';

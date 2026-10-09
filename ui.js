@@ -91,6 +91,7 @@
     }
     room.update(dt);
     room.render();
+    endTogUpdate();
     { const sk = $('skipBtn'), want = !!game && (((phase === 'scene' || phase === 'doctor') && !!sceneAbort) || phase === 'cut' || canSkipAnim()); if (sk.hidden === want) sk.hidden = !want; }
     const cap = $('cutCaption'), text = room.cut ? room.cut.caption : '';
     if (cap.textContent !== text) cap.textContent = text;
@@ -421,8 +422,8 @@
       <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень.</p>
       <p>Вам прописано:</p>
       <ul class="tl">
-        <li><b>Пігулки з курсу</b> (аптечка): 1 в день</li>
-        <li><b>ЛФК</b> (килимок): ${D.lfk.good} рази на тиждень</li>
+        <li><b>Пігулки з курсу</b> (аптечка): 1 в день${w > 1 ? ' — доза вища, ' + C.course.money[w - 1] + ' ₴' : ''}${D.pills.keep[w - 1] >= D.pills.full ? ', без жодного пропуску' : ''}</li>
+        <li><b>ЛФК</b> (килимок): ${D.lfkWeeks[w - 1] ? D.lfk.good + ' рази на тиждень' : 'за бажанням'}</li>
       </ul>
       <div class="row"><button class="btn primary" id="wkOk">Зрозуміло</button></div>`, true);
     $('wkOk').onclick = closeModal;
@@ -460,6 +461,18 @@
     if (tipIndex == null) $('tipBox').hidden = true;   // підказка значка 🎮 не має лишатися після перемальовки
     if (phase === 'scene' || phase === 'cut' || phase === 'doctor') return;
     if (!game || phase === 'setup') { el.innerHTML = ''; return; }
+    // Кінець гри: замість дій — підсумок, щоденник, нова гра; свято триває в кімнаті.
+    if (phase === 'end') {
+      if (el.dataset.end === '1') return;
+      el.dataset.end = '1';
+      el.innerHTML = `<div class="ab-head"><span class="ab-zone">${game.lost ? 'Кінець' : 'Свято'}</span><span class="ab-meta">${game.lost ? '' : 'Курс лікування завершено'}</span></div>
+        <div class="row end-row"><button class="btn primary" data-end="sum">Підсумок</button><button class="btn" data-end="journal">Щоденник</button><button class="btn" data-end="new">Нова гра</button></div>`;
+      el.querySelector('[data-end=sum]').onclick = () => showEnd();
+      el.querySelector('[data-end=journal]').onclick = showJournal;
+      el.querySelector('[data-end=new]').onclick = showSetup;
+      return;
+    }
+    delete el.dataset.end;
     const z = room.currentZone();
     const banner = gigBanner() + inviteBanner();
     const meta = 'Лишилось ресурсу: ' + game.spoons + ' з ' + game.spoonsMorning + (game.borrowed ? ' · узято наперед ' + game.borrowed : '');
@@ -557,7 +570,7 @@
 
   function renderChips() {
     const el = $('zoneChips');
-    if (!game || phase === 'setup') { el.innerHTML = ''; return; }
+    if (!game || phase === 'setup' || phase === 'end') { el.innerHTML = ''; return; }
     const here = room.currentZone();
     el.innerHTML = Object.keys(G.ZONES).map((z) =>
       `<button class="chip ${z === here ? 'here' : ''}" data-z="${z}">${esc(G.ZONES[z].name)}</button>`).join('');
@@ -653,7 +666,7 @@
           <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body} (і біль −${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка +${C.actions.stretch.body}, своя їжа +${C.actions.cook.body}.</li>
           <li><b>Втрати:</b> без їжі −${C.hungry.body[0]} (другий день поспіль −${C.hungry.body[1]}), щоночі тане.</li>
           <li><b>Дає:</b> що міцніше, то рідше загострення: ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : i === a.length - 1 ? 'нижче' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
-          <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — платний укол, +${C.doctor.rescue} за ${C.doctor.rescueCost} ₴.</li>
+          <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — укол, Тіло +${C.doctor.rescue}${C.doctor.rescueCost ? ' за ' + C.doctor.rescueCost + ' ₴' : ', безкоштовно'}.</li>
         </ul>`)}
       ${sphereSec(s, 'soul', `<p><b>Зараз:</b> ${s.soul}.${s.soul >= L.soulGood ? ' Спокій допомагає.' : s.soul <= L.soulBad ? ' Пригніченість шкодить.' : ''}</p>
         <p>${(() => {
@@ -663,7 +676,7 @@
           return song + ' (дописана +' + A.songSoul + '); ' + book + (b ? ' (дочитана +' + R.finishSoul + ')' : '') + '.';
         })()}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> пісня +${C.actions.create.soul[0]}, книжка +${C.actions.read.soul}, ігри +${C.actions.games.soul - 1}…+${C.actions.games.soul + 1}, смачна їжа +${C.actions.cook.soulIfTasty}.</li>
+          <li><b>Підняти:</b> пісня +${C.actions.create.soul[0]}, книжка +${C.actions.read.soul}, ігри 0…+${C.actions.games.jumps} (скільки пробіжиш), смачна їжа +${C.actions.cook.soulIfTasty}.</li>
           <li><b>${L.soulGood}+ дає:</b> ресурс +1 зранку, загострення −${Math.round(L.soulFlare * 100)}%, робота +${L.soulPay} ₴. <b>${L.soulBad} і нижче:</b> загострення +${Math.round(L.soulFlare * 100)}%, робота −${L.soulPay} ₴.</li>
           <li><b>Втрати:</b> день у сильному болю −${L.strongSoul}, щоночі тане.</li>
         </ul>`)}
@@ -679,12 +692,12 @@
       </div>
 
       <div class="btns">
-        <button class="btn primary ${s.spoons === 0 ? 'pulse' : ''}" id="endBtn">Завершити день <kbd>E</kbd></button>
+        ${s.finished || s.lost ? '' : `<button class="btn primary ${s.spoons === 0 ? 'pulse' : ''}" id="endBtn">Завершити день <kbd>E</kbd></button>`}
         <button class="btn" id="journalBtn">Щоденник</button>
       </div>
-      <div class="sub">Якщо лягти зараз: ${esc(G.sleepGainText(s))}.</div>
+      ${s.finished || s.lost ? '' : `<div class="sub">Якщо лягти зараз: ${esc(G.sleepGainText(s))}.</div>`}
       <button class="btn ghost" id="restartBtn">Почати заново</button>
-      ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально): постав значення, потім заверши день</span>
+      ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально)</span>
         <div class="dbg-grid">
           <span>Біль</span><button class="btn" data-dbg="pain:min">1</button><button class="btn" data-dbg="pain:max">10</button>
           ${['people', 'body', 'soul'].map((k) => `<span>${G.SPHERES[k].name}</span><button class="btn" data-dbg="${k}:min">0</button><button class="btn" data-dbg="${k}:max">10</button>`).join('')}
@@ -694,7 +707,7 @@
       ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost, fc))}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
-    $('endBtn').onclick = endDayClick;
+    if ($('endBtn')) $('endBtn').onclick = endDayClick;
     $('journalBtn').onclick = showJournal;
     $('restartBtn').onclick = askRestart;
     document.querySelectorAll('[data-dbg]').forEach((b) => { b.onclick = () => debugSet(b.dataset.dbg); });
@@ -733,13 +746,12 @@
       // Останній день, усе живе — завершуєш день і бачиш перемогу (лікар, друзі, фінальний огляд).
       game.day = game.days; game.people = Math.max(game.people, 6); game.body = Math.max(game.body, 6); game.soul = Math.max(game.soul, 6);
       game.money = Math.max(game.money, 200); game.crisis = {}; game.extra = 0; game.fed = true;
-      toast('День ' + game.days + '. Заверши день — побачиш фінал.');
       renderAll();
       return;
     }
     const [k, v] = cmd.split(':');
-    if (k === 'pain') { const want = v === 'max' ? 10 : 1; game.extra = want - game.base; toast('Біль → ' + G.pain(game)); }
-    else { game[k] = v === 'max' ? C.sphereMax : 0; toast(G.SPHERES[k].name + ' → ' + game[k] + '. Заверши день, щоб побачити, що буде.'); }
+    if (k === 'pain') { const want = v === 'max' ? 10 : 1; game.extra = want - game.base; }
+    else game[k] = v === 'max' ? C.sphereMax : 0;
     renderAll();
   }
 
@@ -813,6 +825,7 @@
   $('gamesMenu').onclick = (e) => e.stopPropagation();
   document.addEventListener('click', () => { $('gamesMenu').hidden = true; });
   $('skipBtn').onclick = () => { skipNow(); renderAll(); };
+  $('endTog').onclick = () => showEnd();
 
   // ---------- вікна ----------
   let modalClosable = false;
@@ -917,7 +930,9 @@
       phase = 'cut';
       closeModal();
       held.clear(); applyKeys();
-      room.playEnding(game.lost ? game.lost.cause : 'win', () => { $('cutCaption').hidden = true; showEnd(); });
+      // Свято: лише друзі, яким нічого не винен; кімната — за болем і настроєм; без грошей — коробки.
+      const party = { guests: game.friendNames.filter((n) => !game.loans.some((l) => l.from === n)), joy: game.soul * 10, pain: G.pain(game), boxes: game.money <= 0 };
+      room.playEnding(game.lost ? game.lost.cause : 'win', () => { $('cutCaption').hidden = true; showEnd(); }, party);
       renderAll();
       return;
     }
@@ -927,7 +942,13 @@
     const hist = sm.history.concat(sm.history[sm.history.length - 1].day < sm.daysLived ? [last] : []);
     const head = sm.lost
       ? `<h2>${esc(sm.lost.text)} на ${sm.lost.day}-й день</h2><p class="lost-line">Курс лікування — ${sm.days} ${dayWord(sm.days)}. Ти протримався ${sm.lost.day} ${dayWord(sm.lost.day)}.</p>`
-      : `<h2>Курс лікування завершено</h2><p>Усі ${sm.days} ${dayWord(sm.days)} позаду. Жодна сфера не посипалась — таке трапляється рідко.</p>`;
+      : `<h2>Курс лікування завершено</h2><p>Усі ${sm.days} ${dayWord(sm.days)} позаду.${game.money <= 0 ? ' Грошей не лишилось — доведеться з’їжджати, але до кінця ти дотягнув.' : ''}</p>`;
+    // Лікування окремо, решта — здобутки й утрати; підсумковий стан — окремим рядком.
+    const cure = sm.kept.concat(sm.lostItems).filter((x) => x.startsWith('Базовий біль'));
+    const kept = sm.kept.filter((x) => !x.startsWith('Базовий біль') && !x.startsWith('Наприкінці'));
+    const lostL = sm.lostItems.filter((x) => !x.startsWith('Базовий біль'));
+    const state = `Біль ${G.pain(game)} (базовий ${game.base}) · Настрій ${game.soul} · Стосунки ${game.people} · Тіло ${game.body} · ${game.money < 0 ? '−' + Math.abs(game.money) : game.money} ₴`;
+    const won = !sm.lost;
     // Фінал «Настрій згас» — про найтемніше. Поруч — куди звернутися, якщо так зараз і в житті.
     const support = sm.lost && sm.lost.sphere === 'soul'
       ? `<p class="sub">Якщо тобі зараз так само порожньо — ти не сам. Lifeline Ukraine: 7333 (цілодобово, безкоштовно з мобільного).</p>` : '';
@@ -935,19 +956,30 @@
       ${head}${support}
       <canvas id="endChart" width="760" height="260" class="end-chart"></canvas>
       <div class="legend">${['money', 'people', 'body', 'soul', 'pain'].map((k) => `<span style="--c:${SPH_HEX[k]}"><i></i>${k === 'pain' ? 'біль' : G.SPHERES[k].name}</span>`).join('')}</div>
+      ${cure.length ? `<p><b>Лікування:</b> ${esc(cure.join('; '))}</p>` : ''}
+      <p><b>Підсумковий стан:</b> ${esc(state)}</p>
       <div class="cols">
-        <div><h3>Збережено</h3><ul>${sm.kept.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
-        <div><h3>Втрачено</h3><ul>${sm.lostItems.length ? sm.lostItems.map((x) => `<li>${esc(x)}</li>`).join('') : '<li>Нічого помітного</li>'}</ul></div>
+        <div><h3>Здобутки</h3><ul>${kept.length ? kept.map((x) => `<li>${esc(x)}</li>`).join('') : '<li>Нічого помітного</li>'}</ul></div>
+        <div><h3>Втрачено</h3><ul>${lostL.length ? lostL.map((x) => `<li>${esc(x)}</li>`).join('') : '<li>Нічого помітного</li>'}</ul></div>
       </div>
       <div class="row">
+        ${won ? '<button class="btn" id="eWatch">Дивитися свято</button>' : ''}
         <button class="btn" id="eJournal">Щоденник</button>
         <button class="btn primary" id="eNew">Нова гра</button>
       </div>
-    `, false);
+    `, won);
     drawChart($('endChart'), hist, sm.days);
     $('eJournal').onclick = showJournal;
     $('eNew').onclick = showSetup;
+    if (won) $('eWatch').onclick = closeModal;
     renderAll();
+  }
+  // Свято триває за вікном підсумку: сховав — дивишся; кнопка «Підсумок» повертає вікно.
+  function endTogUpdate() {
+    const b = $('endTog');
+    if (!b) return;
+    const want = phase === 'end' && !!game && !game.lost && $('modal').hidden;
+    if (b.hidden === want) b.hidden = !want;
   }
 
   // Перегляд усіх чотирьох фіналів підряд: адреса з ?endings (щоб подивитися, не граючи).
