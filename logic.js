@@ -551,7 +551,6 @@
     let shift = 0;
     if (pills >= D.pills.full) { shift--; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ', без пропусків. Молодець, базовий біль відступає.', k: 'good' }); }
     else if (pills >= keep) lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — один пропуск. Тримаєшся, але без покращення.', k: '' });
-    else if (pills >= D.pills.keep[0]) { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — на такій дозі навіть один пропуск відкочує: базовий біль посилюється.', k: 'bad' }); }
     else { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — забагато пропусків. Без курсу базовий біль посилюється.', k: 'bad' }); }
     if (D.lfkWeeks[wk]) {
       if (lfk >= D.lfk.good) { shift--; lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + ' за тиждень. Суглоби дякують — базовий біль відступає.', k: 'good' }); }
@@ -561,7 +560,7 @@
     // Наступний тиждень: доза вища (і дорожча); на останній — ЛФК на власний розсуд.
     if (!final) {
       const nw = wk + 1;
-      lines.push({ t: 'З завтра підвищую дозу: пігулка тепер ' + C.course.money[nw] + ' ₴' + (D.pills.keep[nw] >= D.pills.full ? ', і без жодного пропуску' : '') + '.' + (!D.lfkWeeks[nw] ? ' ЛФК — як самі захочете.' : ''), k: '' });
+      lines.push({ t: 'З завтра підвищую дозу: пігулка тепер ' + C.course.money[nw] + ' ₴' + (C.course.missExtra[nw] ? ', і без жодного пропуску' : '') + '.' + (!D.lfkWeeks[nw] ? ' ЛФК — як самі захочете.' : ''), k: '' });
     }
     s.baseShift += shift;
     recalcBase(s);
@@ -679,6 +678,9 @@
 
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
+    // Висока доза: пропущена пігулка — біль повертається вже завтра.
+    const miss = C.course.missExtra[weekIdx(s.day)];
+    if (miss && s.courseToday !== s.day && s.day < s.days) { s.extra += miss; ev.push({ kind: 'pain', text: 'Пропустив пігулку на високій дозі: завтра біль +' + miss }); }
     if (exhaustedNow(s)) ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: шанс загострення вночі +' + Math.round(N.exhausted * 100) + '%' });
     else if (s.spoons >= N.earlyRest) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
     s.extra = Math.max(-2, s.extra);
