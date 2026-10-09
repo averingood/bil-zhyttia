@@ -597,7 +597,7 @@
       <div class="meter">${cells}</div>
       <div class="tip">${tip}<p class="why">${isMoney ? 'На нулі: ' + C.graceMoney + ' дні знайти гроші, інакше виселять.'
         : k === 'people' ? 'На нулі: не кінець, але самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.'
-        : k === 'soul' ? 'На нулі: не кінець, але ' + C.apathy.map((id) => G.ACTIONS[id].label).join(', ') + ' — не під силу.'
+        : k === 'soul' ? 'На нулі: не кінець, але ' + C.apathy.map((id, i) => { const l = G.ACTIONS[id].label; return i && l !== l.toUpperCase() ? l.toLowerCase() : l; }).join(', ') + ' — не під силу.'
         : 'На нулі: день на порятунок — підняв вище нуля, і тримаєшся далі; не підняв — кінець.'}</p></div></div>`;
   }
 

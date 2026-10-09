@@ -928,7 +928,7 @@
     if (s.lost || s.finished) return out;
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
     if (s.people <= 0) out.push({ kind: 'bad', t: 'Стосунки на нулі: самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.' });
-    if (s.soul <= 0) out.push({ kind: 'bad', t: 'Настрій на нулі: ' + C.apathy.map((id) => ACTIONS[id].label).join(', ') + ' — зараз не під силу.' });
+    if (s.soul <= 0) out.push({ kind: 'bad', t: 'Настрій на нулі: ' + C.apathy.map((id, i) => { const l = ACTIONS[id].label; return i && l !== l.toUpperCase() ? l.toLowerCase() : l; }).join(', ') + ' — зараз не під силу.' });
     for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: k === 'money'
       ? 'Гроші на нулі: до кінця дня ' + d + ' знайди, чим платити, — інакше виселять.'
       : s[k] > 0 ? SPHERES[k].name + ' вчора було на нулі, зараз ' + s[k] + ': не дай йому знову впасти до нуля цієї ночі, інакше кінець.'
