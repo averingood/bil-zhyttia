@@ -74,7 +74,7 @@
     links: {
       // Настрій → тіло й гроші: спокій тримає біль і роботу, пригніченість — навпаки.
       soulGood: 7, soulBad: 3,
-      soulFlare: 0.1,       // Настрій ≥ soulGood — шанс загострення −10%; ≤ soulBad — +10%
+      soulFlare: 0.15,      // Настрій ≥ soulGood — шанс загострення −15%; ≤ soulBad — +15%
       soulPay: 5,           // Настрій ≥ soulGood — робота +5 ₴; ≤ soulBad — −5 ₴
       // Стосунки → гроші й тіло.
       peopleGood: 7,
