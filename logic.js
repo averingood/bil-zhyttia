@@ -605,11 +605,13 @@
 
     const ref = refuseInvite(s);
     if (ref) ev.push({ kind: 'friends', text: ref.text });
+    let hunger = null;   // якщо вночі лікарня — там нагодують, і голод скасовується
     if (!s.fed) {
       s.hungryStreak = (s.hungryStreak || 0) + 1;
       const H = C.hungry.body, loss = H[Math.min(H.length, s.hungryStreak) - 1];
       s.body = clampS(s.body - loss); s.stats.hungry++;
-      ev.push({ kind: 'bad', text: (s.hungryStreak > 1 ? 'Знову без їжі' : 'Без їжі') + ': Тіло −' + loss });
+      hunger = { loss, ev: { kind: 'bad', text: (s.hungryStreak > 1 ? 'Знову без їжі' : 'Без їжі') + ': Тіло −' + loss } };
+      ev.push(hunger.ev);
     } else s.hungryStreak = 0;
     // Оплата, що настає завтра, приходить уночі — до витрат.
     const due = s.pending.filter((x) => x.day <= s.day + 1);
@@ -708,12 +710,17 @@
       if (inv) ev.push({ kind: 'friends', text: inviteWho(inv) + ' ' + inviteVerb(inv, 'пропонує', 'пропонують') + ' зайти в день ' + (s.day + C.friends.leadDays) });
     }
 
-    // Біль 10 — лікарня: наступний день випадає.
+    // Біль 10 — ніч у лікарні: знеболили до базового, нагодували, підлікували Тіло; зранку вже вдома.
     let hospital = false;
     if (rawPain(s) >= C.painMax && s.day < s.days) {
       hospital = true;
       s.money -= C.hospital.cost; s.stats.hospital++;
-      ev.push({ kind: 'bad', text: 'Біль дійшов до 10. Швидка, лікарня: день випадає, −' + C.hospital.cost + ' ₴' });
+      if (hunger) { s.body = clampS(s.body + hunger.loss); s.stats.hungry--; s.hungryStreak = 0; ev.splice(ev.indexOf(hunger.ev), 1); }
+      s.extra = C.hospital.extraAfter;
+      const rest = ev.findIndex((e) => e.text.startsWith('Лишив сил на себе')); if (rest >= 0) ev.splice(rest, 1);   // біль і так — базовий
+      const bodyWas = s.body;
+      s.body = Math.max(s.body, C.hospital.body);
+      ev.push({ kind: 'bad', text: 'Біль дійшов до 10. Швидка, ніч у лікарні: знеболили, нагодували' + (s.body > bodyWas ? ', Тіло підлікували до ' + s.body : '') + '; зранку вже вдома. −' + C.hospital.cost + ' ₴' });
     }
 
     checkLose(s, s.day, ev);
@@ -724,16 +731,6 @@
       if (s.day >= s.days) s.finished = true;
       else {
         s.day++;
-        if (hospital) {
-          // День у лікарні: витрати й тануть сфери, дій немає; біль збивають.
-          const jh = journalFor(s, s.day); jh.hospital = true;
-          s.money -= dailyCost(s.day);
-          for (const k of SOFT) s[k] = clampS(s[k] - C.decay);
-          s.extra = C.hospital.extraAfter;
-          s.history.push({ day: s.day, pain: C.painMax, money: s.money, people: s.people, body: s.body, soul: s.soul, spoons: 0 });
-          checkLose(s, s.day, ev);
-          if (!s.lost) { if (s.day >= s.days) s.finished = true; else s.day++; }
-        }
         if (!s.lost && !s.finished) startDay(s, ev);
       }
     }

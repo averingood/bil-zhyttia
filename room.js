@@ -752,7 +752,7 @@
           const perDay = 1.5;
           const k = Math.floor(c.t / perDay);
           c.slot = Math.min(4, Math.floor((c.t % perDay) / (perDay / 5)));
-          c.caption = 'День ' + (c.firstDay + 1 + Math.min(k, c.days - 1)) + ' · лікарня';
+          c.caption = 'Ніч у лікарні';
           if (c.t >= c.days * perDay) {
             c.slot = 0;
             this.heroAway = false;

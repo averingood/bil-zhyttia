@@ -343,7 +343,7 @@
     const fc = G.forecastNight(game);
     if (fc && (fc.lost || fc.hospital)) {
       const title = fc.lost ? 'Після цієї ночі гра закінчиться' : 'Цієї ночі доведеться в лікарню';
-      const text = fc.lost ? esc(lossWarning(fc.lost, fc)) : `Біль дійде до 10, приїде швидка: день випаде, −${C.hospital.cost} ₴.`;
+      const text = fc.lost ? esc(lossWarning(fc.lost, fc)) : `Біль дійде до 10, приїде швидка: ніч у лікарні (знеболять, нагодують, підлікують Тіло), зранку вже вдома. −${C.hospital.cost} ₴.`;
       openModal(`
         <h2>${title}</h2>
         <p>${text} Можна ще щось змінити, якщо лишився ресурс.</p>
