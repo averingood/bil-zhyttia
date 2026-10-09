@@ -428,7 +428,7 @@
         break;
       case 'course': {
         const price = pillPrice(s);
-        s.money -= price;
+        s.money -= price; s.stats.medsPills = (s.stats.medsPills || 0) + price;
         s.courseToday = s.day;
         s.pillDays.push(s.day);
         s.stats.coursePills++;
@@ -436,6 +436,7 @@
         break;
       }
       case 'meds': {
+        s.stats.medsPainkiller = (s.stats.medsPainkiller || 0) + a.money;
         const before = pain(s);
         ease(s, a.reliefToday);
         s.painkiller = true;
@@ -444,7 +445,7 @@
         break;
       }
       case 'block':
-        s.blockDay = s.day;
+        s.blockDay = s.day; s.stats.medsBlock = (s.stats.medsBlock || 0) + a.money;
         s.blockMin = { until: s.day + a.minDays - 1, drop: a.minDrop };   // блокада діє глибше за таблетку: опускає сам мінімум
         ease(s, a.reliefToday);
         s.body = clampS(s.body + a.body);
@@ -999,6 +1000,9 @@
     if (st.invitesRefused) lostItems.push('Відмов друзям: ' + st.invitesRefused);
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
     if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
+    // Скільки пішло на ліки: пігулки курсу, знеболювальне, блокада.
+    const medsTotal = (st.medsPills || 0) + (st.medsPainkiller || 0) + (st.medsBlock || 0);
+    if (medsTotal) lostItems.push('Витрачено на ліки: ' + medsTotal + ' ₴ (' + [['пігулки', st.medsPills], ['знеболювальне', st.medsPainkiller], ['блокада', st.medsBlock]].filter(([, v]) => v).map(([n, v]) => n + ' ' + v).join(', ') + ')');
     // Кому так і не віддав — ті друзі вже не прийдуть.
     const lostTo = [...new Set(s.loans.map((l) => l.from))];
     if (lostTo.length) lostItems.push('Втрачено ' + lostTo.length + ' ' + (lostTo.length === 1 ? 'друга' : 'друзів') + ' через борг: ' + lostTo.join(', '));
