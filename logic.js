@@ -359,8 +359,12 @@
         const hungry = !!s.hungryNow || treat > 0 || unfed;
         // Їжу приносять лише ті, хто просився сам: як сказали в запрошенні, а близькі (Стосунки 7+) — іноді й без слів.
         // Покликав сам — їжі не несуть (або прийдуть голодні, або ні).
-        const food = hungry || !inv ? null : inviteLine(inv).food || (a.invitedFood || (s.people >= C.links.peopleGood && !s.fed && rand(s) < C.links.foodChance) ? pick(s, DISHES) : null);
-        if (food && !s.fed) { s.fed = true; s.foodType = 'guests'; }
+        // Їжу приносять лише ті, хто про неї написав у запрошенні («Наварила борщу…»). Мовчки — ні.
+        const food = hungry || !inv ? null : inviteLine(inv).food || (a.invitedFood ? pick(s, DISHES) : null);
+        if (food && !s.fed) {
+          s.fed = true; s.foodType = 'guests';
+          tags.push({ t: inv.name + (C.friends.female.includes(inv.name) ? ' принесла ' : ' приніс ') + food + ' — нагодували', k: 'good', covers: ['fed'] });
+        }
         s.lastVisitInvited = !!inv;
         guests = names;
         note = names.join(' і ') + ' в гостях, Стосунки +' + gain + (treat ? ', прийшли голодні — −' + treat + ' ₴ на їжу' : unfed ? ', прийшли голодні, не нагодував — Стосунки −1' : '') + (food ? ', принесли ' + food + ' — друзі нагодували' : '');

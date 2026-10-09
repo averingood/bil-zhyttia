@@ -598,7 +598,7 @@
       <div class="tip">${tip}<p class="why">${isMoney ? 'На нулі: ' + C.graceMoney + ' дні знайти гроші, інакше виселять.'
         : k === 'people' ? 'На нулі: не кінець, але самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.'
         : k === 'soul' ? 'На нулі: не кінець, але ' + C.apathy.map((id, i) => { const l = G.ACTIONS[id].label; return i && l !== l.toUpperCase() ? l.toLowerCase() : l; }).join(', ') + ' — не під силу.'
-        : 'На нулі: день на порятунок — підняв вище нуля, і тримаєшся далі; не підняв — кінець.'}</p></div></div>`;
+        : 'На нулі: наступного дня підніми вище нуля — інакше госпіталізація і кінець.'}</p></div></div>`;
   }
 
   function renderPanel() {
@@ -638,10 +638,10 @@
         <div class="tip">
           <p><b>Зараз:</b> біль ${p}, мінімум ${s.base}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
-            <li><b>Піднімають:</b> загострення вночі, пропуск підтримуючої пігулки; частіше загострюється від кави, знеболювального, перевтоми, слабкого Тіла й поганого настрою.</li>
-            <li><b>Знімають:</b> розтяжка, ЛФК (−${C.actions.exercise.reliefToday} сьогодні й завтра), знеболювальне, процедура; уночі біль сам спадає на 1. Але нижче мінімуму — ніколи.</li>
-            <li><b>Мінімум</b> змінюється після візиту лікаря (дні ${C.doctor.days.join(', ')}): залежить від того, як ти пив пігулки й робив ЛФК.</li>
-            <li><b>Біль заважає:</b> менше ресурсу й заробітку, зустрічі слабші; з болем ${C.states.strong.min}+ не пишеш, не читаєш, не готуєш.</li>
+            <li><b>Піднімають:</b> загострення вночі (+1…+4), ресурс, узятий наперед (+${C.borrowPain} за кожен), пропуск підтримуючої пігулки (+1).</li>
+            <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}, процедура; уночі −1. Нижче мінімуму — ніколи.</li>
+            <li><b>Мінімум</b> змінюється після візиту лікаря (дні ${C.doctor.days.slice(0, -1).join(' і ')}): за пігулки й ЛФК.</li>
+            <li><b>Заважає:</b> менше ресурсу й заробітку; з болем ${C.states.strong.min}+ не пишеш, не читаєш, не готуєш.</li>
           </ul>
         </div>
       </div>
@@ -653,28 +653,28 @@
           <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}, виданих зранку${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + ' — біль забрав ' + eaten + '.' : ''}</p>
           <ul class="tl">
             <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
-            <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра: завтра на стільки менше ресурсу${C.borrowPain ? ' і біль +' + C.borrowPain + ' за кожен' : ''}, шанс загострення +${Math.round(C.night.exhausted * 100)}%. Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
+            <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра: завтра на стільки менше ресурсу${C.borrowPain ? ' і біль +' + C.borrowPain + ' за кожен' : ''}.</li>
+            <li><b>Лишиш ${C.night.earlyRest}+</b> — завтра біль −1 (якщо він вище мінімуму).</li>
           </ul>
         </div>
       </div>
 
       ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loans.length ? ' Борги: ' + s.loans.map((l) => esc(l.from) + ' ' + l.amount + ' ₴ до дня ' + l.due).join(', ') + '.' : ''}</p>
         <ul class="tl">
-          <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші ${C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'}; біль і настрій змінюють суму), підробіток від друга.</li>
-          <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях; двічі на тиждень — несподіваний рахунок.</li>
-          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів у випадкового друга, якому ще не винен (до ${s.friendNames.length} боргів), Стосунки −${C.actions.loan.people}; не віддав вчасно — −${C.actions.loan.late}. Кому винен — той не приходить у гості.</li>
+          <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші ${C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'}), підробіток від друга.</li>
+          <li><b>Витрати:</b> щоночі ${C.costs.join(' / ')} ₴ по тижнях, пігулки ${C.course.money.join(' / ')} ₴, двічі на тиждень — несподіваний рахунок.</li>
+          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} днів, Стосунки −${C.actions.loan.people}. Поки винен — цей друг не приходить; віддав — Стосунки +${C.actions.loan.repayPeople}.</li>
         </ul>`)}
-      ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people >= L.peopleGood ? ' Близькі поруч — діють бонуси нижче.' : s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
+      ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> покликати друзів +${C.actions.friends.people.light} (ресурс ${C.actions.friends.spoons}; покликав сам — ${Math.round(C.actions.friends.treatChance * 100)}%, що прийдуть голодні: −${C.actions.friends.treat} ₴), написати +${C.actions.text.people}, настолки раз на тиждень +${C.actions.board.people} за кожного, хто прийшов (${C.actions.board.money} ₴).</li>
-          <li><b>Втрати:</b> відмова −${C.friends.refuse}, позика −${C.actions.loan.people}, підробіток −${C.actions.gig.people}, щоночі тане.</li>
-          <li><b>Підробіток:</b> ${L.gigLow.min}–${L.peopleGood - 1} — зрідка (${Math.round(L.gigLow.chance * 100)}% щоночі, +${L.gigLow.pay} ₴); ${L.peopleGood}+ — частіше (${Math.round(L.gigChance * 100)}%, +${C.actions.gig.pay} ₴).</li>
-          <li><b>${L.peopleGood}+ дає:</b> гості з їжею (${Math.round(L.foodChance * 100)}%).</li>
+          <li><b>Підняти:</b> зустріч +${C.actions.friends.people.light} (удала розмова ще +1), написати +${C.actions.text.people}, настолки +${C.actions.board.people} за кожного гостя, віддати борг +${C.actions.loan.repayPeople}.</li>
+          <li><b>Втрати:</b> відмова на запрошення, невдала розмова, позика, підробіток, голодні гості без частування — по −1; удари життя; щоночі тане.</li>
+          <li><b>Дає:</b> підробіток — з ${L.gigLow.min} зрідка (+${L.gigLow.pay} ₴), з ${L.peopleGood} частіше (+${C.actions.gig.pay} ₴).</li>
         </ul>`)}
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
-          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body} (і біль −${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка +${C.actions.stretch.body}, своя їжа +${C.actions.cook.body}.</li>
-          <li><b>Втрати:</b> без їжі −${C.hungry.body}, і щодня поспіль сильніше (−${C.hungry.body * 2}, −${C.hungry.body * 3}…), щоночі тане.</li>
+          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body}, розтяжка +${C.actions.stretch.body}, їжа (готувати чи доставка) +${C.actions.cook.body}, процедура +${C.actions.block.body}.</li>
+          <li><b>Втрати:</b> без їжі −${C.hungry.body}, щодня поспіль сильніше (−${C.hungry.body * 2}, −${C.hungry.body * 3}…); удари життя; щоночі тане.</li>
           <li><b>Дає:</b> що міцніше, то рідше загострення: ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : i === a.length - 1 ? 'нижче' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
           <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — укол, Тіло +${C.doctor.rescue}${C.doctor.rescueCost ? ' за ' + C.doctor.rescueCost + ' ₴' : ', безкоштовно'}.</li>
         </ul>`)}
@@ -682,13 +682,13 @@
         <p>${(() => {
           const A = C.actions.create, R = C.actions.read, b = G.bookNow(s);
           const song = s.song.title && s.song.done ? 'Пісня «' + esc(s.song.title) + '»: ' + s.song.done + ' з ' + A.songSessions : 'Нова пісня: ' + A.songSessions + ' сесії';
-          const book = !b ? 'книжки прочитані' : (s.book.done ? 'книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] : 'книжка «' + esc(b[0]) + '»: ' + b[1] + ' сесій');
+          const book = !b ? 'книжки прочитані' : (s.book.done ? 'книжка «' + esc(b[0]) + '»: ' + s.book.done + ' з ' + b[1] : 'книжка «' + esc(b[0]) + '»: ' + b[1] + ' ' + (b[1] % 10 >= 2 && b[1] % 10 <= 4 && (b[1] % 100 < 12 || b[1] % 100 > 14) ? 'сесії' : b[1] % 10 === 1 && b[1] % 100 !== 11 ? 'сесія' : 'сесій'));
           return song + ' (дописана +' + A.songSoul + '); ' + book + (b ? ' (дочитана +' + R.finishSoul + ')' : '') + '.';
         })()}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> пісня 0…+${C.actions.create.notes} (чисті ноти), книжка +${C.actions.read.soul}, ігри 0…+${C.actions.games.jumps} (скільки пробіжиш), смачна їжа +${C.actions.cook.soulIfTasty}.</li>
-          <li><b>${L.soulGood}+ дає:</b> ресурс +1 зранку, загострення −${Math.round(L.soulFlare * 100)}%, робота +${L.soulPay} ₴. <b>${L.soulBad} і нижче:</b> загострення +${Math.round(L.soulFlare * 100)}%, робота −${L.soulPay} ₴.</li>
-          <li><b>Втрати:</b> день у сильному болю −${L.strongSoul}, щоночі тане.</li>
+          <li><b>Підняти:</b> пісня 0…+${C.actions.create.notes}, ігри 0…+${C.actions.games.jumps}, книжка +${C.actions.read.soul}, смачна їжа +${C.actions.cook.soulIfTasty}, настолки +${C.actions.board.soul} за кожного гостя.</li>
+          <li><b>Втрати:</b> день у сильному болю −${L.strongSoul}, невдала розмова, відмова від підробітку — по −1; удари життя; щоночі тане.</li>
+          <li><b>Дає:</b> ${L.soulGood}+ — ресурс +1 зранку, рідші загострення, більше за роботу; ${L.soulBad} і нижче — навпаки.</li>
         </ul>`)}
 
       <div class="sec">
