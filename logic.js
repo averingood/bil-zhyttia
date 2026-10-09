@@ -891,8 +891,8 @@
       let txt = SPHERES[k].name + ' ' + signed(after[k] - s[k]);
       // Де результат залежить від міні-гри — кажемо чесно, від чого.
       if (id === 'cook' && k === 'soul') txt = SPHERES[k].name + ' +' + C.actions.cook.soulIfTasty + ', якщо смачно';
-      if (id === 'create' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.create.notes + ' (скільки чистих нот)';
-      if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
+      if (id === 'create' && k === 'soul') txt = SPHERES[k].name + ' від 0 до ' + C.actions.create.notes + ' (скільки чистих нот)';
+      if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' від 0 до ' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
       fx.push({ t: txt, kind: k });
     }
     // Біль уже на мінімумі — знеболення нічого не зніме, кажемо прямо.
