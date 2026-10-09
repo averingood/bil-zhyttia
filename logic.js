@@ -62,7 +62,9 @@
   const signed = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
 
   // ---------- біль ----------
-  const rawPain = (s) => s.base + s.extra;
+  // Мінімум зараз: мінімум від лікування, а поки діє блокада — нижчий.
+  const minNow = (s) => Math.max(C.painMin, s.base - (s.blockMin && s.day <= s.blockMin.until ? s.blockMin.drop : 0));
+  const rawPain = (s) => minNow(s) + s.extra;
   const pain = (s) => Math.max(C.painMin, Math.min(C.painMax, rawPain(s) - s.relief));
   function stateOfPain(p) {
     for (const k of Object.keys(C.states)) if (p >= C.states[k].min && p <= C.states[k].max) return k;
@@ -127,6 +129,7 @@
 
   // Ранок: те, що настало з календаря, ресурс з болю, зв'язки сфер.
   function startDay(s, ev) {
+    if (s.blockMin && s.day === s.blockMin.until + 1) { ev.push({ kind: 'pain', text: 'Блокада відпустила: мінімум болю знову ' + s.base }); s.blockMin = null; }
     s.relief = 0; s.spent = 0; s.borrowed = 0; s.used = {};
     s.fed = false; s.foodType = null; s.painkiller = false; s.coffeeToday = 0;
     for (const f of s.future.filter((x) => x.day === s.day)) {
@@ -442,11 +445,11 @@
       }
       case 'block':
         s.blockDay = s.day;
+        s.blockMin = { until: s.day + a.minDays - 1, drop: a.minDrop };   // блокада діє глибше за таблетку: опускає сам мінімум
         ease(s, a.reliefToday);
-        a.reliefNext.forEach((v, i) => s.future.push({ day: s.day + 1 + i, kind: 'relief', amount: v, from: 'block' }));
         s.body = clampS(s.body + a.body);
         s.stats.blocks = (s.stats.blocks || 0) + 1;
-        note = 'біль −' + a.reliefToday + ' сьогодні, −' + a.reliefNext.join(' і −') + ' наступні дні, Тіло +' + a.body + ', −' + a.money + ' ₴';
+        note = 'мінімум болю −' + a.minDrop + ' до дня ' + s.blockMin.until + ', біль −' + a.reliefToday + ' зараз, Тіло +' + a.body + ', −' + a.money + ' ₴';
         break;
       case 'repay': {
         const l = nextLoan(s);
@@ -866,8 +869,10 @@
       if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
       fx.push({ t: txt, kind: k });
     }
+    if (id === 'block') { const a = C.actions.block; fx.push({ t: 'мінімум болю −' + a.minDrop + ' на ' + a.minDays + ' дні (до дня ' + (s.day + a.minDays - 1) + ')', kind: 'good' }); }
+    if (id === 'friends') fx.push({ t: 'розмова: вдала — ще +1, невдала — −1', kind: 'info' });
     // Біль уже на мінімумі — знеболення нічого не зніме, кажемо прямо.
-    if (['stretch', 'meds', 'games', 'exercise', 'block'].includes(id) && s.extra <= 0) fx.push({ t: 'біль уже на мінімумі (' + s.base + ')', kind: 'info' });
+    if (['stretch', 'meds', 'games', 'exercise'].includes(id) && s.extra <= 0) fx.push({ t: 'біль уже на мінімумі (' + minNow(s) + ')', kind: 'info' });
     // Самотність: дія підняла б Настрій, але стеля — поки Стосунки на нулі.
     if (s.people <= 0 && s.soul >= C.lonelyCap) {
       const probe = clone(s); probe.people = 1; const pa = clone(probe), sv = pendingTalk;
@@ -1005,7 +1010,7 @@
     ZONES, ACTIONS, ACTION_IDS, SPHERES, SPHERE_IDS,
     createGame, doAction, endDay, applyTalk, refuseInvite, check, preview, zoneActions,
     gigToday, refuseGig, forecastNight, calendar, hints, summary, sleepGainText, songTitle, bookNow, inviteToday, inviteText, inviteWho, autoTalkKinds, rollHungry, pillPrice,
-    pillsInWeek, lfkInWeek, pain, rawPain, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
+    pillsInWeek, lfkInWeek, pain, rawPain, minNow, stateKey, coverOf, stateOfPain, spoonCost, energyCost: spoonCost, dayPhase, flareChanceTonight, dailyCost, pressureOf, clone,
     setConfig(cfg) { C = cfg; },
     get config() { return C; },
   };

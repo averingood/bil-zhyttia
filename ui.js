@@ -634,13 +634,14 @@
       </div>
 
       <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${p}</span> <span class="sub">мінімум ${s.base}</span></span></div>
-        <div class="pain-scale">${Array.from({ length: 10 }, (_, i) => `<i class="${i < s.base ? 'floor' : i < p ? 'over' : ''}"></i>`).join('')}</div>
+        <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${p}</span> <span class="sub">мінімум ${G.minNow(s)}${G.minNow(s) < s.base ? ' (блокада)' : ''}</span></span></div>
+        <div class="pain-scale">${Array.from({ length: 10 }, (_, i) => `<i class="${i < G.minNow(s) ? 'floor' : i < p ? 'over' : ''}"></i>`).join('')}</div>
         <div class="tip">
-          <p><b>Зараз:</b> біль ${p}, мінімум ${s.base}. Шанс загострення вночі ${flareP}%.</p>
+          <p><b>Зараз:</b> біль ${p}, мінімум ${G.minNow(s)}${G.minNow(s) < s.base ? ' — блокада до дня ' + s.blockMin.until + ', потім знову ' + s.base : ''}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
             <li><b>Піднімають:</b> загострення вночі (+1…+4), ресурс, узятий наперед (+${C.borrowPain} за кожен).</li>
-            <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}, процедура; уночі −1. Нижче мінімуму — ніколи.</li>
+            <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}; уночі −1. Нижче мінімуму — ніколи.</li>
+            <li><b>Блокада</b> (${C.actions.block.money} ₴) — єдине, що опускає сам мінімум: −${C.actions.block.minDrop} на ${C.actions.block.minDays} дні.</li>
             <li><b>Мінімум</b> реагує на лікування — пігулки й ЛФК за тиждень; що вийшло, видно на прийомі лікаря (дні ${C.doctor.days.slice(0, -1).join(' і ')}). На останньому тижні кожен пропуск пігулки одразу піднімає мінімум на 1.</li>
             <li><b>Заважає:</b> менше ресурсу й заробітку; з болем ${C.states.strong.min}+ не пишеш, не читаєш, не готуєш.</li>
           </ul>
@@ -761,7 +762,7 @@
       return;
     }
     const [k, v] = cmd.split(':');
-    if (k === 'pain') { const want = v === 'max' ? 10 : 1; game.extra = want - game.base; }
+    if (k === 'pain') { const want = v === 'max' ? 10 : 1; game.extra = want - G.minNow(game); }
     else game[k] = v === 'max' ? C.sphereMax : 0;
     renderAll();
   }
