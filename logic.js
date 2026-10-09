@@ -434,8 +434,8 @@
         const before = pain(s);
         ease(s, a.reliefToday);
         s.painkiller = true;
-        note = 'біль ' + before + ' → ' + pain(s) + ', шанс загострення вночі +' + Math.round(a.flareAdd * 100) + '%';
-        if (rand(s) < a.side.chance) { s.soul = clampS(s.soul - a.side.soul); note += '; туман у голові: Настрій −' + a.side.soul; }
+        s.soul = clampS(s.soul + (a.soul || 0));
+        note = 'біль ' + before + ' → ' + pain(s) + (a.soul ? ', полегшало: Настрій +' + a.soul : '') + ', шанс загострення вночі +' + Math.round(a.flareAdd * 100) + '%';
         break;
       }
       case 'block':
