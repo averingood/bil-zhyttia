@@ -277,7 +277,7 @@
     $('modal').querySelectorAll('[data-feed]').forEach((b) => { b.onclick = () => { closeModal(); phase = 'play'; finishAction('friends', p, { feed: b.dataset.feed === 'yes' }); }; });
     $('modal').querySelector(can ? '[data-feed=yes]' : '[data-feed=no]').focus();
   }
-  function showDelta(b, title, tags) {
+  function showDelta(b, title, tags, delay) {
     const a = snap(), parts = title ? [{ t: title, k: 'ttl' }] : [];
     const covered = new Set();
     for (const tg of tags || []) { parts.push({ t: tg.t, k: tg.k || '' }); (tg.covers || []).forEach((c) => covered.add(c)); }
@@ -295,15 +295,23 @@
     const el = document.createElement('div');
     el.className = 'delta';
     el.innerHTML = parts.map((x) => `<span class="${x.k}">${esc(x.t)}</span>`).join('');
-    $('canvasWrap').appendChild(el);
-    setTimeout(() => el.remove(), 3600);
+    // delay — показати пізніше (після попередньої плашки), але з тим, що змінилось уже зараз.
+    setTimeout(() => { $('canvasWrap').appendChild(el); setTimeout(() => el.remove(), 3600); }, delay || 0);
   }
 
   function finishAction(id, p, opts) {
     const talk = id === 'friends' && window.FriendTalk && gameOn('friends');
     const before = snap();
-    const r = G.doAction(game, id, Object.assign({}, opts, talk ? { deferTalk: true } : null));
+    const autoTalk = id === 'friends' && !talk;
+    const r = G.doAction(game, id, Object.assign({}, opts, talk || autoTalk ? { deferTalk: true } : null));
     if (r.ok) showDelta(before, null, r.tags);
+    // Без міні-гри розмова розігрується сама, але підсумок — окремою плашкою, як після міні-гри.
+    if (r.ok && autoTalk) {
+      const b2 = snap(), note = G.applyTalk(game, G.autoTalkKinds(game));
+      const j = game.journal.find((e) => e.day === game.day);
+      if (j && j.did.length && note) j.did[j.did.length - 1] = j.did[j.did.length - 1].replace(/\)$/, '; ' + note + ')');
+      showDelta(b2, TALK_TITLE[game.lastTalk], null, 3700);
+    }
     // Друзі: зайшли, сіли — і тоді розмова від першої особи; після неї прощаються.
     room.playAction(id, r.guests, talk ? () => startTalk(r.guests) : null);
     if (talk) {
@@ -315,6 +323,8 @@
     if (r.borrowed) toast('Узяв наперед ресурс ' + r.borrowed + ': завтра на стільки менше ресурсу' + (C.borrowPain ? ' і біль +' + C.borrowPain * r.borrowed : '') + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%.');
     renderAll();
   }
+
+  const TALK_TITLE = { good: 'Розмова вдалась:', meh: 'Розмова так собі:', bad: 'Розмова не склалась:' };
 
   function startTalk(names) {
     phase = 'scene';
@@ -329,7 +339,7 @@
         // Пропущено: розмова «сама» — біль іноді не дає почути суть.
         const kinds = sceneSkipped ? G.autoTalkKinds(game) : res.kinds;
         const note = G.applyTalk(game, kinds);
-        showDelta(before, { good: 'Розмова вдалась:', meh: 'Розмова так собі:', bad: 'Розмова не склалась:' }[game.lastTalk]);
+        showDelta(before, TALK_TITLE[game.lastTalk]);
         const j = game.journal.find((e) => e.day === game.day);
         if (j && j.did.length && note) j.did[j.did.length - 1] = j.did[j.did.length - 1].replace(/\)$/, '; ' + note + ')');
         phase = 'play';
