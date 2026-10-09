@@ -664,7 +664,7 @@
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
           <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body} (і біль −${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка +${C.actions.stretch.body}, своя їжа +${C.actions.cook.body}.</li>
-          <li><b>Втрати:</b> без їжі −${C.hungry.body[0]} (другий день поспіль −${C.hungry.body[1]}), щоночі тане.</li>
+          <li><b>Втрати:</b> без їжі −${C.hungry.body}, і щодня поспіль сильніше (−${C.hungry.body * 2}, −${C.hungry.body * 3}…), щоночі тане.</li>
           <li><b>Дає:</b> що міцніше, то рідше загострення: ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : i === a.length - 1 ? 'нижче' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
           <li><b>Лікар:</b> Тіло ${C.doctor.rescueBody} і нижче — укол, Тіло +${C.doctor.rescue}${C.doctor.rescueCost ? ' за ' + C.doctor.rescueCost + ' ₴' : ', безкоштовно'}.</li>
         </ul>`)}

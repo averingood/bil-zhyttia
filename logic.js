@@ -638,7 +638,7 @@
     let hunger = null;   // якщо вночі лікарня — там нагодують, і голод скасовується
     if (!s.fed) {
       s.hungryStreak = (s.hungryStreak || 0) + 1;
-      const H = C.hungry.body, loss = safe.body ? 0 : H[Math.min(H.length, s.hungryStreak) - 1];
+      const loss = safe.body ? 0 : C.hungry.body * s.hungryStreak;   // що довше без їжі, то сильніше
       s.body = clampS(s.body - loss); s.stats.hungry++;
       hunger = { loss, ev: { kind: 'bad', text: (s.hungryStreak > 1 ? 'Знову без їжі' : 'Без їжі') + ': Тіло −' + loss } };
       if (loss) ev.push(hunger.ev);
