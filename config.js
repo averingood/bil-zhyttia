@@ -102,7 +102,8 @@
     //  ЛФК: 3+ рази — −1; 1–2 — без змін; 0 — +1.
     // Базовий біль — від painMin до стартового + maxUp. Тіло ≤ rescueBody — платний укол.
     // Третій тиждень: ЛФК — на власний розсуд (lfkWeeks); пропуск пігулки б'є одразу (course.missExtra).
-    doctor: { days: [7, 14, 21], week: 7, pills: { full: 7, keep: [6, 6, 6] }, lfk: { good: 3 }, lfkWeeks: [true, true, false], maxUp: 3, rescueBody: 3, rescue: 3, rescueCost: 0 },   // укол — безкоштовно
+    // pillsWeeks: чи пігулки тижня міняють базовий біль; третього тижня — підтримуюча доза: лише закріплює (пропуск — завтра біль +1).
+    doctor: { days: [7, 14, 21], week: 7, pillsWeeks: [true, true, false], pills: { full: 7, keep: [6, 6, 6] }, lfk: { good: 3 }, lfkWeeks: [true, true, false], maxUp: 3, rescueBody: 3, rescue: 3, rescueCost: 0 },   // укол — безкоштовно
     // Біль 10 уночі — лікарня: наступний день випадає, гроші, тимчасовий біль скидається.
     hospital: { cost: 40, extraAfter: 0, body: 6 },   // ніч у лікарні: біль — рівно базовий, нагодують, Тіло підтягнуть щонайменше до body; зранку вдома
 
@@ -140,7 +141,7 @@
       // нема — друг ображається (Стосунки −late), і він нагадає ще через again днів.
       // Позика — щоразу в когось іншого (випадково з тих, кому ще не винен): до 5 боргів одночасно.
       // Кому винен — того не кличеш у гості й на настолки, і він не проситься, доки не віддаси.
-      loan:     { spoons: 0, amount: 20, people: 1, dueIn: 6, late: 1, again: 3, minPeople: 3 },   // зі Стосунками нижче minPeople позичати нема в кого
+      loan:     { spoons: 0, amount: 20, people: 1, dueIn: 6, late: 1, again: 3, minPeople: 1, repayPeople: 1 },   // повернув — Стосунки +repayPeople   // зі Стосунками нижче minPeople позичати нема в кого
     },
 
     // Друзі.

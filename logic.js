@@ -261,7 +261,7 @@
         if (!freeFriends(s).length) return no('Ти всім винен — кликати нікого');
         break;
       case 'loan':
-        if (s.people < a.minPeople) return no('Стосунки на межі — позичити нема в кого');
+        if (s.people < a.minPeople) return no('Стосунки на нулі — позичити нема в кого');
         if (!freeFriends(s).length) return no('Ти вже позичив у всіх п’ятьох');
         break;
     }
@@ -443,7 +443,9 @@
       case 'repay': {
         const l = nextLoan(s);
         s.money -= l.amount; s.loans = s.loans.filter((x) => x !== l);
-        note = 'борг ' + l.amount + ' ₴ (' + l.from + ') повернуто раніше строку';
+        const rp = C.actions.loan.repayPeople || 0;
+        s.people = clampS(s.people + rp);
+        note = 'борг ' + l.amount + ' ₴ (' + l.from + ') повернуто раніше строку' + (rp ? ', Стосунки +' + rp : '');
         tags.push({ t: 'віддав борг ' + nDat(l.from) + ': −' + l.amount + ' ₴', k: '', covers: ['money'] });
         break;
       }
@@ -549,7 +551,12 @@
     const before = s.base, final = d === D.days[D.days.length - 1];
     const pills = inWeek(s.pillDays, d), lfk = inWeek(s.lfkDays, d), wk = weekIdx(d), keep = D.pills.keep[wk];
     let shift = 0;
-    if (pills >= D.pills.full) { shift--; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ', без пропусків. Молодець, базовий біль відступає.', k: 'good' }); }
+    if (!D.pillsWeeks[wk]) {
+      // Підтримуюча доза: базовий біль не знижує, лише закріплює результат попередніх тижнів.
+      lines.push(pills >= D.pills.full
+        ? { t: 'Пігулки: ' + pills + ' з ' + D.week + ', без пропусків. Підтримуюча доза закріпила результат — він тепер ваш.', k: 'good' }
+        : { t: 'Пігулки: ' + pills + ' з ' + D.week + '. Кожен пропуск підтримуючої дози підвищував тимчасовий біль на ' + (C.course.missExtra[wk] || 1) + ' — пропусків: ' + (D.week - pills) + '.', k: 'bad' });
+    } else if (pills >= D.pills.full) { shift--; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ', без пропусків. Молодець, базовий біль відступає.', k: 'good' }); }
     else if (pills >= keep) lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — один пропуск. Тримаєшся, але без покращення.', k: '' });
     else { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — забагато пропусків. Без курсу базовий біль посилюється.', k: 'bad' }); }
     if (D.lfkWeeks[wk]) {
@@ -560,12 +567,14 @@
     // Наступний тиждень: доза вища (і дорожча); на останній — ЛФК на власний розсуд.
     if (!final) {
       const nw = wk + 1;
-      lines.push({ t: 'З завтра підвищую дозу: пігулка тепер ' + C.course.money[nw] + ' ₴' + (C.course.missExtra[nw] ? ', і без жодного пропуску' : '') + '.' + (!D.lfkWeeks[nw] ? ' ЛФК — як самі захочете.' : ''), k: '' });
+      lines.push({ t: D.pillsWeeks[nw]
+        ? 'З завтра підвищую дозу: пігулка тепер ' + C.course.money[nw] + ' ₴.'
+        : 'Останній тиждень — підтримуюча доза, ' + C.course.money[nw] + ' ₴. Вона закріплює все, чого ми досягли; пропускати не можна — біль одразу повертається.' + (!D.lfkWeeks[nw] ? ' ЛФК — як самі захочете.' : ''), k: '' });
     }
     s.baseShift += shift;
     recalcBase(s);
     if (s.body <= D.rescueBody) {
-      if (s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло слабке — поставлю укол: Тіло +' + D.rescue + (D.rescueCost ? ', −' + D.rescueCost + ' ₴' : ', безкоштовно') + '.', k: 'good' }); }
+      if (!D.rescueCost || s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло слабке — поставлю укол: Тіло +' + D.rescue + (D.rescueCost ? ', −' + D.rescueCost + ' ₴' : ', безкоштовно') + '.', k: 'good' }); }
       else lines.push({ t: 'Тіло слабке, укол би допоміг — але на нього (' + D.rescueCost + ' ₴) грошей немає.', k: 'bad' });
     }
     const after = s.base;
@@ -680,7 +689,7 @@
     s.extra = Math.max(0, s.extra - N.drift);
     // Висока доза: пропущена пігулка — біль повертається вже завтра.
     const miss = C.course.missExtra[weekIdx(s.day)];
-    if (miss && s.courseToday !== s.day && s.day < s.days) { s.extra += miss; ev.push({ kind: 'pain', text: 'Пропустив пігулку на високій дозі: завтра біль +' + miss }); }
+    if (miss && s.courseToday !== s.day && s.day < s.days) { s.extra += miss; ev.push({ kind: 'pain', text: 'Пропустив підтримуючу пігулку: тимчасовий біль +' + miss + ' (завтра)' }); }
     if (exhaustedNow(s)) ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: шанс загострення вночі +' + Math.round(N.exhausted * 100) + '%' });
     else if (s.spoons >= N.earlyRest) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
     s.extra = Math.max(-2, s.extra);
