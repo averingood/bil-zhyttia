@@ -397,6 +397,7 @@
 
   // Прийом у лікаря: заходить, сідає з тобою на диван і по черзі каже висновки за тиждень.
   // pre — стан на вечір: панель показує його, а мінімум болю й Тіло змінює лише тоді, коли лікар про це сказав.
+  const DOC_READ_MS = 1600;   // скільки дати прочитати репліку лікаря, перш ніж панель зміниться
   function doctorScene(v, next, pre) {
     phase = 'doctor';
     panelView = pre || null;
@@ -407,6 +408,7 @@
       if (done) return;
       done = true; sceneAbort = null;
       if (keyH) window.removeEventListener('keydown', keyH, true);
+      if (revealT) { clearTimeout(revealT); revealT = null; revealFn = null; }
       panelView = null;
       room.endVisit(false);   // прощається й іде
       const b = v.after - v.before;
@@ -423,13 +425,21 @@
       if (b) b.onclick = step;
     };
     const step = () => { if (done) return; if (shown >= v.lines.length) { finish(); return; } shown++; reveal(v.lines[shown - 1]); room.say(0, 'talk'); draw(); };
-    // Сказав — і панель оновилась: мінімум болю (а з ним і біль), Тіло після уколу.
+    // Спершу читаєш репліку — і лише тоді панель оновлюється: мінімум болю (а з ним і біль), Тіло після уколу.
+    // Натиснув «Далі» раніше — попередня зміна застосовується одразу, нічого не губиться.
+    let revealT = null, revealFn = null;
+    const flushReveal = () => { if (revealT) { clearTimeout(revealT); revealT = null; const f = revealFn; revealFn = null; f && f(); } };
     const reveal = (l) => {
-      if (!panelView || !l) return;
-      if (l.base != null) panelView.base = l.base;
-      if (l.body) panelView.body = Math.min(C.sphereMax, panelView.body + l.body);
-      if (l.money) panelView.money += l.money;
-      renderPanel();
+      flushReveal();
+      if (!panelView || !l || (l.base == null && !l.body && !l.money)) return;
+      revealFn = () => {
+        if (!panelView) return;
+        if (l.base != null) panelView.base = l.base;
+        if (l.body) panelView.body = Math.min(C.sphereMax, panelView.body + l.body);
+        if (l.money) panelView.money += l.money;
+        renderPanel();
+      };
+      revealT = setTimeout(() => { revealT = null; const f = revealFn; revealFn = null; f && f(); }, DOC_READ_MS);
     };
     keyH = (e) => { if (shown && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); e.stopPropagation(); step(); } };
     window.addEventListener('keydown', keyH, true);
@@ -981,7 +991,10 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0">
       closeModal();
       held.clear(); applyKeys();
       // Свято: лише друзі, яким нічого не винен; кімната — за болем і настроєм; без грошей — коробки.
-      const party = { guests: game.friendNames.filter((n) => !game.loans.some((l) => l.from === n)), joy: game.soul * 10, pain: G.pain(game), boxes: game.money <= 0 };
+      // Стосунки на нулі — ніхто не прийде; інакше лише ті, кому нічого не винен. why — чому ніхто не прийшов.
+      const free = game.friendNames.filter((n) => !game.loans.some((l) => l.from === n));
+      const why = game.people <= 0 ? 'Стосунки на нулі — друзі віддалились' : !free.length ? 'Усім друзям винен гроші' : '';
+      const party = { why, guests: game.people <= 0 ? [] : free, joy: game.soul * 10, pain: G.pain(game), boxes: game.money <= 0 };
       // Підсумок — не одразу: спершу дати дочитати підпис і побачити останній кадр.
       room.playEnding(game.lost ? game.lost.cause : 'win', () => setTimeout(() => { if (phase === 'cut') showEnd(); }, game.lost ? 2500 : 0), party);
       renderAll();

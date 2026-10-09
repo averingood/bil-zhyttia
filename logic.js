@@ -666,6 +666,16 @@
 
     const ref = refuseInvite(s);
     if (ref) ev.push({ kind: 'friends', text: ref.text });
+    // Спершу вечір: пропущена підтримуюча пігулка й прийом лікаря — ще до нічних подій,
+    // щоб лікар бачив той стан, що й гравець на панелі (Тіло, біль), а не вже «нічний».
+    const miss = C.course.missMin[weekIdx(s.day)];
+    if (miss && s.courseToday !== s.day && s.day < s.days) {
+      const was = s.base; s.baseShift += miss; recalcBase(s);
+      if (s.base > was) ev.push({ kind: 'pain', text: 'Пропустив підтримуючу пігулку: мінімум болю ' + was + ' → ' + s.base });
+    }
+    // Лікар: огляд увечері — оцінює тиждень (пігулки й ЛФК), після нього змінюється мінімум болю; слабке тіло — укол.
+    let doctor = null;
+    if (C.doctor.days.includes(s.day)) { doctor = doctorVisit(s); ev.push({ kind: doctor.after < doctor.before ? 'good' : doctor.after > doctor.before ? 'pain' : 'info', text: doctor.summary }); }
     // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі її не чіпає ніщо (ні голод, ні танення, ні удари).
     s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
     const safe = {};
@@ -720,12 +730,6 @@
       const hp = 1;   // з 2-го дня поспіль — щоразу +1
       s.extra += hp; ev.push({ kind: 'pain', text: 'Голодний ' + s.hungryStreak + '-й день поспіль: зранку біль +' + hp });
     }
-    // Висока доза: пропущена пігулка — біль повертається вже завтра.
-    const miss = C.course.missMin[weekIdx(s.day)];
-    if (miss && s.courseToday !== s.day && s.day < s.days) {
-      const was = s.base; s.baseShift += miss; recalcBase(s);
-      if (s.base > was) ev.push({ kind: 'pain', text: 'Пропустив підтримуючу пігулку: мінімум болю ' + was + ' → ' + s.base });
-    }
     // Узяв ресурс наперед — тіло платить за перевтому.
     if (s.borrowed > 0 && C.borrowBody && !safe.body) {
       const loss = C.borrowBodyFlat ? C.borrowBody : C.borrowBody * s.borrowed;
@@ -740,9 +744,6 @@
     }
     s.extra = Math.max(0, s.extra);   // нижче мінімуму біль не буває
 
-    // Лікар: огляд увечері — оцінює тиждень (пігулки й ЛФК), після нього змінюється мінімум болю; слабке тіло — укол.
-    let doctor = null;
-    if (C.doctor.days.includes(s.day)) { doctor = doctorVisit(s); ev.push({ kind: doctor.after < doctor.before ? 'good' : doctor.after > doctor.before ? 'pain' : 'info', text: doctor.summary }); }
     // Несподіваний рахунок: сьогодні платимо той, про який дізнались учора; і, може, приходить новий.
     if (s.bill && s.bill.due === s.day) {
       s.money -= s.bill.amount; s.stats.surprises = (s.stats.surprises || 0) + s.bill.amount;

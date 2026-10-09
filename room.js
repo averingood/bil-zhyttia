@@ -591,7 +591,7 @@
       });
       const joy = opts.joy != null ? opts.joy : 100, pain = opts.pain != null ? opts.pain : 1;
       this.cut = { ending: 'win', win: true, phase: 'enter', t: 0, onDone, slot: 1, caption: '', flash: 0, medics, confetti: [],
-        joy, pain, alone: !names.length, boxes: opts.boxes ? 3 : 0, bright: joy >= 60 && pain <= 4, shown: false };
+        joy, pain, alone: !names.length, why: opts.why || '', boxes: opts.boxes ? 3 : 0, bright: joy >= 60 && pain <= 4, shown: false };
     }
 
     updateEnding(dt) {
@@ -620,7 +620,7 @@
         } else if (c.phase === 'party') {
           // Свято без кінця: підписи один раз, далі просто живе кімната.
           c.medics.forEach(face);
-          const first = c.alone ? ['Курс лікування завершено', 'Святкуєш сам'] : ['Курс лікування завершено', 'Друзі прийшли привітати'];
+          const first = c.alone ? ['Курс лікування завершено', (c.why ? c.why + '. ' : '') + 'Ніхто не прийшов — святкуєш сам'] : ['Курс лікування завершено', 'Друзі прийшли привітати'];
           // Без грошей — спершу чому: оренду платити нічим; і лише тоді — що далі.
           c.caption = c.t < 2.6 ? first[0] : c.t < 5.2 ? first[1] : c.boxes && c.t < 8 ? 'Але гроші скінчились — оренду платити нічим' : c.boxes && c.t < 10.8 ? 'Після свята доведеться з’їхати' : '';
           // Друзі по черзі пританцьовують.
