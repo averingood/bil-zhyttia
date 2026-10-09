@@ -302,8 +302,10 @@
         break;
       }
       case 'games': {
-        // Без міні-гри: біль іноді збиває на випадковій перешкоді.
-        const run = opts.runner || { cleared: rand(s) < (a.painChance[st] || 0.25) ? Math.floor(rand(s) * a.jumps) : a.jumps };
+        // Без міні-гри — так само, як у сцені: перед кожною перешкодою, крім першої, біль може накрити, і на ній падаєш.
+        let auto = a.jumps;
+        if (!opts.runner) for (let i = 1; i < a.jumps; i++) if (rand(s) < (a.painChance[st] != null ? a.painChance[st] : 0.25)) { auto = i; break; }
+        const run = opts.runner || { cleared: auto };
         const gain = run.cleared;   // Настрій — за кожну перестрибнуту перешкоду, від 0 до 4
         s.soul = clampS(s.soul + gain);
         ease(s, a.ease);   // гра відволікає від болю
