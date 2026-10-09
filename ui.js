@@ -606,6 +606,7 @@
     const el = $('panel');
     if (!game) { el.innerHTML = ''; return; }
     const s = game, st = G.stateKey(s), p = G.pain(s), col = STATE_COLOR[st], L = C.links;
+    const ended = !!(s.finished || s.lost);   // кінець гри: лише підсумковий стан і кнопки
 
     // Ресурс і біль — одна шкала: повні трикутники — що лишилося, бліді — витрачене,
     // червоні — узяте наперед, рябі червоні — те, що зранку з'їв біль.
@@ -629,8 +630,9 @@
     el.style.boxShadow = `inset 0 0 ${Math.max(0, p - 3) * 9}px ${Math.max(0, p - 3) * 3}px rgba(5,5,12,.75)`;
     el.innerHTML = `
       <div class="p-head">
-        <div class="p-day">День ${s.day} <small>з ${s.days}</small></div>
-        <span class="sub">курс лікування</span>
+        ${s.finished ? `<div class="p-day">День ${s.days + 1}</div><span class="sub">курс завершено!</span>`
+          : s.lost ? `<div class="p-day">День ${s.day}</div><span class="sub">кінець</span>`
+          : `<div class="p-day">День ${s.day} <small>з ${s.days}</small></div><span class="sub">курс лікування</span>`}
       </div>
 
       <div class="sec tipped" tabindex="0">
@@ -648,7 +650,7 @@
         </div>
       </div>
 
-      <div class="sec tipped" tabindex="0">
+${ended ? '' : `      <div class="sec tipped" tabindex="0">
         <div class="sec-h"><span class="lbl">Ресурс</span></div>
         <div class="tris">${tri}</div>
         <div class="tip">
@@ -661,6 +663,7 @@
         </div>
       </div>
 
+`}
       ${sphereSec(s, 'money', `<p><b>Зараз:</b> ${s.money} ₴, надійде: ${incoming}; уночі витрати ${G.dailyCost(s.day)} ₴.${s.loans.length ? ' Борги: ' + s.loans.map((l) => esc(l.from) + ' ' + l.amount + ' ₴ до дня ' + l.due).join(', ') + '.' : ''}</p>
         <ul class="tl">
           <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші ${C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'}), підробіток від друга.</li>
@@ -693,7 +696,11 @@
           <li><b>Дає:</b> ${L.soulGood}+ — ресурс +1 зранку, рідші загострення, більше за роботу; ${L.soulBad} і нижче — навпаки.</li>
         </ul>`)}
 
-      <div class="sec">
+      ${ended ? `<div class="btns end-btns">
+        <button class="btn primary" id="sumBtn">Підсумок</button>
+        <button class="btn" id="journalBtn">Щоденник</button>
+        <button class="btn" id="newBtn">Нова гра</button>
+      </div>` : `<div class="sec">
         <span class="lbl">Календар</span>
         <div class="cal" style="grid-template-columns: repeat(5, 1fr)">${cal}</div>
       </div>
@@ -704,24 +711,26 @@
       </div>
 
       <div class="btns">
-        ${s.finished || s.lost ? '' : `<button class="btn primary ${s.spoons === 0 ? 'pulse' : ''}" id="endBtn">Завершити день <kbd>E</kbd></button>`}
+        <button class="btn primary ${s.spoons === 0 ? 'pulse' : ''}" id="endBtn">Завершити день <kbd>E</kbd></button>
         <button class="btn" id="journalBtn">Щоденник</button>
       </div>
-      ${s.finished || s.lost ? '' : `<div class="sub">Якщо лягти зараз: ${esc(G.sleepGainText(s))}.</div>`}
-      <button class="btn ghost" id="restartBtn">Почати заново</button>
-      ${DEBUG ? `<div class="dbg"><span class="sub">Налагодження (лише локально)</span>
+      <div class="sub">Якщо лягти зараз: ${esc(G.sleepGainText(s))}.</div>
+      <button class="btn ghost" id="restartBtn">Почати заново</button>`}
+      ${DEBUG && !ended ? `<div class="dbg"><span class="sub">Налагодження (лише локально)</span>
         <div class="dbg-grid">
           <span>Біль</span><button class="btn" data-dbg="pain:min">1</button><button class="btn" data-dbg="pain:max">10</button>
           ${['people', 'body', 'soul'].map((k) => `<span>${G.SPHERES[k].name}</span><button class="btn" data-dbg="${k}:min">0</button><button class="btn" data-dbg="${k}:max">10</button>`).join('')}
           <span>Гроші</span><input type="range" id="dbgMoney" min="0" max="400" step="10" value="${Math.max(0, Math.min(400, s.money))}"><b id="dbgMoneyV">${s.money} ₴</b>
         </div>
         <div class="row"><button class="btn primary" data-dbg="win">Перескочити до кінця 21-го дня</button></div></div>` : ''}
-      ${fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost, fc))}</div>` : ''}
+      ${!ended && fc && fc.lost ? `<div class="warn" style="color:var(--fatal)">${esc(lossWarning(fc.lost, fc))}</div>` : ''}
     `;
     if (tipIndex != null) showTip(tipIndex);
     if ($('endBtn')) $('endBtn').onclick = endDayClick;
     $('journalBtn').onclick = showJournal;
-    $('restartBtn').onclick = askRestart;
+    if ($('restartBtn')) $('restartBtn').onclick = askRestart;
+    if ($('sumBtn')) $('sumBtn').onclick = () => { if (phase === 'end') showEnd(); };
+    if ($('newBtn')) $('newBtn').onclick = showSetup;
     document.querySelectorAll('[data-dbg]').forEach((b) => { b.onclick = () => debugSet(b.dataset.dbg); });
     const dm = $('dbgMoney');
     if (dm) { dm.oninput = () => { $('dbgMoneyV').textContent = dm.value + ' ₴'; }; dm.onchange = () => { if (phase !== 'play') return; game.money = +dm.value; renderAll(); }; }
@@ -804,14 +813,18 @@
     $('modal').querySelector('[data-k=back]').focus();
   }
 
-  function renderAll() { renderPanel(); renderActions(); renderChips(); renderSceneToggle(); }
+  function renderAll() {
+    // Кінець гри: кімната на весь кадр — без рядка дій і зон; кнопки — внизу правої панелі.
+    document.body.classList.toggle('ended', !!game && !!(game.finished || game.lost) && phase !== 'night' && phase !== 'report' && phase !== 'doctor');
+    renderPanel(); renderActions(); renderChips(); renderSceneToggle();
+  }
 
   function canSkipAnim() { return (room.visit && !(room.visit.hold && (phase === 'scene' || phase === 'doctor') && sceneAbort)) || !!room.bubble || workingT > 0; }
   function renderSceneToggle() {
     const sk = $('skipBtn');
     if (sk) sk.hidden = !game || !(((phase === 'scene' || phase === 'doctor') && sceneAbort) || phase === 'cut' || canSkipAnim());
     const b = $('sceneTog');
-    b.hidden = !game || phase === 'setup' || phase === 'scene' || phase === 'cut';
+    b.hidden = !game || phase === 'setup' || phase === 'scene' || phase === 'cut' || !!(game.finished || game.lost);
     const n = MINI_GAMES.filter(([id]) => gameOn(id)).length;
     b.classList.toggle('on', n > 0);
     b.innerHTML = 'Міні-ігри: ' + n + ' з ' + MINI_GAMES.length + ' ▾ <kbd>M</kbd>';
@@ -945,7 +958,8 @@
       held.clear(); applyKeys();
       // Свято: лише друзі, яким нічого не винен; кімната — за болем і настроєм; без грошей — коробки.
       const party = { guests: game.friendNames.filter((n) => !game.loans.some((l) => l.from === n)), joy: game.soul * 10, pain: G.pain(game), boxes: game.money <= 0 };
-      room.playEnding(game.lost ? game.lost.cause : 'win', () => { $('cutCaption').hidden = true; showEnd(); }, party);
+      // Підсумок — не одразу: спершу дати дочитати підпис і побачити останній кадр.
+      room.playEnding(game.lost ? game.lost.cause : 'win', () => setTimeout(() => { if (phase === 'cut') showEnd(); }, game.lost ? 2500 : 0), party);
       renderAll();
       return;
     }
@@ -976,22 +990,22 @@
         <div><h3>Втрачено</h3><ul>${lostL.length ? lostL.map((x) => `<li>${esc(x)}</li>`).join('') : '<li>Нічого помітного</li>'}</ul></div>
       </div>
       <div class="row">
-        ${won ? '<button class="btn" id="eWatch">Дивитися свято</button>' : ''}
+        <button class="btn" id="eWatch">${won ? 'Дивитися свято' : 'Сховати'}</button>
         <button class="btn" id="eJournal">Щоденник</button>
         <button class="btn primary" id="eNew">Нова гра</button>
       </div>
-    `, won);
+    `, true);
     drawChart($('endChart'), hist, sm.days);
     $('eJournal').onclick = showJournal;
     $('eNew').onclick = showSetup;
-    if (won) $('eWatch').onclick = closeModal;
+    $('eWatch').onclick = closeModal;
     renderAll();
   }
   // Свято триває за вікном підсумку: сховав — дивишся; кнопка «Підсумок» повертає вікно.
   function endTogUpdate() {
     const b = $('endTog');
     if (!b) return;
-    const want = phase === 'end' && !!game && !game.lost && $('modal').hidden;
+    const want = false;   // кнопка «Підсумок» тепер унизу правої панелі
     if (b.hidden === want) b.hidden = !want;
   }
 

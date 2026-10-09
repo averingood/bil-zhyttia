@@ -540,6 +540,8 @@
         if (!c.shown) { c.shown = true; c.onDone && c.onDone(); }
         return;
       }
+      // Кінцівки (виселення, госпіталізація…) теж не обриваємо: лише одразу кажемо, що можна показувати підсумок.
+      if (c.ending || c.final) { if (!c.called) { c.called = true; c.onDone && c.onDone(); } return; }
       this.cut = null;
       this.heroAway = false;
       this.hero.x = 5; this.hero.y = 3.2; this.path = [];
@@ -621,7 +623,7 @@
           c.caption = c.t < 2.6 ? first[0] : c.t < 5.2 ? first[1] : c.boxes && c.t < 7.8 ? 'Коробки зібрані — доведеться з’їжджати' : '';
           // Друзі по черзі пританцьовують.
           c.medics.forEach((m, i) => { m.moving = Math.floor(c.t * 1.5 + i) % 3 === 0; m.walkT = (m.walkT || 0) + dt; });
-          if (!c.shown && c.t > 5.4) { c.shown = true; const cb = c.onDone; cb && cb(); }
+          if (!c.shown && c.t > 8) { c.shown = true; const cb = c.onDone; cb && cb(); }
         }
         return;
       }
@@ -676,7 +678,8 @@
           else c.t = 0;
         }
       }
-      if (c.phase === 'done') { const cb = c.onDone; this.cut = null; cb && cb(); return; }
+      // Фінал не обривається: останній кадр із підписом лишається, поки гравець не почне нову гру.
+      if (c.phase === 'done') { if (!c.called) { c.called = true; const cb = c.onDone; cb && cb(); } return; }
       this.view.slot = c.slot;
       this.view.night = false;
       if (c.ending === 'joy' || c.ending === 'friends' || c.ending === 'body') this.view.joy = c.joy0 * (1 - c.drain);
@@ -761,7 +764,8 @@
           if (c.final) {
             c.slot = 4;
             c.caption = 'Курс лікування доведеться починати заново.';
-            if (c.t > 2.4) { const done = c.onDone; this.cut = null; done && done(); return; }
+            if (c.t > 2.4 && !c.called) { c.called = true; const done = c.onDone; done && done(); }
+            return;
             break;
           }
           // Дні в лікарні пролітають: ранок, день, пообіддя, вечір, ніч.
