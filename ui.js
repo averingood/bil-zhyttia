@@ -392,7 +392,7 @@
       room.endVisit(false);   // прощається й іде
       const b = v.after - v.before;
       showDelta(snap(), null,
-        [{ t: (v.final ? 'Фінальний огляд: ' : 'Лікар: ') + (b ? 'базовий біль ' + v.before + ' → ' + v.after : 'базовий біль без змін (' + v.after + ')'), k: b < 0 ? 'good' : b > 0 ? 'bad' : '' }]);
+        [{ t: (v.final ? 'Фінальний огляд: ' : 'Лікар: ') + (b ? 'мінімум болю ' + v.before + ' → ' + v.after : 'мінімум болю без змін (' + v.after + ')'), k: b < 0 ? 'good' : b > 0 ? 'bad' : '' }]);
       next();
     };
     const draw = () => {
@@ -419,7 +419,7 @@
     const final = docDay === D.days[D.days.length - 1];
     // Лише призначення — без наслідків: з ними гравець стикається на прийомі.
     openModal(`<h2>Тиждень ${w} з ${D.days.length}</h2>
-      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень.</p>
+      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень${final ? '' : ', — після прийому може змінитися твій мінімум болю'}.</p>
       <p>Вам прописано:</p>
       <ul class="tl">
         <li><b>Пігулки з курсу</b> (аптечка): 1 в день${!D.pillsWeeks[w - 1] ? ' — підтримуюча доза, ' + C.course.money[w - 1] + ' ₴: закріплює результат попередніх тижнів, без жодного пропуску' : w > 1 ? ' — доза вища, ' + C.course.money[w - 1] + ' ₴' : ''}</li>
@@ -518,7 +518,7 @@
     const g = G.gigToday(game);
     if (!g || phase !== 'play') return '';
     const p = G.preview(game, 'gig'), A = C.actions.gig;
-    return `<div class="invite"><span class="inv-msg"><b>${esc(g.from)}</b> пропонує підробіток на сьогодні: +${A.pay} ₴ одразу.</span>
+    return `<div class="invite"><span class="inv-msg"><b>${esc(g.from)}</b> пропонує підробіток на сьогодні: +${g.pay || A.pay} ₴ одразу.</span>
       <span class="inv-btns">
         <button class="btn primary" data-gig="yes" ${p.available ? '' : 'aria-disabled="true"'}>Взятися · ресурс ${A.spoons}</button>
         <button class="btn" data-gig="no">Відмовитись · Настрій −${A.refuse}</button>
@@ -633,18 +633,27 @@
       </div>
 
       <div class="sec tipped" tabindex="0">
-        <div class="sec-h"><span class="lbl">Ресурс</span><span><span class="state-tag" style="--c:${col}">біль ${p}</span></span></div>
+        <div class="sec-h"><span class="lbl">Біль</span><span><span class="state-tag" style="--c:${col}">${p}</span> <span class="sub">мінімум ${s.base}</span></span></div>
+        <div class="pain-scale">${Array.from({ length: 10 }, (_, i) => `<i class="${i < s.base ? 'floor' : i < p ? 'over' : ''}"></i>`).join('')}</div>
+        <div class="tip">
+          <p><b>Зараз:</b> біль ${p}, мінімум ${s.base}. Шанс загострення вночі ${flareP}%.</p>
+          <ul class="tl">
+            <li><b>Піднімають:</b> загострення вночі, пропуск підтримуючої пігулки; частіше загострюється від кави, знеболювального, перевтоми, слабкого Тіла й поганого настрою.</li>
+            <li><b>Знімають:</b> розтяжка, ЛФК (−${C.actions.exercise.reliefToday} сьогодні й завтра), знеболювальне, процедура; уночі біль сам спадає на 1. Але нижче мінімуму — ніколи.</li>
+            <li><b>Мінімум</b> змінюється після візиту лікаря (дні ${C.doctor.days.join(', ')}): залежить від того, як ти пив пігулки й робив ЛФК.</li>
+            <li><b>Біль заважає:</b> менше ресурсу й заробітку, зустрічі слабші; з болем 7+ не пишеш, не читаєш, не готуєш.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="sec tipped" tabindex="0">
+        <div class="sec-h"><span class="lbl">Ресурс</span></div>
         <div class="tris">${tri}</div>
         <div class="tip">
           <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}, виданих зранку${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + ' — біль забрав ' + eaten + '.' : ''}</p>
-          <p><b>Біль ${p}:</b> базовий ${s.base}${s.extra ? ', тимчасовий ' + (s.extra > 0 ? '+' : '−') + Math.abs(s.extra) : ''}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
             <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
             <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра (шанс загострення +${Math.round(C.night.exhausted * 100)}%). Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
-            <li><b>Біль заважає:</b> менше ресурсу й заробітку, зустрічі слабші; з болем 7+ не пишеш, не читаєш, не готуєш.</li>
-            <li><b>Базовий біль</b> міняє лише лікар (дні ${C.doctor.days.join(', ')}): дивиться, як ти пив пігулки й робив ЛФК за тиждень.</li>
-            <li><b>Тимчасово знижують:</b> ЛФК (−${C.actions.exercise.reliefToday} сьогодні й завтра), розтяжка, знеболювальне, процедура.</li>
-            <li><b>Загострення частіші</b> від кави, знеболювального, перевтоми, слабкого Тіла й поганого настрою.</li>
           </ul>
         </div>
       </div>
@@ -659,7 +668,8 @@
         <ul class="tl">
           <li><b>Підняти:</b> покликати друзів +${C.actions.friends.people.light} (ресурс ${C.actions.friends.spoons}; покликав сам — ${Math.round(C.actions.friends.treatChance * 100)}%, що прийдуть голодні: −${C.actions.friends.treat} ₴), написати +${C.actions.text.people}, настолки раз на тиждень +${C.actions.board.people} за кожного, хто прийшов (${C.actions.board.money} ₴).</li>
           <li><b>Втрати:</b> відмова −${C.friends.refuse}, позика −${C.actions.loan.people}, підробіток −${C.actions.gig.people}, щоночі тане.</li>
-          <li><b>${L.peopleGood}+ дає:</b> підробіток (${Math.round(L.gigChance * 100)}% щоночі, +${C.actions.gig.pay} ₴), гості з їжею (${Math.round(L.foodChance * 100)}%).</li>
+          <li><b>Підробіток:</b> ${L.gigLow.min}–${L.peopleGood - 1} — зрідка (${Math.round(L.gigLow.chance * 100)}% щоночі, +${L.gigLow.pay} ₴); ${L.peopleGood}+ — частіше (${Math.round(L.gigChance * 100)}%, +${C.actions.gig.pay} ₴).</li>
+          <li><b>${L.peopleGood}+ дає:</b> гості з їжею (${Math.round(L.foodChance * 100)}%).</li>
         </ul>`)}
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
@@ -851,6 +861,7 @@
       <h1>Біль життя</h1>
       <p>Ти живеш із хронічним болем і проходиш ${C.days}-денний курс лікування. Щоранку біль вирішує, скільки в тебе <b>ресурсу</b> — сил на день; решту з'їдає біль.
       Кожна справа коштує ресурсу. На них тримаються чотири сфери життя: <b>Гроші</b>, <b>Стосунки</b>, <b>Тіло</b> і <b>Настрій</b>. Щоночі кожна трохи тане, а життя тисне дедалі сильніше.</p>
+      <p><b>Біль</b> має свій мінімум — нижче нього не опускається. Загострення піднімають біль над мінімумом, а щоночі він сам спадає на 1. Мінімум змінюється після візитів лікаря — залежно від того, як ти лікуєшся.</p>
       <div class="opts"><span class="lbl">Твоє життя</span>
         ${slider('money', 'Гроші на старті', SU.money, ' ₴', 'щоночі витрати на життя, щотижня дорожче')}
       </div>
@@ -944,10 +955,10 @@
       ? `<h2>${esc(sm.lost.text)} на ${sm.lost.day}-й день</h2><p class="lost-line">Курс лікування — ${sm.days} ${dayWord(sm.days)}. Ти протримався ${sm.lost.day} ${dayWord(sm.lost.day)}.</p>`
       : `<h2>Курс лікування завершено</h2><p>Усі ${sm.days} ${dayWord(sm.days)} позаду.${game.money <= 0 ? ' Грошей не лишилось — доведеться з’їжджати, але до кінця ти дотягнув.' : ''}</p>`;
     // Лікування окремо, решта — здобутки й утрати; підсумковий стан — окремим рядком.
-    const cure = sm.kept.concat(sm.lostItems).filter((x) => x.startsWith('Базовий біль'));
-    const kept = sm.kept.filter((x) => !x.startsWith('Базовий біль') && !x.startsWith('Наприкінці'));
-    const lostL = sm.lostItems.filter((x) => !x.startsWith('Базовий біль'));
-    const state = `Біль ${G.pain(game)} (базовий ${game.base}) · Настрій ${game.soul} · Стосунки ${game.people} · Тіло ${game.body} · ${game.money < 0 ? '−' + Math.abs(game.money) : game.money} ₴`;
+    const cure = sm.kept.concat(sm.lostItems).filter((x) => x.startsWith('Мінімум болю'));
+    const kept = sm.kept.filter((x) => !x.startsWith('Мінімум болю') && !x.startsWith('Наприкінці'));
+    const lostL = sm.lostItems.filter((x) => !x.startsWith('Мінімум болю'));
+    const state = `Біль ${G.pain(game)} (мінімум ${game.base}) · Настрій ${game.soul} · Стосунки ${game.people} · Тіло ${game.body} · ${game.money < 0 ? '−' + Math.abs(game.money) : game.money} ₴`;
     const won = !sm.lost;
     // Фінал «Настрій згас» — про найтемніше. Поруч — куди звернутися, якщо так зараз і в житті.
     const support = sm.lost && sm.lost.sphere === 'soul'

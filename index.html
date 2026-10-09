@@ -335,6 +335,10 @@
   /* Ресурс і сфери (переробка ядра). */
   /* Ресурс: трикутники. Рябі червоні — з'їдене болем. */
   .tris { display: flex; flex-wrap: wrap; gap: 4px; }
+  .pain-scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin-top: 4px; }
+  .pain-scale i { height: 10px; background: #2a2f45; }
+  .pain-scale i.floor { background: #7a2a2f; }
+  .pain-scale i.over { background: var(--strong); }
   .tri { width: 22px; height: 19px; clip-path: polygon(50% 0, 100% 100%, 0 100%); background: var(--energy); }
   .tri.used { background: #3b4263; }
   .tri.borrow { background: var(--fatal); }
@@ -407,17 +411,17 @@
 <div id="modal" hidden></div>
 <div id="tipBox" hidden></div>
 
-<script src="config.js?v=20261009105651"></script>
-<script src="logic.js?v=20261009105651"></script>
-<script src="room.js?v=20261009105651"></script>
-<script src="painfx.js?v=20261009105651"></script>
-<script src="meeting.js?v=20261009105651"></script>
-<script src="friendtalk.js?v=20261009105651"></script>
-<script src="matgame.js?v=20261009105651"></script>
-<script src="readgame.js?v=20261009105651"></script>
-<script src="cookgame.js?v=20261009105651"></script>
-<script src="synthgame.js?v=20261009105651"></script>
-<script src="rungame.js?v=20261009105651"></script>
-<script src="ui.js?v=20261009105651"></script>
+<script src="config.js?v=20261009111540"></script>
+<script src="logic.js?v=20261009111540"></script>
+<script src="room.js?v=20261009111540"></script>
+<script src="painfx.js?v=20261009111540"></script>
+<script src="meeting.js?v=20261009111540"></script>
+<script src="friendtalk.js?v=20261009111540"></script>
+<script src="matgame.js?v=20261009111540"></script>
+<script src="readgame.js?v=20261009111540"></script>
+<script src="cookgame.js?v=20261009111540"></script>
+<script src="synthgame.js?v=20261009111540"></script>
+<script src="rungame.js?v=20261009111540"></script>
+<script src="ui.js?v=20261009111540"></script>
 </body>
 </html>
