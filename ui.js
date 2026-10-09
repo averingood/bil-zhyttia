@@ -583,6 +583,8 @@
       <div class="sec-h"><span class="lbl">${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
       <div class="meter">${cells}</div>
       <div class="tip">${tip}<p class="why">${isMoney ? 'На нулі: ' + C.graceMoney + ' дні знайти гроші, інакше виселять.'
+        : k === 'people' ? 'На нулі: не кінець, але самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.'
+        : k === 'soul' ? 'На нулі: не кінець, але пісня, читання, ЛФК і настолки не під силу.'
         : 'На нулі: день на порятунок — підняв вище нуля, і тримаєшся далі; не підняв — кінець.'}</p></div></div>`;
   }
 

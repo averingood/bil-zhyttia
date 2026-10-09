@@ -55,6 +55,10 @@
   }
   const pick = (s, arr) => arr[Math.floor(rand(s) * arr.length)];
   const clampS = (v) => Math.max(0, Math.min(C.sphereMax, v));
+  // Самотність: поки Стосунки на нулі, Настрій не піднімається вище стелі.
+  const lonelyCap = (s) => { if (s.people <= 0 && s.soul > C.lonelyCap) s.soul = C.lonelyCap; };
+  // Сфери, нуль у яких означає кінець гри (Стосунки й Настрій — лише обмеження).
+  const FATAL = ['body'];
   const signed = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
 
   // ---------- біль ----------
@@ -216,6 +220,7 @@
     if (price && s.money < price) return no('Не вистачає грошей');
     if (cost > s.spoons + (C.maxBorrow - s.borrowed)) return no('Не вистачає ресурсу, навіть якщо взяти наперед');
     const p = pain(s);
+    if (s.soul <= 0 && C.apathy.includes(id)) return no('Настрій на нулі — на це зараз немає сил');
     switch (id) {
       case 'cook':
         // Друзі нагодували — готувати однаково можна.
@@ -490,6 +495,7 @@
     }
     if (borrowedNow) note += '; взяв наперед ресурс ' + borrowedNow;
     j.did.push(ACTIONS[id].label + ' (' + note + ')');
+    lonelyCap(s);
     return { ok: true, note, borrowed: borrowedNow, guests, tags };
   }
 
@@ -628,7 +634,7 @@
     // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі вона в безпеці.
     s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
     const safe = {};
-    for (const k of SOFT) if (s.crisis[k] != null && s[k] > 0) {
+    for (const k of FATAL) if (s.crisis[k] != null && s[k] > 0) {
       delete s.crisis[k]; safe[k] = true;
       ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля, цієї ночі в безпеці' });
     }
@@ -754,8 +760,9 @@
         ev.push({ kind: 'flare', text: 'Гроші на нулі! ' + C.graceMoney + ' дні, щоб знайти, чим платити (до кінця дня ' + s.crisis.money + '), — інакше виселять' });
       } else if (day >= s.crisis.money) { lose('money'); return; }
     } else if (s.crisis.money != null) { delete s.crisis.money; ev.push({ kind: 'good', text: 'Вибрався: гроші знову є' }); }
-    // Стосунки, Тіло, Настрій.
-    for (const k of SOFT) {
+    // Стосунки й Настрій — не кінець: лише стеля й обмеження. Кінець — Тіло на нулі два дні поспіль.
+    lonelyCap(s);
+    for (const k of FATAL) {
       if (s[k] > 0) continue;
       if (s.crisis[k] != null || day >= s.days) { lose(k); return; }   // не підняв за день — кінець
       s.crisesUsed[k] = (s.crisesUsed[k] || 0) + 1;
@@ -806,6 +813,13 @@
       if (id === 'cook' && k === 'soul') txt = SPHERES[k].name + ' +' + C.actions.cook.soulIfTasty + ', якщо смачно';
       if (id === 'games' && k === 'soul') { const g = C.actions.games; txt = SPHERES[k].name + ' +' + (g.soul - 1) + '…+' + (after[k] - s[k]) + ' (що далі пробіжиш)'; }
       fx.push({ t: txt, kind: k });
+    }
+    // Самотність: дія підняла б Настрій, але стеля — поки Стосунки на нулі.
+    if (s.people <= 0 && s.soul >= C.lonelyCap) {
+      const probe = clone(s); probe.people = 1; const pa = clone(probe), sv = pendingTalk;
+      doAction(pa, id, id === 'friends' ? { noTalk: true } : id === 'cook' ? { cook: { misses: 0 } } : id === 'create' ? { synth: { fake: 0 } } : id === 'games' ? { runner: { cleared: C.actions.games.jumps } } : null);
+      pendingTalk = sv;
+      if (pa.soul > after.soul) fx.push({ t: 'Настрій не вище ' + C.lonelyCap + ', поки Стосунки на нулі', kind: 'info' });
     }
     // Сфера вже 10: дія підняла б її, але нікуди — кажемо про це, а не мовчимо.
     for (const k of SOFT) if (s[k] >= 10 && after[k] === s[k]) {
@@ -876,6 +890,8 @@
     const out = [];
     if (s.lost || s.finished) return out;
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
+    if (s.people <= 0) out.push({ kind: 'bad', t: 'Стосунки на нулі: самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.' });
+    if (s.soul <= 0) out.push({ kind: 'bad', t: 'Настрій на нулі: пісня, читання, ЛФК і настолки зараз не під силу.' });
     for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: k === 'money'
       ? 'Гроші на нулі: до кінця дня ' + d + ' знайди, чим платити, — інакше виселять.'
       : s[k] > 0 ? SPHERES[k].name + ' вчора було на нулі, зараз ' + s[k] + ': не дай йому знову впасти до нуля цієї ночі, інакше кінець.'
