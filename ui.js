@@ -216,7 +216,8 @@
     exercise: ['ЛФК', ['Тренер на екрані телефона показує рухи — стрілки по черзі.', 'Запам’ятай порядок і повтори його' + (isPhone() ? ' кнопками.' : ': клавіші ← ↑ → ↓ або кнопки.')],
       ['Дві третини рухів і більше — Тіло +' + C.actions.exercise.body + ', біль −' + C.actions.exercise.reliefToday + ' сьогодні й −' + C.actions.exercise.reliefNext + ' завтра.', 'Хоча б третина — Тіло +' + C.actions.exercise.partialBody + ', без полегшення.']],
   })[id];
-  const introSeen = (id) => { try { return localStorage.getItem('zapas.intro.' + id) === '1'; } catch (e) { return false; } };
+  let introPass = null;   // пояснення щойно прочитали — цього разу гра стартує без нього
+  const introSeen = (id) => { if (introPass === id) { introPass = null; return true; } try { return localStorage.getItem('zapas.intro.' + id) === '1'; } catch (e) { return false; } };
   function withIntro(id, go) {
     const it = introOf(id);
     if (!it || introSeen(id)) { go(); return; }
@@ -230,7 +231,7 @@
     $('introGo').focus();
     $('introGo').onclick = () => {
       if ($('introNo').checked) { try { localStorage.setItem('zapas.intro.' + id, '1'); } catch (e) { /* не страшно */ } }
-      closeModal(); phase = was; go();
+      closeModal(); phase = was; introPass = id; go();
     };
   }
 
