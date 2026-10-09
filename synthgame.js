@@ -132,8 +132,8 @@
     const $q = (sel) => o.bar.querySelector(sel);
     const now = () => performance.now() / 1000;
     const t0 = now();
-    // Біль не вгадаєш: кожне натискання може відгукнутися спалахом. Що сильніший біль, то частіше.
-    const chance = { light: 0.2, medium: 0.35, strong: 0.55 }[o.state] || 0.35;
+    // Біль не вгадаєш: кожне натискання може відгукнутися спалахом. Шанс той самий, що й без міні-гри.
+    const chance = root.GameLogic.coverOf(o.pain) * 0.6;
     let glitch = null;
     const muteBtn = el.querySelector('#synthMute');
     const paintMute = () => { muteBtn.textContent = soundOn() ? '🔊 Звук: увімк.' : '🔈 Звук: вимк.'; };
