@@ -463,14 +463,15 @@
         guests = freeFriends(s);
         const gainB = a.people * guests.length;
         s.people = clampS(s.people + gainB);
-        s.soul = clampS(s.soul + a.soul);
+        const soulB = a.soul * guests.length;
+        s.soul = clampS(s.soul + soulB);
         s.stats.meetings++; s.stats.boards = (s.stats.boards || 0) + 1;
         // Хто де сяде — щоразу інакше.
         for (let i = guests.length - 1; i > 0; i--) { const k = Math.floor(rand(s) * (i + 1)); [guests[i], guests[k]] = [guests[k], guests[i]]; }
         // Їли разом — голодним цього дня вже не будеш.
         const ate = !s.fed; if (ate) { s.fed = true; s.foodType = 'shared'; }
-        note = 'вечір настолок: прийшли ' + guests.join(', ') + '; Стосунки +' + gainB + ', Настрій +' + a.soul + ', −' + a.money + ' ₴ на частування' + (ate ? ', поїли разом' : '');
-        tags.push({ t: 'настолки: прийшли ' + guests.length + ' — Стосунки +' + gainB, k: 'good', covers: ['people'] });
+        note = 'вечір настолок: прийшли ' + guests.join(', ') + '; Стосунки +' + gainB + ', Настрій +' + soulB + ', −' + a.money + ' ₴ на частування' + (ate ? ', поїли разом' : '');
+        tags.push({ t: 'настолки: прийшли ' + guests.length + ' — Стосунки +' + gainB + ', Настрій +' + soulB, k: 'good', covers: ['people', 'soul'] });
         break;
       }
       case 'loan': {
