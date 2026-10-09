@@ -602,9 +602,12 @@
     }
     s.baseShift += shift;
     recalcBase(s);
-    if (s.body <= D.rescueBody) {
-      if (!D.rescueCost || s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло ледве тримається — вколю вам щось бадьоре. Тіло +' + D.rescue + (D.rescueCost ? ', −' + D.rescueCost + ' ₴' : ', безкоштовно — не дякуйте, дякуйте бюджету') + '.', k: 'good', body: D.rescue, money: -D.rescueCost }); }
-      else lines.push({ t: 'Тіло слабке, укол би допоміг — але на нього (' + D.rescueCost + ' ₴) грошей немає.', k: 'bad' });
+    // Укол — на кожному прийомі: Тіло щонайменше до rescueTo.
+    {
+      const was = s.body, add = Math.max(0, D.rescueTo - s.body);
+      s.body = clampS(s.body + add);
+      lines.push(add ? { t: (was <= 3 ? 'Тіло ледве тримається' : 'Тіло трохи підсіло') + ' — вколю вам щось бадьоре. Тіло ' + was + ' → ' + s.body + ', безкоштовно — не дякуйте, дякуйте бюджету.', k: 'good', body: add }
+        : { t: 'Тіло в нормі — укол для профілактики. Не кривіться, це вітаміни. Мабуть.', k: '' });
     }
     const after = s.base;
     const verdict = after !== before ? 'мінімум болю ' + before + ' → ' + after : 'мінімум болю без змін (' + after + ')';
@@ -676,6 +679,12 @@
     // Лікар: огляд увечері — оцінює тиждень (пігулки й ЛФК), після нього змінюється мінімум болю; слабке тіло — укол.
     let doctor = null;
     if (C.doctor.days.includes(s.day)) { doctor = doctorVisit(s); ev.push({ kind: doctor.after < doctor.before ? 'good' : doctor.after > doctor.before ? 'pain' : 'info', text: doctor.summary }); }
+    // Ніч після останнього дня курсу — це вже фінал: нічого не знімається й не додається.
+    if (s.day >= s.days) {
+      j.night = ev.map((e) => e.text);
+      s.finished = true;
+      return { events: ev, flare: false, hospital: false, doctor };
+    }
     // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі її не чіпає ніщо (ні голод, ні танення, ні удари).
     s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
     const safe = {};
@@ -958,6 +967,8 @@
       if (inv && inv.status !== 'cancelled') ev.push({ t: '♥ ' + inviteWho(inv), k: inv.status === 'refused' ? 'inv refused' : 'inv' });
       for (const f of s.future.filter((x) => x.day === d)) ev.push(f.kind === 'relief' ? { t: 'біль −' + f.amount, k: 'good' } : { t: 'відкат +' + f.amount, k: 'bad' });
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
+      // Сьогодні, якщо вже голодуєш: скільки днів поспіль без їжі.
+      if (d === s.day && s.hungryStreak > 0 && !s.fed) ev.push({ t: 'без їжі ' + s.hungryStreak + ' дн.', k: 'bad' });
       for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d && s[k] <= 0) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
       for (const l of s.loans) if (l.due === d) ev.push({ t: 'борг −' + l.amount + '₴', k: 'bad' });
       if (s.gig && s.gig.day === d) ev.push({ t: 'підробіток', k: 'pay' });

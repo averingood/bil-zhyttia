@@ -254,7 +254,8 @@
     if ((phase === 'scene' || phase === 'doctor') && sceneAbort) { sceneSkipped = true; sceneAbort(); }
   }
 
-  function act(id) {
+  // sure — уже погодився (прийняв запрошення): без другого натиску «узяти наперед».
+  function act(id, sure) {
     if (phase !== 'play') return;
     const p = G.preview(game, id);
     if (!p.available) {
@@ -263,7 +264,7 @@
       renderAll();
       return;
     }
-    if (p.borrow && armed !== id) {   // узяти наперед — лише другим натиском
+    if (p.borrow && armed !== id && !sure) {   // узяти наперед — лише другим натиском
       armed = id;
       renderActions();
       return;
@@ -608,10 +609,12 @@
     if (yes) yes.onclick = acceptInvite;
     if (no) no.onclick = declineInvite;
   }
+  // Прийняв запрошення — одразу: герой іде до дивана й кличе, без повторних натисків.
+  let pendingSure = false;
   function acceptInvite() {
     if (phase !== 'play') return;
-    if (room.currentZone() === 'sofa') { act('friends'); return; }
-    pending = 'friends';
+    if (room.currentZone() === 'sofa') { act('friends', true); return; }
+    pending = 'friends'; pendingSure = true;
     room.walkToZone('sofa');
   }
   function declineInvite() {
@@ -622,9 +625,9 @@
     renderAll();
   }
   room.onArrive = (z) => {
-    const id = pending;
-    pending = null;
-    if (id && G.ACTIONS[id].zone === z) act(id);
+    const id = pending, sure = pendingSure;
+    pending = null; pendingSure = false;
+    if (id && G.ACTIONS[id].zone === z) act(id, sure);
   };
 
   // Значок 🎮 — на діях, чия міні-гра зараз увімкнена.
@@ -689,7 +692,9 @@
     const isMoney = k === 'money';
     const v = isMoney ? Math.round(s.money / 20) : s[k];
     const danger = isMoney ? s.money < G.dailyCost(s.day) * 2 : v <= 2;
-    const cells = Array.from({ length: C.sphereMax }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('');
+    // Стосунки на нулі — Настрій вище стелі не росте: ці поділки заблоковані.
+    const cap = k === 'soul' && s.people <= 0 ? C.lonelyCap : C.sphereMax;
+    const cells = Array.from({ length: C.sphereMax }, (_, i) => `<i class="${i < v ? 'on' : i >= cap ? 'lock' : ''}"></i>`).join('');
     return `<div class="sec tipped sph ${danger ? 'danger' : ''}" tabindex="0" data-k="${k}" style="--c:${SPH_COLOR[k]}">
       <div class="sec-h"><span class="lbl">${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
       <div class="meter">${cells}</div>
@@ -739,7 +744,7 @@
         <div class="tip">
           <p><b>Зараз:</b> біль ${p}, мінімум ${G.minNow(s)}${G.minNow(s) < s.base ? ' — блокада до дня ' + s.blockMin.until + ', потім знову ' + s.base : ''}. Шанс загострення вночі ${flareP}%.</p>
           <ul class="tl">
-            <li><b>Піднімають:</b> загострення вночі (від 1 до 4), ресурс, узятий наперед (+${C.borrowPain} за кожен), голод з ${C.hungry.painFrom}-го дня поспіль (+1 щоночі).</li>
+            <li><b>Піднімають:</b> загострення вночі (від 1 до 3), ресурс, узятий наперед (+${C.borrowPain} за кожен), голод з ${C.hungry.painFrom}-го дня поспіль (+1 щоночі).</li>
             <li><b>Знімають:</b> розтяжка −${C.actions.stretch.reliefToday}, знеболювальне −${C.actions.meds.reliefToday}, ЛФК −${C.actions.exercise.reliefToday} сьогодні й завтра, ігри −${C.actions.games.ease}; сон — на стільки, скільки ресурсу лишив невикористаним. Нижче мінімуму — ніколи.</li>
             <li><b>Блокада</b> (${C.actions.block.money} ₴) — єдине, що опускає сам мінімум: −${C.actions.block.minDrop} на ${C.actions.block.minDays} дні.</li>
             <li><b>Мінімум</b> реагує на лікування — пігулки й ЛФК за тиждень.</li>
@@ -778,7 +783,7 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
         </ul>`)}
       ${sphereSec(s, 'body', `<p><b>Зараз:</b> ${s.body}; шанс загострення вночі ${flareP}%.</p>
         <ul class="tl">
-          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body}, розтяжка +${C.actions.stretch.body}, їжа +${C.actions.cook.body}, блокада +${C.actions.block.body}; укол лікаря (якщо Тіло ${C.doctor.rescueBody} і нижче) +${C.doctor.rescue}, швидка +${C.hospital.body}.</li>
+          <li><b>Підняти:</b> ЛФК +${C.actions.exercise.body}, розтяжка +${C.actions.stretch.body}, їжа +${C.actions.cook.body}, блокада +${C.actions.block.body}; укол лікаря на прийомі — до ${C.doctor.rescueTo}, швидка +${C.hospital.body}.</li>
           <li><b>Втрати:</b> без їжі −${C.hungry.body}, далі щодня поспіль −${C.hungry.body * 2}, −${C.hungry.body * 3}…; удари життя; щоночі −${C.decay}.</li>
           <li><b>Шанс загострення:</b> ${C.links.bodyFlare.map(([m, c], i, a) => (i === 0 ? m + '+' : m + '–' + (a[i - 1][0] - 1)) + ' → ' + Math.round(c * 100) + '%').join(', ')}.</li>
         </ul>`)}
@@ -969,7 +974,7 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
     const sph = ['money', 'people', 'body', 'soul'].map((k) => {
       const v = k === 'money' ? s.money : s[k];
       const danger = k === 'money' ? s.money < G.dailyCost(s.day) * 2 : v <= 2;
-      return `<button type="button" class="ms-i ms-sph${danger ? ' danger' : ''}${mTip === k ? ' on' : ''}" data-tip="${k}" style="--c:${SPH_COLOR[k]}" aria-label="${G.SPHERES[k].name}">${pixIcon(k)}<b>${v}</b><small>${k === 'money' ? '₴' : '/' + C.sphereMax}</small></button>`;
+      return `<button type="button" class="ms-i ms-sph${danger ? ' danger' : ''}${mTip === k ? ' on' : ''}" data-tip="${k}" style="--c:${SPH_COLOR[k]}" aria-label="${G.SPHERES[k].name}">${pixIcon(k)}<b>${v}</b><small>${k === 'money' ? '₴' : '/' + (k === 'soul' && s.people <= 0 ? C.lonelyCap + '🔒' : C.sphereMax)}</small></button>`;
     }).join('');
     // Ресурс — ті самі трикутники, що й на панелі: повні, витрачені, узяті наперед і рябі червоні — з'їдені болем.
     const trisEl = $('panel').querySelector('.sec[data-k="res"] .tris');
