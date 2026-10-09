@@ -507,15 +507,16 @@
     }
 
     // onSeated — коли всі сіли: тоді починається розмова від першої особи, а візит чекає на неї.
-    playAction(id, guests, onSeated) {
-      if (id === 'friends') { this.startVisit(guests, onSeated); return; }
+    // onTalked — коли наговорились і встають (або візит урвали): тоді й видно, як пройшла розмова.
+    playAction(id, guests, onSeated, onTalked) {
+      if (id === 'friends') { this.startVisit(guests, onSeated); if (this.visit) this.visit.onTalked = onTalked || null; return; }
       if (id === 'board') { this.startVisit(guests, null, true); return; }
       this.bubble = { id, t: id === 'rest' ? 2.4 : 1.6 };
       // Відпочинок — посидіти в кріслі-мішку, а не розкладати диван серед дня.
       if (id === 'rest') this.slumpToBag();
     }
 
-    // ---------- лікарня: швидка вночі, дні без дому, повернення ----------
+    // ---------- швидка вночі: укол удома (або, у фіналі «Тіло», — госпіталізація) ----------
 
     playHospital(days, firstDay, onDone) {
       this.endVisit(true);
@@ -620,10 +621,11 @@
           // Свято без кінця: підписи один раз, далі просто живе кімната.
           c.medics.forEach(face);
           const first = c.alone ? ['Курс лікування завершено', 'Святкуєш сам'] : ['Курс лікування завершено', 'Друзі прийшли привітати'];
-          c.caption = c.t < 2.6 ? first[0] : c.t < 5.2 ? first[1] : c.boxes && c.t < 7.8 ? 'Коробки зібрані — доведеться з’їжджати' : '';
+          // Без грошей — спершу чому: оренду платити нічим; і лише тоді — що далі.
+          c.caption = c.t < 2.6 ? first[0] : c.t < 5.2 ? first[1] : c.boxes && c.t < 8 ? 'Але гроші скінчились — оренду платити нічим' : c.boxes && c.t < 10.8 ? 'Після свята доведеться з’їхати' : '';
           // Друзі по черзі пританцьовують.
           c.medics.forEach((m, i) => { m.moving = Math.floor(c.t * 1.5 + i) % 3 === 0; m.walkT = (m.walkT || 0) + dt; });
-          if (!c.shown && c.t > 8) { c.shown = true; const cb = c.onDone; cb && cb(); }
+          if (!c.shown && c.t > (c.boxes ? 11 : 8)) { c.shown = true; const cb = c.onDone; cb && cb(); }
         }
         return;
       }
@@ -663,12 +665,12 @@
         }
       } else {
         if (c.phase === 'walk') {
-          c.caption = 'Гроші скінчилися';
-          if (!this.path.length) go('pack');
+          c.caption = 'Три дні без грошей — оренду так і не заплачено';
+          if (!this.path.length && c.t > 2.6) go('pack');
         } else if (c.phase === 'pack') {
           c.boxes = Math.min(3, Math.floor(c.t / 0.6) + 1);
-          c.caption = 'Гроші скінчилися. Нема чим платити за життя.';
-          if (c.t > 2.8) {
+          c.caption = 'Господар квартири більше не чекає: збирай речі.';
+          if (c.t > 3.2) {
             this.path = [...this.findPath(DOOR_IN[0], DOOR_IN[1]), [DOOR[0], DOOR[1]]];
             go('leave');
           }
@@ -697,7 +699,7 @@
           break;
         case 'flash':
           c.flash = 1;
-          c.caption = c.final ? 'Тіло здалося' : 'Біль дійшов до 10. Викликали швидку';
+          c.caption = c.final ? 'Тіло здалося' : 'Біль дійшов до 10. Викликав швидку';
           if (c.t > 1.6) {
             const spots = c.final ? STRETCHER_SPOTS : MEDIC_SPOTS;
             c.medics = MEDICS.map((pal, i) => {
@@ -715,19 +717,16 @@
           if (c.final) {
             // Фінал: не встає — кладуть на ноші.
             if (c.t > 0.5 && !c.stretcher) { c.sleeping = false; c.stretcher = true; this.heroAway = true; c.slot = 3; }   // медики вмикають світло
-          } else if (c.sleeping && c.t > 0.5) {
-            c.sleeping = false;
-            this.hero.x = 2.15; this.hero.y = 4.9; this.hero.back = false;
           }
-          c.caption = c.final ? 'Госпіталізація' : 'Тебе забирають у лікарню';
-          if (c.t > 1.4) {
+          // Не фінал: лежиш, медики роблять укол — і їдуть; ти лишаєшся вдома.
+          c.caption = c.final ? 'Госпіталізація' : 'Укол — біль відступає до мінімуму';
+          if (c.t > (c.final ? 1.4 : 2.6)) {
             if (c.final && c.medics.length === 2) {
               // Ноші: передній іде коридором, задній — слідом тим самим шляхом.
               const [m0, m1] = c.medics;
               m0.path = STRETCHER_OUT.map((q) => q.slice());
               c.trail = [[m1.x, m1.y], [m0.x, m0.y]];
             } else c.medics.forEach((m, i) => { m.path = [...this.findPath(DOOR_IN[0] + i * 0.5, DOOR_IN[1], m.x, m.y), [DOOR[0] + i * 0.5, DOOR[1] + i * 0.3]]; });
-            if (!c.final) this.path = [...this.findPath(DOOR_IN[0] + 0.25, DOOR_IN[1] - 0.4), [DOOR[0] + 0.25, DOOR[1]]];
             go('out');
           }
           break;
@@ -755,8 +754,9 @@
             m1.moving = m0.moving; m1.walkT = m0.walkT;
           } else done = c.medics.map((m) => this.moveActor(m, dt, Math.min(2.2, this.speed()))).every(Boolean);
           if (done && !this.path.length) {
-            this.heroAway = true; c.medics = []; c.flash = 0;
-            go('away');
+            c.medics = []; c.flash = 0;
+            if (c.final) { this.heroAway = true; go('away'); }
+            else { c.caption = 'Швидка поїхала. Можна поспати'; go('rest'); }
           }
           break;
         }
@@ -783,6 +783,17 @@
           }
           break;
         }
+        case 'rest':
+          // Укол подіяв — додосипаєш, і настає ранок.
+          if (c.t > 1.6) {
+            c.sleeping = false; c.slot = 0;
+            this.hero.x = 2.15; this.hero.y = 4.9; this.hero.back = false;
+            const done = c.onDone;
+            this.cut = null;
+            done && done();
+            return;
+          }
+          break;
         case 'back':
           if (!this.path.length && c.t > 0.6) {
             const done = c.onDone;
@@ -840,6 +851,7 @@
     // board — вечір настолок: заходять усі, двоє на дивані, решта на подушках по той бік столика.
     // heroSofa — герой сидить на дивані поруч із гостем (лікар), а не на мішку.
     startVisit(names, onSeated, board, heroSofa) {
+      this.talked();
       this.speech = [];
       names = names && names.length ? names : ['Андрій'];
       const one = names.length === 1;
@@ -898,9 +910,13 @@
       if (this.visit && this.visit.phase !== 'leave' && this.visit.phase !== 'standup') this.leaveVisit();
     }
 
+    // Розмова скінчилась — один раз повідомити, як вона пройшла.
+    talked() { const v = this.visit; if (v && v.onTalked) { const cb = v.onTalked; v.onTalked = null; cb(); } }
+
     leaveVisit() {
       const v = this.visit;
       if (!v) return;
+      this.talked();
       v.phase = 'standup'; v.t = 0;
       v.friends.forEach((f) => { f.seated = false; if (f.sit > 0) f.sitDir = -1; });
       if (this.hero.sit > 0) this.hero.sitDir = -1;
@@ -909,6 +925,7 @@
     // Гості йдуть самі, коли візит закінчився; immediate — прибрати без проводів.
     endVisit(immediate) {
       if (!this.visit) return;
+      this.talked();
       if (immediate) {
         this.visit = null; this.speech = [];
         if (this.hero.sitting) { const hs = this.heroStand(); this.setHeroSit(0); this.hero.x = hs[0]; this.hero.y = hs[1]; }

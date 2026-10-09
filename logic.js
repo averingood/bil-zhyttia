@@ -38,7 +38,7 @@
   const ACTION_IDS = Object.keys(ACTIONS);
 
   const SPHERES = {
-    money:  { name: 'Гроші', fall: 'Нема чим платити — виселили', ending: 'money' },
+    money:  { name: 'Гроші', fall: 'Нема чим платити оренду — виселили', ending: 'money' },
     people: { name: 'Стосунки', fall: 'Стосунки розпалися', ending: 'friends' },
     body:   { name: 'Тіло', fall: 'Тіло здалося: госпіталізація', ending: 'body' },
     soul:   { name: 'Настрій', fall: 'Настрій згас', ending: 'joy' },
@@ -565,18 +565,33 @@
     const before = s.base, final = d === D.days[D.days.length - 1];
     const pills = inWeek(s.pillDays, d), lfk = inWeek(s.lfkDays, d), wk = weekIdx(d), keep = D.pills.keep[wk];
     let shift = 0;
+    // Мінімум після кожної репліки — щоб панель оновлювалась саме тоді, коли лікар про це сказав.
+    const baseAt = () => Math.max(C.painMin, Math.min(s.baseStart + C.doctor.maxUp, s.baseStart + s.baseShift + shift));
+    // {min} у репліці — скільки саме й куди: «мінімум болю пішов униз: −1 (5 → 4)».
+    let prevBase = s.base;
+    const mark = () => {
+      const l = lines[lines.length - 1]; if (!l) return;
+      l.base = baseAt();
+      const dd = l.base - prevBase, sg = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
+      l.t = l.t.replace('{min}', dd < 0 ? 'мінімум болю пішов униз: ' + sg(dd) + ' (' + prevBase + ' → ' + l.base + ')'
+        : dd > 0 ? 'мінімум болю поповз угору: ' + sg(dd) + ' (' + prevBase + ' → ' + l.base + ')'
+        : 'мінімум болю й так на межі — лишається ' + l.base);
+      prevBase = l.base;
+    };
     if (!D.pillsWeeks[wk]) {
       // Підтримуюча доза: мінімум болю не знижує, лише тримає досягнуте.
       lines.push(pills >= D.pills.full
         ? { t: 'Підтримуюча — ' + pills + ' з ' + D.week + ', як годинник. Швейцарський. Ну, майже. Мінімум тримається.', k: 'good' }
-        : { t: 'Підтримуюча — ' + pills + ' з ' + D.week + '. Пропусків ' + (D.week - pills) + ', і після кожного мінімум болю підскакував. Бухгалтерія сходиться, на жаль.', k: 'bad' });
-    } else if (pills >= D.pills.full) { shift--; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + '! Зразковий пацієнт — аж підозріло. Організм відповів: мінімум болю пішов униз.', k: 'good' }); }
-    else if (pills >= keep) lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — одну пропустили. Один день вирішили пожити небезпечно? Через це мінімум болю не зрушив.', k: '' });
-    else { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — забагато пропусків. Ліки в шухляді не діють, перевіряли. Мінімум болю поповз угору.', k: 'bad' }); }
+        : { t: 'Підтримуюча — ' + pills + ' з ' + D.week + '. Пропусків ' + (D.week - pills) + ', і після кожного мінімум болю підскакував на ' + (C.course.missMin[wk] || 1) + ' — разом +' + (D.week - pills) * (C.course.missMin[wk] || 1) + '. Бухгалтерія сходиться, на жаль.', k: 'bad' });
+    } else if (pills >= D.pills.full) { shift--; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + '! Зразковий пацієнт — аж підозріло. Організм відповів: {min}.', k: 'good' }); }
+    else if (pills >= keep) lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — одну пропустили. Один день вирішили пожити небезпечно? Через це мінімум болю не зрушив: ±0.', k: '' });
+    else { shift++; lines.push({ t: 'Пігулки: ' + pills + ' з ' + D.week + ' — забагато пропусків. Ліки в шухляді не діють, перевіряли. Тож {min}.', k: 'bad' }); }
+    mark();
     if (D.lfkWeeks[wk]) {
-      if (lfk >= D.lfk.good) { shift--; lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + '. Суглоби аж співають — мінімум болю пішов униз.', k: 'good' }); }
-      else if (lfk > 0) lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + '. Розминка для розминки — треба хоча б ' + D.lfk.good + ', тож на мінімум болю це не вплинуло.', k: '' });
-      else { shift++; lines.push({ t: 'ЛФК: жодного разу. Килимок подав на розлучення, а мінімум болю поповз угору.', k: 'bad' }); }
+      if (lfk >= D.lfk.good) { shift--; lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + '. Суглоби аж співають — {min}.', k: 'good' }); }
+      else if (lfk > 0) lines.push({ t: 'ЛФК: ' + lfk + ' ' + timesWord(lfk) + '. Розминка для розминки — треба хоча б ' + D.lfk.good + ', тож на мінімум болю це не вплинуло: ±0.', k: '' });
+      else { shift++; lines.push({ t: 'ЛФК: жодного разу. Килимок подав на розлучення, а {min}.', k: 'bad' }); }
+      mark();
     }
     // Наступний тиждень: доза вища (і дорожча); на останній — ЛФК на власний розсуд.
     if (!final) {
@@ -588,7 +603,7 @@
     s.baseShift += shift;
     recalcBase(s);
     if (s.body <= D.rescueBody) {
-      if (!D.rescueCost || s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло ледве тримається — вколю вам щось бадьоре. Тіло +' + D.rescue + (D.rescueCost ? ', −' + D.rescueCost + ' ₴' : ', безкоштовно — не дякуйте, дякуйте бюджету') + '.', k: 'good' }); }
+      if (!D.rescueCost || s.money >= D.rescueCost) { s.money -= D.rescueCost; s.body = clampS(s.body + D.rescue); lines.push({ t: 'Тіло ледве тримається — вколю вам щось бадьоре. Тіло +' + D.rescue + (D.rescueCost ? ', −' + D.rescueCost + ' ₴' : ', безкоштовно — не дякуйте, дякуйте бюджету') + '.', k: 'good', body: D.rescue, money: -D.rescueCost }); }
       else lines.push({ t: 'Тіло слабке, укол би допоміг — але на нього (' + D.rescueCost + ' ₴) грошей немає.', k: 'bad' });
     }
     const after = s.base;
@@ -651,14 +666,14 @@
 
     const ref = refuseInvite(s);
     if (ref) ev.push({ kind: 'friends', text: ref.text });
-    // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі її не чіпає ніщо (ні голод, ні танення, ні тиск).
+    // Криза: сфера, що була на нулі, сьогодні піднята — врятована, і цієї ночі її не чіпає ніщо (ні голод, ні танення, ні удари).
     s.crisis = s.crisis || {}; s.crisesUsed = s.crisesUsed || {};
     const safe = {};
     for (const k of FATAL) if (s.crisis[k] != null && s[k] > 0) {
       delete s.crisis[k]; safe[k] = true;
       ev.push({ kind: 'good', text: 'Вибрався: ' + SPHERES[k].name + ' вище нуля' });
     }
-    let hunger = null;   // якщо вночі лікарня — там нагодують, і голод скасовується
+    let hunger = null;
     if (!s.fed) {
       s.hungryStreak = (s.hungryStreak || 0) + 1;
       const loss = safe.body ? 0 : C.hungry.body * s.hungryStreak;   // що довше без їжі, то сильніше
@@ -676,9 +691,9 @@
     }
     const cost = dailyCost(s.day);
     s.money -= cost;
-    ev.push({ kind: 'money', text: 'Витрати на життя: −' + cost + ' ₴' });
+    ev.push({ kind: 'money', text: 'Оренда за добу: −' + cost + ' ₴' });
 
-    // Сфери тануть: самі собою і від тиску життя.
+    // Сфери тануть самі собою.
     for (const k of SOFT) if (!safe[k]) s[k] = clampS(s[k] - C.decay);
     ev.push({ kind: 'info', text: 'Сфери тануть самі собою: ' + SOFT.filter((k) => !safe[k]).map((k) => SPHERES[k].name).join(', ') + ' −' + C.decay });
     // Удар життя: не щоночі — з шансом, що росте щотижня; щонайбільше один за ніч.
@@ -701,7 +716,10 @@
     // Біль на завтра.
     s.extra = Math.max(0, s.extra - N.drift);
     // Довго без їжі — ще й болить сильніше.
-    if (!s.fed && C.hungry.painFrom && s.hungryStreak >= C.hungry.painFrom) { s.extra += 1; ev.push({ kind: 'pain', text: 'Голодний ' + s.hungryStreak + '-й день поспіль: завтра біль +1' }); }
+    if (!s.fed && C.hungry.painFrom && s.hungryStreak >= C.hungry.painFrom) {
+      const hp = 1;   // з 2-го дня поспіль — щоразу +1
+      s.extra += hp; ev.push({ kind: 'pain', text: 'Голодний ' + s.hungryStreak + '-й день поспіль: зранку біль +' + hp });
+    }
     // Висока доза: пропущена пігулка — біль повертається вже завтра.
     const miss = C.course.missMin[weekIdx(s.day)];
     if (miss && s.courseToday !== s.day && s.day < s.days) {
@@ -714,9 +732,12 @@
       s.body = clampS(s.body - loss);
       ev.push({ kind: 'bad', text: 'Узяв наперед ресурс ' + s.borrowed + ': перевтома, Тіло −' + loss });
     }
-    if (s.borrowed > 0 && C.borrowPain) { s.extra += C.borrowPain * s.borrowed; ev.push({ kind: 'pain', text: 'Узяв наперед ресурс ' + s.borrowed + ': завтра біль +' + C.borrowPain * s.borrowed }); }
+    if (s.borrowed > 0 && C.borrowPain) { s.extra += C.borrowPain * s.borrowed; ev.push({ kind: 'pain', text: 'Узяв наперед ресурс ' + s.borrowed + ': зранку біль +' + C.borrowPain * s.borrowed }); }
     if (exhaustedNow(s)) ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: шанс загострення вночі +' + Math.round(N.exhausted * 100) + '%' });
-    else if (s.spoons >= N.earlyRest && s.extra > 0) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
+    else if (s.spoons >= N.earlyRest && s.extra > 0) {
+      const rest = Math.min(s.extra, restRelief(s));   // скільки ресурсу лишив — на стільки й відпочив
+      s.extra -= rest; ev.push({ kind: 'good', text: 'Лишив сил на себе (ресурс ' + s.spoons + '): зранку біль −' + rest });
+    }
     s.extra = Math.max(0, s.extra);   // нижче мінімуму біль не буває
 
     // Лікар: огляд увечері — оцінює тиждень (пігулки й ЛФК), після нього змінюється мінімум болю; слабке тіло — укол.
@@ -738,7 +759,7 @@
       if (s.day < l.due) continue;
       const A = C.actions.loan;
       if (s.money > l.amount) { s.money -= l.amount; ev.push({ kind: 'money', text: 'Повернув борг ' + nDat(l.from) + ': −' + l.amount + ' ₴' }); s.loans = s.loans.filter((x) => x !== l); }
-      else { s.people = clampS(s.people - A.late); l.due = s.day + A.again; ev.push({ kind: 'friends', text: 'Не зміг повернути борг ' + nDat(l.from) + ': Стосунки −' + A.late + '. Нагадає в день ' + l.due }); }
+      else { s.people = clampS(s.people - A.late); l.due = s.day + A.again; ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount, again: l.due }, text: 'Не зміг повернути борг ' + nDat(l.from) + ': Стосунки −' + A.late + '. Нагадає в день ' + l.due }); }
     }
     recalcBase(s);
 
@@ -772,22 +793,22 @@
       if (inv) ev.push({ kind: 'friends', text: inviteWho(inv) + ' ' + inviteVerb(inv, 'пропонує', 'пропонують') + ' зайти в день ' + (s.day + C.friends.leadDays) });
     }
 
-    // Біль 10 — ніч у лікарні: знеболили до мінімуму, нагодували, підлікували Тіло; зранку вже вдома.
+    // Біль 10 — швидка: укол, біль спадає до мінімуму. Нікуди не забирають і не годують; коштує грошей і Настрою.
     let hospital = false;
+    const soulWas = s.soul;
     if (rawPain(s) >= C.painMax && s.day < s.days) {
       hospital = true;
       s.money -= C.hospital.cost; s.stats.hospital++;
-      if (hunger) { s.body = clampS(s.body + hunger.loss); s.stats.hungry--; s.hungryStreak = 0; const hi = ev.indexOf(hunger.ev); if (hi >= 0) ev.splice(hi, 1); }
+      s.soul = clampS(s.soul - C.hospital.soul);
+      const bodyWas = s.body; s.body = clampS(s.body + (C.hospital.body || 0));
       s.extra = C.hospital.extraAfter;
-      const rest = ev.findIndex((e) => e.text.startsWith('Лишив сил на себе')); if (rest >= 0) ev.splice(rest, 1);   // біль і так — базовий
-      const bodyWas = s.body;
-      s.body = Math.max(s.body, C.hospital.body);
-      ev.push({ kind: 'bad', text: 'Біль дійшов до 10. Швидка, ніч у лікарні: знеболили, нагодували' + (s.body > bodyWas ? ', Тіло підлікували до ' + s.body : '') + '; зранку вже вдома. −' + C.hospital.cost + ' ₴' });
+      const rest = ev.findIndex((e) => e.text.startsWith('Лишив сил на себе')); if (rest >= 0) ev.splice(rest, 1);   // біль і так — на мінімумі
+      ev.push({ kind: 'bad', text: 'Біль дійшов до 10. Викликав швидку: укол — біль спав до мінімуму (' + minNow(s) + ')' + (s.body > bodyWas ? ', Тіло +' + (s.body - bodyWas) : '') + '. −' + C.hospital.cost + ' ₴, Настрій −' + (soulWas - s.soul) });
     }
 
     checkLose(s, s.day, ev);
-    // Кінцева ніч: окремої лікарні з поверненням немає — тіло здалося, то й так госпіталізація.
-    if (s.lost && hospital && s.lost.sphere === 'body') { hospital = false; s.money += C.hospital.cost; s.stats.hospital--; ev.splice(ev.findIndex((e) => e.text.startsWith('Біль дійшов до 10')), 1); }
+    // Кінцева ніч: тіло здалося — госпіталізація; окремого виклику швидки з уколом тоді немає.
+    if (s.lost && hospital && s.lost.sphere === 'body') { hospital = false; s.money += C.hospital.cost; s.soul = soulWas; s.stats.hospital--; ev.splice(ev.findIndex((e) => e.text.startsWith('Біль дійшов до 10')), 1); }
     j.night = ev.map((e) => e.text);
     if (!s.lost) {
       if (s.day >= s.days) s.finished = true;
@@ -802,7 +823,7 @@
   // Нуль — ще не кінець. Стосунки/Тіло/Настрій: криза — наступного дня треба підняти вище нуля (перевіряється
   // наступної ночі ще до танення). Скільки разів — без обмежень: поки щоразу піднімаєш, тримаєшся.
   // Гроші: на нулі є C.graceMoney днів, щоб знайти, чим платити; не знайшов — виселяють.
-  // В останній день курсу часу вже немає: нуль — кінець.
+  // Ніч останнього дня курсу — вже свято: нею ніхто не програє.
   function checkLose(s, day, ev) {
     if (s.lost) return;
     if (day >= s.days) return;   // дожив до кінця курсу — уночі вже ніхто не виселяє й не госпіталізує: свято
@@ -814,7 +835,7 @@
       if (day >= s.days) { lose('money'); return; }
       if (s.crisis.money == null) {
         s.crisis.money = day + C.graceMoney;
-        ev.push({ kind: 'flare', text: 'Гроші на нулі! ' + C.graceMoney + ' дні, щоб знайти, чим платити (до кінця дня ' + s.crisis.money + '), — інакше виселять' });
+        ev.push({ kind: 'flare', text: 'Гроші на нулі — оренду платити нічим! ' + C.graceMoney + ' дні, щоб знайти гроші (до кінця дня ' + s.crisis.money + '), — інакше виселять' });
       } else if (day >= s.crisis.money) { lose('money'); return; }
     } else if (s.crisis.money != null) { delete s.crisis.money; ev.push({ kind: 'good', text: 'Вибрався: гроші знову є' }); }
     // Стосунки й Настрій — не кінець: лише стеля й обмеження. Кінець — Тіло на нулі два дні поспіль.
@@ -850,6 +871,7 @@
     const a = clone(s), b = clone(s);
     const ra = endDay(a, { forceFlare: false }), rb = endDay(b, { forceFlare: true });
     return { lost: a.lost, lostFlare: b.lost, hospital: !!ra.hospital, hospitalFlare: !!rb.hospital, events: ra.events,
+      debts: ra.events.filter((e) => e.debt).map((e) => Object.assign({ dat: nDat(e.debt.from) }, e.debt)),
       pain: a.lost || a.finished ? null : pain(a), painFlare: b.lost || b.finished ? null : pain(b) };
   }
 
@@ -873,7 +895,7 @@
       fx.push({ t: txt, kind: k });
     }
     if (id === 'block') { const a = C.actions.block; fx.push({ t: 'мінімум болю −' + a.minDrop + ' на ' + a.minDays + ' дні (до дня ' + (s.day + a.minDays - 1) + ')', kind: 'good' }); }
-    if (id === 'friends') fx.push({ t: 'розмова: вдала — ще +1, невдала — −1', kind: 'info' });
+    if (id === 'friends') fx.push({ t: 'розмова: вдала — Стосунки ще +1, так собі — Настрій −1, не склалась — обидва −1', kind: 'info' });
     // Біль уже на мінімумі — знеболення нічого не зніме, кажемо прямо.
     if (['stretch', 'meds', 'games', 'exercise'].includes(id) && s.extra <= 0) fx.push({ t: 'біль уже на мінімумі (' + minNow(s) + ')', kind: 'info' });
     // Самотність: дія підняла б Настрій, але стеля — поки Стосунки на нулі.
@@ -892,7 +914,7 @@
     }
     // Друзі: чи прийдуть голодні — випадок, тож показуємо шанс, а не наперед відомий результат.
     const fa = C.actions.friends, hungry = id === 'friends' && !inviteToday(s) && fa.treat && fa.treatChance < 1;
-    if (hungry) fx.push({ t: Math.round(fa.treatChance * 100) + '%: прийдуть голодні — нагодувати (−' + fa.treat + ' ₴) чи Стосунки −1', kind: 'money' });
+    if (hungry) fx.push({ t: 'шанс ' + Math.round(fa.treatChance * 100) + '%: прийдуть голодні — нагодувати (−' + fa.treat + ' ₴) чи Стосунки −1', kind: 'money' });
     else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ ' + (p.day === s.day + 1 ? 'завтра' : 'на день ' + p.day), kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
@@ -936,7 +958,7 @@
       if (inv && inv.status !== 'cancelled') ev.push({ t: '♥ ' + inviteWho(inv), k: inv.status === 'refused' ? 'inv refused' : 'inv' });
       for (const f of s.future.filter((x) => x.day === d)) ev.push(f.kind === 'relief' ? { t: 'біль −' + f.amount, k: 'good' } : { t: 'відкат +' + f.amount, k: 'bad' });
       if (C.doctor.days.includes(d)) ev.push({ t: 'лікар', k: 'doc' });
-      for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
+      for (const [k, dd] of Object.entries(s.crisis || {})) if (dd === d && s[k] <= 0) ev.push({ t: 'край: ' + SPHERES[k].name, k: 'bad' });
       for (const l of s.loans) if (l.due === d) ev.push({ t: 'борг −' + l.amount + '₴', k: 'bad' });
       if (s.gig && s.gig.day === d) ev.push({ t: 'підробіток', k: 'pay' });
       if (s.bill && s.bill.due === d) ev.push({ t: '−' + s.bill.amount + '₴', k: 'bad' });
@@ -953,9 +975,9 @@
     const when = (d) => (d === s.day ? 'Сьогодні' : d === s.day + 1 ? 'Завтра' : 'День ' + d);
     if (s.people <= 0) out.push({ kind: 'bad', t: 'Стосунки на нулі: самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.' });
     if (s.soul <= 0) out.push({ kind: 'bad', t: 'Настрій на нулі: ' + C.apathy.map((id, i) => { const l = ACTIONS[id].label; return i && l !== l.toUpperCase() ? l.toLowerCase() : l; }).join(', ') + ' — зараз не під силу.' });
-    for (const [k, d] of Object.entries(s.crisis || {})) out.push({ kind: 'fatal', t: k === 'money'
-      ? 'Гроші на нулі: до кінця дня ' + d + ' знайди, чим платити, — інакше виселять.'
-      : s[k] > 0 ? SPHERES[k].name + ' вчора було на нулі, зараз ' + s[k] + ': не дай йому знову впасти до нуля цієї ночі, інакше кінець.'
+    // Криза — лише поки справді на нулі: уже піднято — цієї ночі в безпеці, лякати нема чим.
+    for (const [k, d] of Object.entries(s.crisis || {})) if (s[k] <= 0) out.push({ kind: 'fatal', t: k === 'money'
+      ? 'Гроші на нулі: до кінця дня ' + d + ' знайди, чим платити оренду, — інакше виселять.'
       : SPHERES[k].name + ' на нулі: сьогодні підніми вище нуля, інакше кінець.' });
     for (const d of calendar(s, 4)) {
       const w = when(d.day);
@@ -968,15 +990,17 @@
       if (s.bill && s.bill.due === d.day) out.push({ kind: 'money', t: w + ': ' + s.bill.name.toLowerCase() + ' — заплатити ' + s.bill.amount + ' ₴ (знімуть уночі).' });
       if (s.gig && s.gig.day === d.day) out.push({ kind: 'money', t: w + ': ' + s.gig.from + ' пропонує підробіток, +' + (s.gig.pay || C.actions.gig.pay) + ' ₴. Не візьмеш — Настрій −' + C.actions.gig.refuse + '.' });
       for (const l of s.loans) if (l.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + nDat(l.from) + ', ' + l.amount + ' ₴.' });
-      if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': витрати на життя зростуть до ' + dailyCost(d.day) + ' ₴ за ніч.' });
+      if (d.day > s.day && dailyCost(d.day) > dailyCost(d.day - 1)) out.push({ kind: 'money', t: w + ': оренда зросте до ' + dailyCost(d.day) + ' ₴ за добу.' });
     }
     if (!out.length) out.push({ kind: 'info', t: 'Найближчі дні в календарі порожні.' });
     return out;
   }
 
+  // Сон знімає біль лише тоді, коли лишив ресурс: скільки лишив — на стільки менше (не нижче мінімуму).
+  const restRelief = (s) => (s.spoons >= C.night.earlyRest ? s.spoons * (C.night.restPerSpoon || 1) : 0);
   function sleepGainText(s) {
-    // Відпочинок знімає 1 понад нічне −1, але не нижче мінімуму болю.
-    return s.spoons >= C.night.earlyRest && s.extra >= 2 ? 'завтра біль −1' : s.spoons === 0 ? 'шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%' : 'без змін';
+    const r = Math.min(Math.max(0, s.extra - C.night.drift), restRelief(s));
+    return r && !exhaustedNow(s) ? 'завтра біль −' + r : exhaustedNow(s) ? 'шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%' : 'без змін';
   }
 
   function summary(s) {
@@ -996,7 +1020,7 @@
     kept.push('Наприкінці: ' + s.money + ' ₴, Стосунки ' + s.people + ', Тіло ' + s.body + ', Настрій ' + s.soul + ', біль ' + pain(s));
     if (st.flares) lostItems.push('Загострень: ' + st.flares);
     if (st.strongDays) lostItems.push('Днів у сильному болю: ' + st.strongDays);
-    if (st.hospital) lostItems.push('Лікарня: ' + st.hospital + ' р.');
+    if (st.hospital) lostItems.push('Викликав швидку: ' + st.hospital + ' р.');
     if (st.invitesRefused) lostItems.push('Відмов друзям: ' + st.invitesRefused);
     if (st.hungry) lostItems.push('Днів без їжі: ' + st.hungry);
     if (st.borrowed) lostItems.push('Ресурсу взято наперед: ' + st.borrowed);
