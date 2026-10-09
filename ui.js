@@ -686,7 +686,7 @@
           return song + ' (дописана +' + A.songSoul + '); ' + book + (b ? ' (дочитана +' + R.finishSoul + ')' : '') + '.';
         })()}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> пісня +${C.actions.create.soul[0]}, книжка +${C.actions.read.soul}, ігри 0…+${C.actions.games.jumps} (скільки пробіжиш), смачна їжа +${C.actions.cook.soulIfTasty}.</li>
+          <li><b>Підняти:</b> пісня 0…+${C.actions.create.notes} (чисті ноти), книжка +${C.actions.read.soul}, ігри 0…+${C.actions.games.jumps} (скільки пробіжиш), смачна їжа +${C.actions.cook.soulIfTasty}.</li>
           <li><b>${L.soulGood}+ дає:</b> ресурс +1 зранку, загострення −${Math.round(L.soulFlare * 100)}%, робота +${L.soulPay} ₴. <b>${L.soulBad} і нижче:</b> загострення +${Math.round(L.soulFlare * 100)}%, робота −${L.soulPay} ₴.</li>
           <li><b>Втрати:</b> день у сильному болю −${L.strongSoul}, щоночі тане.</li>
         </ul>`)}

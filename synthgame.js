@@ -160,7 +160,7 @@
         done = true;
         const fake = pressed.filter((p) => p.fake).length;
         m.className = 'sc-msg ' + (fake ? '' : 'good');
-        m.textContent = fake === 0 ? 'Три чисті ноти. Пісня росте.' : fake === NOTES ? 'Сьогодні все фальшиво. Але сів і зіграв.' : 'Фальшивих нот: ' + fake + '. Біль заважав, але пісня однаково росте.';
+        m.textContent = fake === 0 ? 'Три чисті ноти — Настрій +' + NOTES + '. Пісня росте.' : fake === NOTES ? 'Сьогодні все фальшиво — Настрій без змін. Але сів і зіграв.' : 'Чистих нот: ' + (NOTES - fake) + ' — Настрій +' + (NOTES - fake) + '. Біль заважав, але пісня росте.';
         setTimeout(() => close(fake), 1500);
       }
     }

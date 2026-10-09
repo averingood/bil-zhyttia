@@ -313,12 +313,14 @@
         break;
       }
       case 'create': {
-        const fake = opts.synth ? opts.synth.fake : (rand(s) < coverOf(pain(s)) * 0.6 ? 1 : 0);
-        const gain = a.soul[0];   // скільки обіцяно, стільки й дає: фальшиві ноти — лише про біль у моменті
+        // Без міні-гри: кожну ноту біль може зробити фальшивою.
+        let fake = 0;
+        if (opts.synth) fake = opts.synth.fake; else for (let i = 0; i < a.notes; i++) if (rand(s) < coverOf(pain(s)) * 0.6) fake++;
+        const gain = Math.max(0, a.notes - fake);   // Настрій — за кожну чисту ноту
         s.soul = clampS(s.soul + gain);
         songTitle(s);
         s.song.done++;
-        note = 'Настрій +' + gain + (fake ? ' (фальшиві ноти через біль, але пісня росте)' : '') + ', «' + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions;
+        note = (gain ? 'Настрій +' + gain : 'усе фальшиво — Настрій без змін') + (fake && gain ? ' (фальшивих нот: ' + fake + ')' : '') + (fake ? ', але пісня росте: «' : ', пісня росте: «') + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions;
         if (s.song.done >= a.songSessions) {
           s.soul = clampS(s.soul + a.songSoul);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
@@ -844,6 +846,7 @@
       let txt = SPHERES[k].name + ' ' + signed(after[k] - s[k]);
       // Де результат залежить від міні-гри — кажемо чесно, від чого.
       if (id === 'cook' && k === 'soul') txt = SPHERES[k].name + ' +' + C.actions.cook.soulIfTasty + ', якщо смачно';
+      if (id === 'create' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.create.notes + ' (скільки чистих нот)';
       if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
       fx.push({ t: txt, kind: k });
     }
