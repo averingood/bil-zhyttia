@@ -95,11 +95,6 @@
       <div class="sc-bar"><div class="sc-timer" hidden><i></i></div><span class="mat-input"></span></div>
       <div class="sc-answers mat-keys">${ARR.map((a, i) => `<button class="ans mat-arrow" type="button" data-a="${i}" style="grid-area:${['l', 'u', 'r', 'd'][i]}" disabled><kbd>${a}</kbd>${['ліво', 'вгору', 'право', 'вниз'][i]}</button>`).join('')}</div>
       <p class="sc-msg">Дивись на телефон: тренер показує рухи.</p>`;
-    // Плашка-пояснення поверх сцени: що робити на ЛФК. Висить усю сцену — угорі, над стіною, телефон не закриває.
-    const hint = document.createElement('div');
-    hint.className = 'mat-hint';
-    hint.innerHTML = '<b>Як робити ЛФК</b>1. Тренер на екрані телефона показує рухи — стрілки по черзі.<br>2. Запам’ятай порядок.<br>3. Повтори його: ' + (window.matchMedia && matchMedia('(max-width: 700px)').matches ? 'кнопки внизу.' : 'клавіші ← ↑ → ↓ або кнопки внизу.');
-    el.appendChild(hint);
     fit();
     const $q = (sel) => o.bar.querySelector(sel);
     const now = () => performance.now() / 1000;

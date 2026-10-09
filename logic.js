@@ -28,7 +28,7 @@
     coffee:   { zone: 'kitchen', label: 'Випити кави', sphere: null },
     course:   { zone: 'shelf',   label: 'Пігулка з курсу', sphere: 'body' },
     meds:     { zone: 'shelf',   label: 'Знеболювальне', sphere: null },
-    block:    { zone: 'shelf',   label: 'Платна процедура', sphere: null },
+    block:    { zone: 'shelf',   label: 'Блокада', sphere: null },
     board:    { zone: 'sofa',    label: 'Покликати на настолки', sphere: 'people' },
     loan:     { zone: 'sofa',    label: 'Позичити в друзів', sphere: 'money' },
     repay:    { zone: 'sofa',    label: 'Повернути борг', sphere: 'money' },
@@ -244,7 +244,7 @@
         if (!inviteToday(s) && !freeFriends(s).length) return no('Ти всім винен — спершу поверни борги');
         break;
       case 'block':
-        if (s.day - s.blockDay < a.cooldown) return no('Наступна процедура — не раніше дня ' + (s.blockDay + a.cooldown));
+        if (s.day - s.blockDay < a.cooldown) return no('Наступна блокада — не раніше дня ' + (s.blockDay + a.cooldown));
         break;
       case 'gig':
         if (!gigToday(s)) return no('Сьогодні ніхто не пропонував підробіток');
@@ -598,7 +598,7 @@
       const nw = wk + 1;
       lines.push({ t: D.pillsWeeks[nw]
         ? 'З завтра доза вища: пігулка ' + C.course.money[nw] + ' ₴. Ліки дорожчають, як і все в цьому житті.'
-        : 'Останній тиждень — підтримуюча доза, ' + C.course.money[nw] + ' ₴ щодня. Пропустите хоч день — мінімум болю зросте на ' + (C.course.missMin[nw] || 1) + '. Я не лякаю, я констатую.' + (!D.lfkWeeks[nw] ? ' ЛФК — як хочете, я вже не дивлюся.' : ''), k: '' });
+        : 'Останній тиждень — підтримуюча доза, ' + C.course.money[nw] + ' ₴ щодня. Кожен пропущений день збільшує мінімальний біль на ' + (C.course.missMin[nw] || 1) + '. Я не лякаю, я констатую.' + (!D.lfkWeeks[nw] ? ' ЛФК — як хочете, я вже не дивлюся.' : ''), k: '' });
     }
     s.baseShift += shift;
     recalcBase(s);
@@ -895,7 +895,6 @@
       if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
       fx.push({ t: txt, kind: k });
     }
-    if (id === 'block') { const a = C.actions.block; fx.push({ t: 'мінімум −' + a.minDrop + ' на ' + a.minDays + ' дні', kind: 'good' }); }
     // Біль уже на мінімумі — знеболення нічого не зніме, кажемо прямо.
     if (['stretch', 'meds', 'games', 'exercise'].includes(id) && s.extra <= 0) fx.push({ t: 'біль уже на мінімумі (' + minNow(s) + ')', kind: 'info' });
     // Самотність: дія підняла б Настрій, але стеля — поки Стосунки на нулі.
@@ -918,6 +917,7 @@
     else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ ' + (p.day === s.day + 1 ? 'завтра' : 'на день ' + p.day), kind: 'money' }); }
     if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
+    if (id === 'block') { const a = C.actions.block; fx.push({ t: 'знижує мінімальний біль −' + a.minDrop + ' на ' + a.minDays + ' дні', kind: 'good' }); }
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: (f.day === s.day + 1 ? 'завтра' : 'день ' + f.day) + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
     if (id === 'games') fx.push({ t: 'шанс ' + Math.round(C.actions.games.tomorrowChance * 100) + '% засидітись: завтра ресурс −' + C.actions.games.tomorrow, kind: 'pain' });
     else if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
@@ -985,8 +985,8 @@
       if (inv && inv.status === 'open') out.push({ kind: 'friends', t: w + ': ' + inviteWho(inv) + (d.day === s.day ? ' ' + inviteVerb(inv, 'хоче', 'хочуть') + ' прийти. Якщо не покличеш — Стосунки −' + C.friends.refuse + '.' : ' ' + inviteVerb(inv, 'пропонує', 'пропонують') + ' зайти.') });
       const pay = s.pending.filter((p) => p.day === d.day).reduce((a, p) => a + p.amount, 0);
       if (pay) out.push({ kind: 'money', t: w + ': надійде оплата за роботу, +' + pay + ' ₴.' });
-      for (const f of s.future.filter((x) => x.day === d.day && x.kind === 'relief')) out.push({ kind: 'good', t: w + ': ' + (f.from === 'block' ? 'процедура ще діє' : 'ЛФК ще діє') + ', біль −' + f.amount + '.' });
-      if (C.doctor.days.includes(d.day)) out.push({ kind: 'info', t: w + ': увечері прийом у лікаря.' });
+      for (const f of s.future.filter((x) => x.day === d.day && x.kind === 'relief')) out.push({ kind: 'good', t: w + ': ' + (f.from === 'block' ? 'блокада ще діє' : 'ЛФК ще діє') + ', біль −' + f.amount + '.' });
+      if (C.doctor.days.includes(d.day)) out.push({ kind: 'info', t: w + ': увечері прийом лікаря.' });
       if (s.bill && s.bill.due === d.day) out.push({ kind: 'money', t: w + ': ' + s.bill.name.toLowerCase() + ' — заплатити ' + s.bill.amount + ' ₴ (знімуть уночі).' });
       if (s.gig && s.gig.day === d.day) out.push({ kind: 'money', t: w + ': ' + s.gig.from + ' пропонує підробіток, +' + (s.gig.pay || C.actions.gig.pay) + ' ₴. Не візьмеш — Настрій −' + C.actions.gig.refuse + '.' });
       for (const l of s.loans) if (l.due === d.day) out.push({ kind: 'money', t: w + ': треба віддати борг ' + nDat(l.from) + ', ' + l.amount + ' ₴.' });
@@ -1031,7 +1031,7 @@
     const lostTo = [...new Set(s.loans.map((l) => l.from))];
     if (lostTo.length) lostItems.push('Втрачено ' + lostTo.length + ' ' + (lostTo.length === 1 ? 'друга' : 'друзів') + ' через борг: ' + lostTo.join(', '));
     if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loans.length ? ', не повернуто ' + s.loans.reduce((x, l) => x + l.amount, 0) + ' ₴' : ''));
-    if (st.blocks) kept.push('Платних процедур: ' + st.blocks);
+    if (st.blocks) kept.push('Блокад: ' + st.blocks);
     if (st.talkMissed) lostItems.push('Не почув друзів: ' + st.talkMissed + ' р.');
     return { lost: s.lost ? Object.assign({}, s.lost) : null, daysLived: s.lost ? s.lost.day : s.days, days: s.days, kept, lostItems, history: s.history };
   }

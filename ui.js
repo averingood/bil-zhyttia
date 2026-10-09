@@ -199,7 +199,43 @@
   }
   // «Пропустити»: закриває сцену, і результат рахується так, ніби міні-ігри вимкнені.
   let sceneAbort = null, sceneSkipped = false;
+  // Перед міні-грою — коротко: як грати і від чого залежить результат. «Більше не показувати» — для кожної гри окремо.
+  const introOf = (id) => ({
+    friends: ['Розмова з друзями', ['Друг розповідає новину — обери відповідь, що пасує.', 'Біль може заглушити слова: тоді можна перепитати.'],
+      ['Обидві відповіді влучні — Стосунки +1.', 'Одна — Настрій −1.', 'Жодної — Стосунки −1 і Настрій −1.']],
+    work: ['Планерка', ['Керівник ставить питання — обери правильну відповідь.', 'Не розчув через біль — можна перепитати.'],
+      ['Правильна відповідь — +20 ₴, після перепитування — +10 ₴, хибна — нічого. Гроші прийдуть завтра.']],
+    games: ['Гра-пробіжка', ['Персонаж біжить сам. Стрибай над перешкодами: ' + (isPhone() ? 'кнопка «Стрибок».' : 'пробіл або кнопка «Стрибок».'), 'Біль може смикнути саме перед стрибком.'],
+      ['Настрій + стільки, скільки перешкод перестрибнув (0–' + C.actions.games.jumps + ').', 'Біль −' + C.actions.games.ease + '.']],
+    create: ['Синтезатор', ['Зіграй три ноти: ' + (isPhone() ? 'торкайся клавіш.' : 'клацай клавіші або натискай літери на клавіатурі.'), 'Що сильніший біль, то частіше рука здригається і нота фальшивить.'],
+      ['Настрій + стільки, скільки чистих нот (0–' + C.actions.create.notes + ').', 'Пісня пишеться за ' + C.actions.create.songSessions + ' сесії; дописана — ще Настрій +' + C.actions.create.songSoul + '.']],
+    read: ['Читання', ['Читай розворот і гортай сторінки, коли дочитаєш.'],
+      ['Настрій +' + C.actions.read.soul + ' за сесію.', 'Дочитана книжка — ще Настрій +' + C.actions.read.finishSoul + '.']],
+    cook: ['Готування', ['На холодильнику — рецепт. Запам’ятай продукти.', 'Потім обери з полиці ті самі ' + 5 + '.'],
+      ['Їжа є в будь-якому разі: Тіло +' + C.actions.cook.body + '.', 'Усі продукти правильні — смачно: Настрій +' + C.actions.cook.soulIfTasty + '.']],
+    exercise: ['ЛФК', ['Тренер на екрані телефона показує рухи — стрілки по черзі.', 'Запам’ятай порядок і повтори його' + (isPhone() ? ' кнопками.' : ': клавіші ← ↑ → ↓ або кнопки.')],
+      ['Дві третини рухів і більше — Тіло +' + C.actions.exercise.body + ', біль −' + C.actions.exercise.reliefToday + ' сьогодні й −' + C.actions.exercise.reliefNext + ' завтра.', 'Хоча б третина — Тіло +' + C.actions.exercise.partialBody + ', без полегшення.']],
+  })[id];
+  const introSeen = (id) => { try { return localStorage.getItem('zapas.intro.' + id) === '1'; } catch (e) { return false; } };
+  function withIntro(id, go) {
+    const it = introOf(id);
+    if (!it || introSeen(id)) { go(); return; }
+    const was = phase;
+    phase = 'ask';
+    openModal(`<h2>${esc(it[0])}</h2>
+      <p class="lbl">Як грати</p><ul class="tl">${it[1].map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="lbl">Результат</p><ul class="tl">${it[2].map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      <label class="gm-row"><input type="checkbox" id="introNo"><span>Більше не показувати</span></label>
+      <div class="row"><button class="btn primary" id="introGo">Почати</button></div>`, false);
+    $('introGo').focus();
+    $('introGo').onclick = () => {
+      if ($('introNo').checked) { try { localStorage.setItem('zapas.intro.' + id, '1'); } catch (e) { /* не страшно */ } }
+      closeModal(); phase = was; go();
+    };
+  }
+
   function runScene(Scene, extra, toOpts, id, p) {
+    if (introOf(id) && !introSeen(id)) { withIntro(id, () => runScene(Scene, extra, toOpts, id, p)); return; }
     phase = 'scene';
     held.clear(); applyKeys();
     sceneSkipped = false;
@@ -329,6 +365,7 @@
   const TALK_TITLE = { good: 'Розмова вдалась:', meh: 'Розмова так собі:', bad: 'Розмова не склалась:' };
 
   function startTalk(names) {
+    if (!introSeen('friends')) { withIntro('friends', () => startTalk(names)); return; }
     phase = 'scene';
     held.clear(); applyKeys();
     sceneSkipped = false;
@@ -395,7 +432,7 @@
     nightReport(r, dayWas, left);
   }
 
-  // Прийом у лікаря: заходить, сідає з тобою на диван і по черзі каже висновки за тиждень.
+  // Прийом лікаря: заходить, сідає з тобою на диван і по черзі каже висновки за тиждень.
   // pre — стан на вечір: панель показує його, а мінімум болю й Тіло змінює лише тоді, коли лікар про це сказав.
   const DOC_READ_MS = 1600;   // скільки дати прочитати репліку лікаря, перш ніж панель зміниться
   function doctorScene(v, next, pre) {
@@ -418,7 +455,7 @@
     };
     const draw = () => {
       const last = shown >= v.lines.length;
-      bar.innerHTML = `<div class="sc-head"><span class="ab-zone">${v.final ? 'Фінальний огляд' : 'Прийом у лікаря'}</span><span class="ab-meta">день ${v.day}</span></div>
+      bar.innerHTML = `<div class="sc-head"><span class="ab-zone">${v.final ? 'Фінальний огляд' : 'Прийом лікаря'}</span><span class="ab-meta">день ${v.day}</span></div>
         <ul class="doc-lines">${v.lines.slice(0, shown).map((l) => `<li class="${l.k}">${esc(l.t)}</li>`).join('')}</ul>
         ${shown ? `<div class="sc-answers"><button class="ans primary doc-next" type="button"><kbd>Пробіл</kbd>${last ? 'Попрощатися' : 'Далі'}</button></div>` : '<p class="sc-msg">Лікар заходить…</p>'}`;
       const b = bar.querySelector('.doc-next');
@@ -456,7 +493,7 @@
     const final = docDay === D.days[D.days.length - 1];
     // Лише призначення — без наслідків: з ними гравець стикається на прийомі.
     openModal(`<h2>Тиждень ${w} з ${D.days.length}</h2>
-      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд у лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень${final ? '' : ', і покаже, як на це відреагував твій організм'}.</p>
+      <p>Увечері ${docDay}-го дня — ${final ? 'фінальний огляд лікаря' : 'прийом лікаря'}. Він подивиться, як минув тиждень${final ? '' : ', і покаже, як на це відреагував твій організм'}.</p>
       <p>Вам прописано:</p>
       <ul class="tl">
         <li><b>Пігулки з курсу</b> (аптечка): 1 в день${!D.pillsWeeks[w - 1] ? ' — підтримуюча доза, ' + C.course.money[w - 1] + ' ₴, без пропусків: пропуск піднімає мінімум болю' : w > 1 ? ' — доза вища, ' + C.course.money[w - 1] + ' ₴' : ''}</li>
