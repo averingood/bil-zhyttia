@@ -311,7 +311,7 @@
       $('actionBar').innerHTML = `<div class="sc-head"><span class="ab-zone">У гостях</span><span class="ab-meta">${esc(r.guests.join(' і '))} ${r.guests.length > 1 ? 'заходять' : 'заходить'}…</span></div>`;
     }
     if (id === 'work' || id === 'games') workingT = 1.8;   // монітор світиться лише від роботи й ігор
-    if (r.borrowed) toast('Узяв наперед ресурс ' + r.borrowed + ': завтра на стільки менше, і шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%.');
+    if (r.borrowed) toast('Узяв наперед ресурс ' + r.borrowed + ': завтра на стільки менше ресурсу' + (C.borrowPain ? ' і біль +' + C.borrowPain * r.borrowed : '') + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%.');
     renderAll();
   }
 
@@ -560,7 +560,7 @@
     if (!a.available) body = `<span class="a-why">${esc(a.reason)}</span>`;
     else {
       body = `<span class="a-fx">${a.effects.map((f) => `<span class="${f.kind}">${esc(f.t)}</span>`).join(' · ')}</span>`;
-      if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра.'}</span>`;
+      if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра' + (C.borrowPain ? ' — завтра біль +' + C.borrowPain * a.borrow : '') + '.'}</span>`;
     }
     const cls = ['act', a.available ? '' : 'off', armed === a.id ? 'armed' : ''].join(' ');
     const pad = gameOn(a.id) && a.available ? padIcon() : '';
@@ -653,7 +653,7 @@
           <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}, виданих зранку${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + ' — біль забрав ' + eaten + '.' : ''}</p>
           <ul class="tl">
             <li><b>Ранок дає</b> за болем: ${spoonRanges()}. Настрій ${L.soulHigh}+ — ще +1.</li>
-            <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра (шанс загострення +${Math.round(C.night.exhausted * 100)}%). Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
+            <li><b>Бракує</b> — візьми до ${C.maxBorrow} із завтра: завтра на стільки менше ресурсу${C.borrowPain ? ' і біль +' + C.borrowPain + ' за кожен' : ''}, шанс загострення +${Math.round(C.night.exhausted * 100)}%. Лишиш ${C.night.earlyRest}+ — завтра біль −1.</li>
           </ul>
         </div>
       </div>

@@ -693,6 +693,13 @@
     // Висока доза: пропущена пігулка — біль повертається вже завтра.
     const miss = C.course.missExtra[weekIdx(s.day)];
     if (miss && s.courseToday !== s.day && s.day < s.days) { s.extra += miss; ev.push({ kind: 'pain', text: 'Пропустив підтримуючу пігулку: завтра біль +' + miss }); }
+    // Узяв ресурс наперед — тіло платить за перевтому.
+    if (s.borrowed > 0 && C.borrowBody && !safe.body) {
+      const loss = C.borrowBodyFlat ? C.borrowBody : C.borrowBody * s.borrowed;
+      s.body = clampS(s.body - loss);
+      ev.push({ kind: 'bad', text: 'Узяв наперед ресурс ' + s.borrowed + ': перевтома, Тіло −' + loss });
+    }
+    if (s.borrowed > 0 && C.borrowPain) { s.extra += C.borrowPain * s.borrowed; ev.push({ kind: 'pain', text: 'Узяв наперед ресурс ' + s.borrowed + ': завтра біль +' + C.borrowPain * s.borrowed }); }
     if (exhaustedNow(s)) ev.push({ kind: 'pain', text: 'Вичерпав увесь ресурс: шанс загострення вночі +' + Math.round(N.exhausted * 100) + '%' });
     else if (s.spoons >= N.earlyRest && s.extra > 0) { s.extra -= 1; ev.push({ kind: 'good', text: 'Лишив сил на себе: завтра біль −1' }); }
     s.extra = Math.max(0, s.extra);   // нижче мінімуму біль не буває
