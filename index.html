@@ -394,7 +394,14 @@
   .btn .pad { cursor: help; }
   /* Картка дії: рядок «дає» і рядок «забирає». */
   .act .a-fx { display: grid; gap: 1px; }
-  .a-row b { font-weight: 400; font-size: .85em; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; }
+  .a-row b { font-weight: 600; font-size: .9em; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; }
+  .fx-i { color: var(--c); display: inline-block; vertical-align: -1px; margin-right: 2px; }
+  .fx-i .pix { width: 13px; height: 13px; fill: currentColor; display: block; }
+  .fx-tri { display: inline-flex; gap: 2px; vertical-align: 0; }
+  .fx-tri .tri { width: 11px; height: 9px; display: inline-block; }
+  /* Без синього спалаху й затримки на дотик. */
+  * { -webkit-tap-highlight-color: transparent; }
+  button, .chip, canvas, .act { touch-action: manipulation; }
   .a-gain b { color: var(--light); } .a-loss b { color: var(--strong); }
   .a-fx .money { color: var(--money); }
 
@@ -504,17 +511,17 @@
 <div id="modal" hidden></div>
 <div id="tipBox" hidden></div>
 
-<script src="config.js?v=20261009193036"></script>
-<script src="logic.js?v=20261009193036"></script>
-<script src="room.js?v=20261009193036"></script>
-<script src="painfx.js?v=20261009193036"></script>
-<script src="meeting.js?v=20261009193036"></script>
-<script src="friendtalk.js?v=20261009193036"></script>
-<script src="matgame.js?v=20261009193036"></script>
-<script src="readgame.js?v=20261009193036"></script>
-<script src="cookgame.js?v=20261009193036"></script>
-<script src="synthgame.js?v=20261009193036"></script>
-<script src="rungame.js?v=20261009193036"></script>
-<script src="ui.js?v=20261009193036"></script>
+<script src="config.js?v=20261009195032"></script>
+<script src="logic.js?v=20261009195032"></script>
+<script src="room.js?v=20261009195032"></script>
+<script src="painfx.js?v=20261009195032"></script>
+<script src="meeting.js?v=20261009195032"></script>
+<script src="friendtalk.js?v=20261009195032"></script>
+<script src="matgame.js?v=20261009195032"></script>
+<script src="readgame.js?v=20261009195032"></script>
+<script src="cookgame.js?v=20261009195032"></script>
+<script src="synthgame.js?v=20261009195032"></script>
+<script src="rungame.js?v=20261009195032"></script>
+<script src="ui.js?v=20261009195032"></script>
 </body>
 </html>

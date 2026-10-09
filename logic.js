@@ -895,8 +895,7 @@
       if (id === 'games' && k === 'soul') txt = SPHERES[k].name + ' 0…+' + C.actions.games.jumps + ' (скільки перешкод перестрибнеш)';
       fx.push({ t: txt, kind: k });
     }
-    if (id === 'block') { const a = C.actions.block; fx.push({ t: 'мінімум болю −' + a.minDrop + ' на ' + a.minDays + ' дні (до дня ' + (s.day + a.minDays - 1) + ')', kind: 'good' }); }
-    if (id === 'friends') fx.push({ t: 'розмова: вдала — Стосунки ще +1, так собі — Настрій −1, не склалась — обидва −1', kind: 'info' });
+    if (id === 'block') { const a = C.actions.block; fx.push({ t: 'мінімум −' + a.minDrop + ' на ' + a.minDays + ' дні', kind: 'good' }); }
     // Біль уже на мінімумі — знеболення нічого не зніме, кажемо прямо.
     if (['stretch', 'meds', 'games', 'exercise'].includes(id) && s.extra <= 0) fx.push({ t: 'біль уже на мінімумі (' + minNow(s) + ')', kind: 'info' });
     // Самотність: дія підняла б Настрій, але стеля — поки Стосунки на нулі.
@@ -915,17 +914,17 @@
     }
     // Друзі: чи прийдуть голодні — випадок, тож показуємо шанс, а не наперед відомий результат.
     const fa = C.actions.friends, hungry = id === 'friends' && !inviteToday(s) && fa.treat && fa.treatChance < 1;
-    if (hungry) fx.push({ t: 'шанс ' + Math.round(fa.treatChance * 100) + '%: прийдуть голодні — нагодувати (−' + fa.treat + ' ₴) чи Стосунки −1', kind: 'money' });
+    if (hungry) fx.push({ t: 'шанс ' + Math.round(fa.treatChance * 100) + '%: голодні гості (−' + fa.treat + ' ₴ або Стосунки −1)', kind: 'money' });
     else if (after.money !== s.money) fx.push({ t: signed(after.money - s.money) + ' ₴', kind: 'money' });
     if (after.pending.length > s.pending.length) { const p = after.pending[after.pending.length - 1]; fx.push({ t: '+' + p.amount + ' ₴ ' + (p.day === s.day + 1 ? 'завтра' : 'на день ' + p.day), kind: 'money' }); }
-    if (pain(after) !== pain(s)) fx.push({ t: 'біль зараз ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
+    if (pain(after) !== pain(s)) fx.push({ t: 'біль ' + pain(s) + '→' + pain(after), kind: pain(after) < pain(s) ? 'good' : 'pain' });
     for (const f of after.future.slice(s.future.length)) fx.push(f.kind === 'relief' ? { t: (f.day === s.day + 1 ? 'завтра' : 'день ' + f.day) + ': біль −' + f.amount, kind: 'good' } : { t: 'завтра відкат +' + f.amount, kind: 'pain' });
-    if (id === 'games') fx.push({ t: 'Засидишся: ' + Math.round(C.actions.games.tomorrowChance * 100) + '% шанс втратити ' + C.actions.games.tomorrow + ' ресурс завтра', kind: 'pain' });
+    if (id === 'games') fx.push({ t: 'шанс ' + Math.round(C.actions.games.tomorrowChance * 100) + '% засидітись: завтра ресурс −' + C.actions.games.tomorrow, kind: 'pain' });
     else if (after.spoonTomorrow - s.spoonTomorrow - out.borrow > 0) fx.push({ t: 'завтра ресурс −' + (after.spoonTomorrow - s.spoonTomorrow - out.borrow), kind: 'pain' });
-    if (id === 'meds') fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
+    if (id === 'meds') fx.push({ t: 'шанс загострення +' + Math.round(C.actions.meds.flareAdd * 100) + '%', kind: 'pain' });
     if (id === 'coffee') {
       fx.push({ t: 'ресурс +' + C.actions.coffee.gain, kind: 'good' });
-      fx.push({ t: 'шанс загострення вночі +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' });
+      fx.push({ t: 'шанс загострення +' + Math.round(C.actions.coffee.flareAdd * 100) + '%', kind: 'pain' });
     }
     // Про власну їжу не пишемо (приготував чи замовив — і так ясно); лише коли годують друзі.
     if (after.fed && !s.fed && after.foodType === 'guests') fx.push({ t: 'друзі нагодують', kind: 'info' });
@@ -933,17 +932,17 @@
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
       const A = C.actions.create, n = s.song.done + 1;
-      fx.push(n >= A.songSessions ? { t: 'остання сесія: пісню дописано (з бонусом +' + A.songSoul + ')', kind: 'good' } : { t: 'пісня: сесія ' + n + ' з ' + A.songSessions + ', дописана дасть +' + A.songSoul, kind: 'info' });
+      fx.push(n >= A.songSessions ? { t: 'пісню дописано: ще Настрій +' + A.songSoul, kind: 'good' } : { t: 'сесія ' + n + '/' + A.songSessions + ' · дописана +' + A.songSoul, kind: 'info' });
     }
     if (id === 'read') {
       const b = bookNow(s), n = s.book.done + 1;
-      fx.push(n >= b[1] ? { t: 'остання сесія: книжку дочитано (з бонусом +' + C.actions.read.finishSoul + ')', kind: 'good' } : { t: '«' + b[0] + '»: сесія ' + n + ' з ' + b[1] + ', дочитана дасть +' + C.actions.read.finishSoul, kind: 'info' });
+      fx.push(n >= b[1] ? { t: 'книжку дочитано: ще Настрій +' + C.actions.read.finishSoul, kind: 'good' } : { t: 'сесія ' + n + '/' + b[1] + ' · дочитана +' + C.actions.read.finishSoul, kind: 'info' });
     }
     if (id === 'friends' && inviteToday(s)) fx.push({ t: inviteWho(inviteToday(s)) + (inviteToday(s).with ? ' самі просяться' : ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' проситься'), kind: 'info' });
-    if (id === 'repay' && nextLoan(s)) fx.push({ t: 'борг ' + nDat(nextLoan(s).from) + ' закрито — знову зможе прийти', kind: 'good' });
-    if (id === 'loan') { const l = after.loans[after.loans.length - 1]; fx.push({ t: 'у кого — випадково; віддати ' + l.amount + ' ₴ за ' + C.actions.loan.dueIn + ' днів, інакше Стосунки −' + C.actions.loan.late + '; поки винен — не прийде в гості', kind: 'pain' }); fx.push({ t: 'можна ще в ' + (freeFriends(s).length - 1) + ' з ' + s.friendNames.length, kind: 'info' }); }
-    if (id === 'board') fx.push({ t: 'прийдуть ' + freeFriends(s).length + ' (кому не винен)', kind: 'info' });
-    if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow + ', шанс загострення вночі +' + Math.round(C.night.exhausted * 100) + '%', kind: 'pain' });
+    if (id === 'repay' && nextLoan(s)) fx.push({ t: nextLoan(s).from + ' знову прийде в гості', kind: 'good' });
+    if (id === 'loan') fx.push({ t: 'повернути за ' + C.actions.loan.dueIn + ' днів', kind: 'info' });
+    if (id === 'board') fx.push({ t: 'гостей: ' + freeFriends(s).length, kind: 'info' });
+    if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow, kind: 'pain' });
     return out;
   }
 

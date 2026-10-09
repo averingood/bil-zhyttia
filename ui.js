@@ -591,6 +591,13 @@
 
   // Значок 🎮 — на діях, чия міні-гра зараз увімкнена.
   function padIcon() { return '<span class="pad" aria-label="Міні-гра від першої особи">🎮</span>'; }
+  // Ефект словами → значками: «Стосунки +2» — серце +2, «ресурс 2» — два трикутники.
+  const SPH_BY_NAME = { 'Стосунки': 'people', 'Тіло': 'body', 'Настрій': 'soul' };
+  function fxHTML(t) {
+    return esc(t)
+      .replace(/(Стосунки|Тіло|Настрій) /g, (m, n) => `<span class="fx-i" style="--c:${SPH_COLOR[SPH_BY_NAME[n]]}" title="${n}">${pixIcon(SPH_BY_NAME[n])}</span>`)
+      .replace(/ресурс ([+−]?)(\d+)/g, (m, sg, n) => +n <= 4 ? sg + '<span class="fx-tri" title="ресурс">' + '<i class="tri on"></i>'.repeat(+n) + '</span>' : m);
+  }
   function actionButton(a, i) {
     const cost = a.cost == null ? '' : a.cost === 0 ? 'без ресурсу' : 'ресурс ' + a.cost;
     let body;
@@ -600,9 +607,14 @@
       const kindOf = (f) => f.kind === 'info' ? 'info' : f.kind === 'pain' ? 'loss' : f.kind === 'good' ? 'gain' : /−/.test(f.t) && !/\+/.test(f.t) ? 'loss' : 'gain';
       // Ціна: гроші, ресурс і все, що дія забирає чи чим ризикуєш.
       const extra = { loss: a.cost ? [{ t: 'ресурс ' + a.cost, kind: 'energy' }] : [] };
-      const row = (k, label) => { const fx = a.effects.filter((f) => kindOf(f) === k).concat(extra[k] || []); return fx.length ? `<span class="a-row a-${k}">${label ? '<b>' + label + '</b>' : ''}${fx.map((f) => `<span class="${f.kind}">${esc(f.t)}</span>`).join(' · ')}</span>` : ''; };
+      const row = (k, label) => {
+        const fx = a.effects.filter((f) => kindOf(f) === k);
+        // Порядок ціни: гроші, ресурс, а тоді ризики й інше.
+        const at = fx.findIndex((f) => !(f.kind === 'money' && /₴/.test(f.t) && !/шанс/.test(f.t)));
+        fx.splice(at < 0 ? fx.length : at, 0, ...(extra[k] || []));
+        return fx.length ? `<span class="a-row a-${k}">${label ? '<b>' + label + '</b>' : ''}${fx.map((f) => `<span class="${f.kind}">${fxHTML(f.t)}</span>`).join(' · ')}</span>` : ''; };
       body = `<span class="a-fx">${row('gain', 'дає')}${row('loss', 'ціна')}${row('info', '')}</span>`;
-      if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу: доведеться взяти ' + a.borrow + ' з завтра' + (C.borrowPain ? ' — завтра біль +' + C.borrowPain * a.borrow : '') + '.'}</span>`;
+      if (a.borrow) body += `<span class="a-warn${armed === a.id ? ' fatal' : ''}">${armed === a.id ? 'Натисни ще раз, щоб узяти ' + a.borrow + ' наперед.' : 'Бракує ресурсу' + (C.borrowPain ? ': завтра біль +' + C.borrowPain * a.borrow : '') + '.'}</span>`;
     }
     const cls = ['act', a.available ? '' : 'off', armed === a.id ? 'armed' : ''].join(' ');
     const pad = gameOn(a.id) && a.available ? padIcon() : '';
@@ -969,7 +981,8 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
     m.innerHTML = `<p class="gm-head">Від першої особи:</p>${MINI_GAMES.map(([id, name]) =>
       `<label class="gm-row"><input type="checkbox" data-g="${id}" ${gameOn(id) ? 'checked' : ''}><span>${esc(name)}</span></label>`).join('')}
       <p class="gm-note">Без галочки — дія без гри, результат рахується сам.</p>
-      <div class="gm-btns"><button class="btn" type="button" data-all="1">Усі</button><button class="btn" type="button" data-all="0">Жодної</button></div>`;
+      <div class="gm-btns"><button class="btn" type="button" data-all="1">Усі</button><button class="btn" type="button" data-all="0">Жодної</button><button class="btn primary gm-close" type="button">Готово</button></div>`;
+    m.querySelector('.gm-close').onclick = () => { m.hidden = true; };
     m.querySelectorAll('[data-g]').forEach((c) => { c.onchange = () => { gamesOn[c.dataset.g] = c.checked; saveGames(); renderAll(); }; });
     m.querySelectorAll('[data-all]').forEach((b) => { b.onclick = () => { MINI_GAMES.forEach(([id]) => { gamesOn[id] = b.dataset.all === '1'; }); saveGames(); renderGamesMenu(); renderAll(); }; });
   }
@@ -981,7 +994,13 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
   }
   $('sceneTog').onclick = (e) => { e.stopPropagation(); toggleGamesMenu(); };
   $('gamesMenu').onclick = (e) => e.stopPropagation();
-  document.addEventListener('click', () => { $('gamesMenu').hidden = true; });
+  // Торкнувся поза відкритим меню — воно лише закривається; те, що було під пальцем, не натискається.
+  document.addEventListener('click', (e) => {
+    const m = $('gamesMenu');
+    if (m.hidden || m.contains(e.target) || $('sceneTog').contains(e.target)) return;
+    m.hidden = true;
+    e.stopPropagation(); e.preventDefault();
+  }, true);
   $('skipBtn').onclick = () => { skipNow(); renderAll(); };
   $('endTog').onclick = () => showEnd();
 
