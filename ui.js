@@ -208,7 +208,7 @@
     games: ['Гра-пробіжка', ['Персонаж біжить сам. Стрибай над перешкодами: ' + (isPhone() ? 'кнопка «Стрибок».' : 'пробіл або кнопка «Стрибок».'), 'Біль може смикнути саме перед стрибком.'],
       ['Настрій + стільки, скільки перешкод перестрибнув (від 0 до ' + C.actions.games.jumps + ').', 'Біль −' + C.actions.games.ease + '.']],
     create: ['Синтезатор', ['Зіграй три ноти: ' + (isPhone() ? 'торкайся клавіш.' : 'клацай клавіші або натискай літери на клавіатурі.'), 'Що сильніший біль, то частіше рука здригається і нота фальшивить.'],
-      ['Настрій + стільки, скільки чистих нот (від 0 до ' + C.actions.create.notes + ').', 'Пісня пишеться за ' + C.actions.create.songSessions + ' сесії; дописана — ще Настрій +' + C.actions.create.songSoul + '.']],
+      ['Настрій + стільки, скільки чистих нот (від 0 до ' + C.actions.create.notes + ').', 'Пісня пишеться за ' + C.actions.create.songSessions + ' сесії; дописана — ще Настрій +' + C.actions.create.songSoul + ', а друзі зацінять: Стосунки + стільки, скільки друзів, яким ти не винен.']],
     read: ['Читання', ['Читай розворот і гортай сторінки, коли дочитаєш.'],
       ['Настрій +' + C.actions.read.soul + ' за сесію.', 'Дочитана книжка — ще Настрій +' + C.actions.read.finishSoul + '.']],
     cook: ['Готування', ['На холодильнику — рецепт. Запам’ятай продукти.', 'Потім обери з полиці ті самі ' + 5 + '.'],
@@ -329,7 +329,7 @@
     if (a.future > b.future) { const f = game.future[game.future.length - 1]; parts.push(f.kind === 'relief' ? { t: (f.day === game.day + 1 ? 'завтра' : 'день ' + f.day) + ': біль −' + f.amount, k: 'good' } : { t: 'завтра відкат +' + f.amount, k: 'bad' }); }
     if (a.fed && !b.fed && !covered.has('fed') && game.foodType === 'guests') parts.push({ t: 'друзі нагодували', k: 'good' });
     if (a.bookI > b.bookI) parts.push({ t: 'дочитав «' + game.lastBookDone + '»!', k: 'good' });
-    if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '»!', k: 'good' });
+    if (a.songN > b.songN) parts.push({ t: 'дописав «' + game.lastSongDone + '» — друзі зацінили!', k: 'good' });
     if (parts.length <= (title ? 1 : 0)) return;
     const el = document.createElement('div');
     el.className = 'delta';
@@ -777,7 +777,7 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
         </ul>`)}
       ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
         <ul class="tl">
-          <li><b>Підняти:</b> зустріч +${C.actions.friends.people.light} (удала розмова ще +1), написати +${C.actions.text.people}, настолки +${C.actions.board.people} за кожного гостя, повернути борг +${C.actions.loan.repayPeople}.</li>
+          <li><b>Підняти:</b> зустріч +${C.actions.friends.people.light} (удала розмова ще +1), написати +${C.actions.text.people}, дописана пісня — + стільки, скільки друзів, яким не винен, настолки +${C.actions.board.people} за кожного гостя, повернути борг +${C.actions.loan.repayPeople}.</li>
           <li><b>Втрати:</b> відмова на запрошення, невдала розмова, позика, підробіток, голодні гості без частування — по −1; удари життя; щоночі −${C.decay}.</li>
           <li><b>Дає:</b> підробіток — з ${L.gigLow.min} зрідка (+${L.gigLow.pay} ₴), з ${L.peopleGood} частіше (+${C.actions.gig.pay} ₴).</li>
         </ul>`)}
