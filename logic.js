@@ -775,12 +775,13 @@
       s.bill = { name, amount, due: s.day + 1 };
       ev.push({ kind: 'bad', text: 'Несподівано: ' + name.toLowerCase() + ' — завтра треба заплатити ' + amount + ' ₴' });
     }
-    // Борг: настав день — віддаєш, якщо є з чого; нема — друг ображається.
+    // Борг: віддати чи ні — вибір героя (кнопка «Повернути борг»); сам собою не списується.
+    // Настав строк, а не віддав — друг ображається й нагадає ще раз.
     for (const l of s.loans.slice().sort((x, y) => x.due - y.due)) {
       if (s.day < l.due) continue;
       const A = C.actions.loan;
-      if (s.money > l.amount) { s.money -= l.amount; ev.push({ kind: 'money', text: 'Повернув борг ' + nDat(l.from) + ': −' + l.amount + ' ₴' }); s.loans = s.loans.filter((x) => x !== l); }
-      else { s.people = clampS(s.people - A.late); l.due = s.day + A.again; l.late = true; /* прострочений — друг уже майже втрачений */ ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount, again: l.due }, text: 'Не зміг повернути борг ' + nDat(l.from) + ': Стосунки −' + A.late + '. Нагадає в день ' + l.due }); }
+      s.people = clampS(s.people - A.late); l.due = s.day + A.again; l.late = true;
+      ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount, again: l.due }, text: 'Не повернув борг ' + nDat(l.from) + ' у строк: Стосунки −' + A.late + '. Нагадає в день ' + l.due });
     }
     recalcBase(s);
 
@@ -961,7 +962,7 @@
     }
     if (id === 'friends' && inviteToday(s)) fx.push({ t: inviteWho(inviteToday(s)) + (inviteToday(s).with ? ' самі просяться' : ' сам' + (C.friends.female.includes(inviteToday(s).name) ? 'а' : '') + ' проситься'), kind: 'info' });
     if (id === 'repay' && nextLoan(s)) fx.push({ t: nextLoan(s).from + ' знову прийде в гості', kind: 'good' });
-    if (id === 'loan') fx.push({ t: 'повернути за ' + C.actions.loan.dueIn + ' днів', kind: 'info' });
+    if (id === 'loan') { const n = C.actions.loan.dueIn; fx.push({ t: 'повернути за ' + n + (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? ' дні' : n % 10 === 1 && n % 100 !== 11 ? ' день' : ' днів'), kind: 'info' }); }
     if (id === 'board') fx.push({ t: 'гостей: ' + freeFriends(s).length, kind: 'info' });
     if (out.borrow) fx.push({ t: 'наперед: завтра ресурс −' + out.borrow, kind: 'pain' });
     return out;
