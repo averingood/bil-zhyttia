@@ -332,8 +332,11 @@
           // Ті, кому винен, відписують байдуже — у своєму стилі.
           const fans = freeFriends(s).length;
           s.people = clampS(s.people + fans);
+          // Прострочив борг — цей друг уже не з тобою: пісню йому й не скидав, у смс його нема.
           sms = s.friendNames.map((n) => {
-            const debt = owes(s, n), lines = ((debt ? C.friends.songDebt : C.friends.songPraise) || {})[n];
+            const debt = owes(s, n);
+            if (s.loans.some((l) => l.from === n && l.late)) return null;
+            const lines = ((debt ? C.friends.songDebt : C.friends.songPraise) || {})[n];
             return lines ? { from: n, text: pick(s, lines), debt } : null;
           }).filter(Boolean);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
@@ -777,7 +780,7 @@
       if (s.day < l.due) continue;
       const A = C.actions.loan;
       if (s.money > l.amount) { s.money -= l.amount; ev.push({ kind: 'money', text: 'Повернув борг ' + nDat(l.from) + ': −' + l.amount + ' ₴' }); s.loans = s.loans.filter((x) => x !== l); }
-      else { s.people = clampS(s.people - A.late); l.due = s.day + A.again; ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount, again: l.due }, text: 'Не зміг повернути борг ' + nDat(l.from) + ': Стосунки −' + A.late + '. Нагадає в день ' + l.due }); }
+      else { s.people = clampS(s.people - A.late); l.due = s.day + A.again; l.late = true; /* прострочений — друг уже майже втрачений */ ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount, again: l.due }, text: 'Не зміг повернути борг ' + nDat(l.from) + ': Стосунки −' + A.late + '. Нагадає в день ' + l.due }); }
     }
     recalcBase(s);
 
