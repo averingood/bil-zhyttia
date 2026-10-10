@@ -292,7 +292,7 @@
     s.spent += cost;
     if (a.money) s.money -= a.money;
     s.used[id] = (s.used[id] || 0) + 1;
-    let note = '', guests = null;
+    let note = '', guests = null, sms = null;   // sms — відгуки друзів на дописану пісню
     const tags = [];   // що сталося — для плашки над кімнатою: { t, k, covers: ['money'|'people'|…] }
 
     switch (id) {
@@ -332,7 +332,10 @@
           // Ті, кому винен, відписують байдуже — у своєму стилі.
           const fans = freeFriends(s).length;
           s.people = clampS(s.people + fans);
-          for (const l of s.loans) { const lines = (C.friends.songDebt || {})[l.from]; if (lines && !tags.some((t) => t.from === l.from)) tags.push({ from: l.from, t: l.from + ': «' + pick(s, lines) + '»', k: '' }); }
+          sms = s.friendNames.map((n) => {
+            const debt = owes(s, n), lines = ((debt ? C.friends.songDebt : C.friends.songPraise) || {})[n];
+            return lines ? { from: n, text: pick(s, lines), debt } : null;
+          }).filter(Boolean);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
           s.lastSongDone = s.song.title;
           note += '; дописав! Настрій +' + a.songSoul + (fans ? ', друзі зацінили: Стосунки +' + fans : '');
@@ -522,7 +525,7 @@
     if (borrowedNow) note += '; взяв наперед ресурс ' + borrowedNow;
     j.did.push(ACTIONS[id].label + ' (' + note + ')');
     lonelyCap(s);
-    return { ok: true, note, borrowed: borrowedNow, guests, tags };
+    return { ok: true, note, borrowed: borrowedNow, guests, tags, sms };
   }
 
   // Розмова від першої особи: kinds — відповіді на теми ('right'|'meh'|'wrong'|'silent').

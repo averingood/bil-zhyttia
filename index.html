@@ -393,6 +393,12 @@
   .act .pad:hover { opacity: 1; }
   .act:has(.pad) { padding-right: 28px; }
   .btn .pad { cursor: help; }
+  /* Смс від друзів на дописану пісню. */
+  .sms-list { display: grid; gap: 8px; min-height: 120px; }
+  .sms { justify-self: start; max-width: 88%; background: var(--panel-2); border: 2px solid var(--joy); padding: 6px 10px; display: grid; gap: 2px; animation: sms-in .35s ease-out; }
+  .sms b { color: var(--joy); font-weight: 500; font-size: .9em; }
+  .sms.cold { border-color: var(--line); color: var(--muted); } .sms.cold b { color: var(--muted); }
+  @keyframes sms-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   /* Картка дії: рядок «дає» і рядок «забирає». */
   .act .a-fx { display: grid; gap: 1px; }
   .a-row b { font-weight: 600; font-size: .9em; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; }
@@ -512,17 +518,17 @@
 <div id="modal" hidden></div>
 <div id="tipBox" hidden></div>
 
-<script src="config.js?v=20261010020311"></script>
-<script src="logic.js?v=20261010020311"></script>
-<script src="room.js?v=20261010020311"></script>
-<script src="painfx.js?v=20261010020311"></script>
-<script src="meeting.js?v=20261010020311"></script>
-<script src="friendtalk.js?v=20261010020311"></script>
-<script src="matgame.js?v=20261010020311"></script>
-<script src="readgame.js?v=20261010020311"></script>
-<script src="cookgame.js?v=20261010020311"></script>
-<script src="synthgame.js?v=20261010020311"></script>
-<script src="rungame.js?v=20261010020311"></script>
-<script src="ui.js?v=20261010020311"></script>
+<script src="config.js?v=20261010020547"></script>
+<script src="logic.js?v=20261010020547"></script>
+<script src="room.js?v=20261010020547"></script>
+<script src="painfx.js?v=20261010020547"></script>
+<script src="meeting.js?v=20261010020547"></script>
+<script src="friendtalk.js?v=20261010020547"></script>
+<script src="matgame.js?v=20261010020547"></script>
+<script src="readgame.js?v=20261010020547"></script>
+<script src="cookgame.js?v=20261010020547"></script>
+<script src="synthgame.js?v=20261010020547"></script>
+<script src="rungame.js?v=20261010020547"></script>
+<script src="ui.js?v=20261010020547"></script>
 </body>
 </html>

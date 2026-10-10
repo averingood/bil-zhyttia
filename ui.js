@@ -343,7 +343,9 @@
     const before = snap();
     const autoTalk = id === 'friends' && !talk;
     const r = G.doAction(game, id, Object.assign({}, opts, talk || autoTalk ? { deferTalk: true } : null));
-    if (r.ok) showDelta(before, null, r.tags);
+    // Дописав пісню — спершу смс від друзів, а вже тоді плашка з тим, що змінилось.
+    if (r.ok && r.sms && r.sms.length) showSms(r.sms, () => showDelta(before, null, r.tags));
+    else if (r.ok) showDelta(before, null, r.tags);
     // Друзі: зайшли, сіли — і тоді розмова від першої особи; після неї прощаються.
     // Без міні-гри розмова розігрується сама, а її підсумок — окремою плашкою, коли наговорились і встають.
     room.playAction(id, r.guests, talk ? () => startTalk(r.guests) : null, r.ok && autoTalk ? () => {
@@ -365,6 +367,23 @@
   }
 
   const TALK_TITLE = { good: 'Розмова вдалась:', meh: 'Розмова так собі:', bad: 'Розмова не склалась:' };
+
+  // Смс від друзів: з'являються по одній, як у телефоні. Кому винен — відписує байдуже.
+  function showSms(list, then) {
+    const was = phase;
+    phase = 'ask';
+    openModal(`<h2>Пісню скинув друзям</h2><div class="sms-list"></div>
+      <div class="row"><button class="btn primary" id="smsOk">Закрити</button></div>`, false);
+    const box = $('modal').querySelector('.sms-list');
+    const timers = list.map((m, i) => setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'sms' + (m.debt ? ' cold' : '');
+      el.innerHTML = `<b>${esc(m.from)}</b><span>${esc(m.text)}</span>`;
+      box.appendChild(el);
+    }, 350 + i * 750));
+    $('smsOk').focus();
+    $('smsOk').onclick = () => { timers.forEach(clearTimeout); closeModal(); if (phase === 'ask') phase = was; renderAll(); then && then(); };
+  }
 
   function startTalk(names) {
     if (!introSeen('friends')) { withIntro('friends', () => startTalk(names)); return; }
