@@ -414,10 +414,14 @@
     if (phase !== 'play') return;
     const fc = G.forecastNight(game);
     // Борг на сьогодні, а грошей уночі не вистачить — попередити, як і про кінець гри.
-    const debts = (fc && !fc.lost && fc.debts) || [];
-    const debtText = debts.map((d) => `Сьогодні треба віддати ${d.amount} ₴ ${esc(d.dat)}, а грошей уночі не вистачить: Стосунки −${C.actions.loan.late}, нагадає в день ${d.again}. Поки винен — ${esc(d.from)} не приходить; не віддаси до кінця курсу — втратиш друга.`).join(' ');
-    if (fc && (fc.lost || fc.hospital || debts.length)) {
-      const title = fc.lost ? 'Після цієї ночі гра закінчиться' : fc.hospital ? 'Цієї ночі доведеться викликати швидку' : 'Борг не буде повернено';
+    // Останній день курсу: кому не віддав — того друга втратиш. Інакше — борг на сьогодні, а грошей уночі не вистачить.
+    const lastDay = game.day >= game.days && game.loans.length;
+    const debts = lastDay ? [] : (fc && !fc.lost && fc.debts) || [];
+    const debtText = lastDay
+      ? `Сьогодні останній день курсу. Неповернений борг: ${game.loans.map((l) => esc(G.config.friends.dat && G.config.friends.dat[l.from] || l.from) + ' ' + l.amount + ' ₴').join(', ')} — втратиш ${game.loans.length > 1 ? 'друзів' : 'друга'}. Повернути можна на дивані, якщо є гроші.`
+      : debts.map((d) => `Сьогодні треба віддати ${d.amount} ₴ ${esc(d.dat)}, а грошей уночі не вистачить: Стосунки −${C.actions.loan.late}, нагадає в день ${d.again}. Поки винен — ${esc(d.from)} не приходить; не віддаси до кінця курсу — втратиш друга.`).join(' ');
+    if (fc && (fc.lost || fc.hospital || debts.length || lastDay)) {
+      const title = fc.lost ? 'Після цієї ночі гра закінчиться' : fc.hospital ? 'Цієї ночі доведеться викликати швидку' : lastDay ? 'Втратиш ' + (game.loans.length > 1 ? 'друзів' : 'друга') : 'Борг не буде повернено — ризикуєш втратити друга';
       const text = fc.lost ? esc(lossWarning(fc.lost, fc)) : (fc.hospital ? `Біль дійде до 10 — доведеться викликати швидку: укол зніме біль до мінімуму, Тіло +${C.hospital.body}. −${C.hospital.cost} ₴, Настрій −${C.hospital.soul}.` + (debtText ? ' ' : '') : '') + debtText;
       openModal(`
         <h2>${title}</h2>
