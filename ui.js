@@ -372,7 +372,7 @@
   function showSms(list, then) {
     const was = phase;
     phase = 'ask';
-    openModal(`<h2>Пісню скинув друзям</h2><div class="sms-list"></div>
+    openModal(`<h2>Скинув друзям свою пісню «${esc(game.lastSongDone || '')}»</h2><div class="sms-list"></div>
       <div class="row"><button class="btn primary" id="smsOk">Закрити</button></div>`, false);
     const box = $('modal').querySelector('.sms-list');
     const timers = list.map((m, i) => setTimeout(() => {
