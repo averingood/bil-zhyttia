@@ -327,7 +327,7 @@
         s.song.done++;
         note = (gain ? 'Настрій +' + gain : 'усе фальшиво — Настрій без змін') + (fake && gain ? ' (фальшивих нот: ' + fake + ')' : '') + (fake ? ', але пісня росте: «' : ', пісня росте: «') + s.song.title + '»: сесія ' + s.song.done + ' з ' + a.songSessions;
         if (s.song.done >= a.songSessions) {
-          s.soul = clampS(s.soul + a.songSoul);
+          if (a.songSoul) s.soul = clampS(s.soul + a.songSoul);
           // Скинув пісню друзям — зацінили: Стосунки + стільки, скільки друзів, яким не винен.
           // Ті, кому винен, відписують байдуже — у своєму стилі.
           const fans = freeFriends(s).length;
@@ -338,7 +338,7 @@
           }).filter(Boolean);
           s.stats.songs++; s.stats.songTitles.push(s.song.title);
           s.lastSongDone = s.song.title;
-          note += '; дописав! Настрій +' + a.songSoul + (fans ? ', друзі зацінили: Стосунки +' + fans : '');
+          note += '; дописав!' + (a.songSoul ? ' Настрій +' + a.songSoul + ',' : '') + (fans ? ' друзі зацінили: Стосунки +' + fans : '');
           s.song = { n: s.song.n + 1, done: 0, title: null };
         }
         break;
@@ -949,7 +949,8 @@
     // Пісню треба дописати, книжку — дочитати: показуємо, скільки лишилось до бонусу.
     if (id === 'create') {
       const A = C.actions.create, n = s.song.done + 1;
-      fx.push(n >= A.songSessions ? { t: 'пісню дописано: ще Настрій +' + A.songSoul + ', друзі зацінять: Стосунки +' + freeFriends(s).length, kind: 'good' } : { t: 'сесія ' + n + '/' + A.songSessions + ' · дописана: Настрій +' + A.songSoul + ', Стосунки +' + freeFriends(s).length, kind: 'info' });
+      const bonus = (A.songSoul ? 'Настрій +' + A.songSoul + ', ' : '') + 'Стосунки +' + freeFriends(s).length;
+      fx.push(n >= A.songSessions ? { t: 'пісню дописано: друзі зацінять — ' + bonus, kind: 'good' } : { t: 'сесія ' + n + '/' + A.songSessions + ' · дописана: ' + bonus, kind: 'info' });
     }
     if (id === 'read') {
       const b = bookNow(s), n = s.book.done + 1;

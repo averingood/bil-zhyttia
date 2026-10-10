@@ -118,7 +118,7 @@
       games:    { spoons: 1, perDay: 1, ease: 1,   // Настрій = скільки перешкод перестрибнув (0–4)
                   tomorrow: 1, tomorrowChance: 0.3, jumps: 4,   // відволікає: тимчасовий біль −1; 30% засидітись
                   painChance: { light: 0.15, medium: 0.25, strong: 0.4 }, hitChance: 0.1 },
-      create:   { spoons: 2, notes: 3, songSessions: 3, songSoul: 5, maxPain: 7 },   // Настрій = скільки чистих нот (0–3)
+      create:   { spoons: 2, notes: 3, songSessions: 3, songSoul: 0, maxPain: 7 },   // Настрій = скільки чистих нот (0–3); дописана пісня — лише Стосунки від друзів
       friends:  { spoons: 2, inviteSpoons: 2, perDay: 1, treat: 10, treatChance: 0.2, invitedFood: false, people: { light: 2, medium: 2, strong: 2 }, invited: 0 },
       // зустріч: Стосунки +2, ресурс 2. Покликав сам — у 20% прийдуть голодні: частування treat ₴. Просяться самі — без частування
       // (їжу приносять, лише якщо так кажуть у запрошенні; invitedFood: true — завжди з їжею, але тоді не готуєш і не маєш Тіло +1)
