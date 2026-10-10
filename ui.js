@@ -719,7 +719,7 @@
     const cap = k === 'soul' && s.people <= 0 ? C.lonelyCap : C.sphereMax;
     const cells = Array.from({ length: C.sphereMax }, (_, i) => `<i class="${i < v ? 'on' : i >= cap ? 'lock' : ''}"></i>`).join('');
     return `<div class="sec tipped sph ${danger ? 'danger' : ''}" tabindex="0" data-k="${k}" style="--c:${SPH_COLOR[k]}">
-      <div class="sec-h"><span class="lbl">${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
+      <div class="sec-h"><span class="lbl">${pixIcon(k)}${G.SPHERES[k].name}</span><span class="val">${isMoney ? s.money + ' ₴' : v}</span></div>
       <div class="meter">${cells}</div>
       <div class="tip">${tip}<p class="why">${isMoney ? 'На нулі: ' + C.graceMoney + ' дні знайти гроші на оренду, інакше виселять.'
         : k === 'people' ? 'На нулі: самотньо — Настрій не піднімається вище ' + C.lonelyCap + '.'
@@ -777,7 +777,7 @@
       </div>
 
 ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
-        <div class="sec-h"><span class="lbl">Ресурс</span></div>
+        <div class="sec-h"><span class="lbl"><i class="tri on lbl-tri"></i>Ресурс</span></div>
         <div class="tris">${tri}</div>
         <div class="tip">
           <p><b>Зараз:</b> лишилось ${s.spoons} з ${s.spoonsMorning}${s.borrowed ? ' (ще ' + s.borrowed + ' взято наперед)' : ''}.${eaten ? ' Без болю було б ' + C.spoons[0] + '.' : ''}</p>
