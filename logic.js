@@ -150,6 +150,14 @@
   }
 
   // ---------- друзі ----------
+  // Друга втрачено: зникає з гри — без візитів, запрошень, позик і смс; борг уже не віддати.
+  function loseFriend(s, name) {
+    s.friendNames = s.friendNames.filter((n) => n !== name);
+    s.loans = s.loans.filter((l) => l.from !== name);
+    (s.lostFriends || (s.lostFriends = [])).includes(name) || s.lostFriends.push(name);
+    for (const d in s.invites) { const inv = s.invites[d]; if (inv.status === 'open' && (inv.name === name || inv.with === name)) inv.status = 'cancelled'; }
+    if (s.gig && s.gig.from === name) s.gig = null;
+  }
   function addInvite(s, day) {
     if (day > s.days || s.invites[day]) return null;
     const pool = freeFriends(s);
@@ -265,7 +273,7 @@
         break;
       case 'loan':
         if (s.people < a.minPeople) return no('Стосунки на нулі — позичити нема в кого');
-        if (!freeFriends(s).length) return no('Ти вже позичив у всіх п’ятьох');
+        if (!freeFriends(s).length) return no('Позичати більше нема в кого');
         break;
     }
     return { available: true, reason: null };
@@ -734,8 +742,8 @@
         const pool = SOFT.filter((k) => !safe[k]);   // будь-яка сфера, хоч і найслабша; лише щойно врятоване Тіло цієї ночі не чіпає
         if (pool.length) {
           const k = pick(s, pool), size = B.size[w];
-          const f = pick(s, s.friendNames), fem = C.friends.female.includes(f);
-          const text = pick(s, B[k]).replace('{fi}', (C.friends.instr || {})[f] || f).replace('{f}', f).replace('{a}', fem ? 'лася' : 'вся').replace('{b}', fem ? 'ла' : 'в');
+          const f = s.friendNames.length ? pick(s, s.friendNames) : 'Знайомий', fem = C.friends.female.includes(f);
+          const text = k === 'people' && !s.friendNames.length ? 'Самотній вечір: у стрічці — чужі свята' : pick(s, B[k]).replace('{fi}', (C.friends.instr || {})[f] || f).replace('{f}', f).replace('{a}', fem ? 'лася' : 'вся').replace('{b}', fem ? 'ла' : 'в');
           s[k] = clampS(s[k] - size);
           ev.push({ kind: 'bad', blow: true, text: text + ': ' + SPHERES[k].name + ' −' + size });
         }
@@ -776,12 +784,13 @@
       ev.push({ kind: 'bad', text: 'Несподівано: ' + name.toLowerCase() + ' — завтра треба заплатити ' + amount + ' ₴' });
     }
     // Борг: віддати чи ні — вибір героя (кнопка «Повернути борг»); сам собою не списується.
-    // Настав строк, а не віддав — друг ображається й нагадає ще раз.
+    // Настав строк, а не віддав — цього друга втрачено назавжди: більше не прийде, не напише, не позичить.
     for (const l of s.loans.slice().sort((x, y) => x.due - y.due)) {
       if (s.day < l.due) continue;
-      const A = C.actions.loan;
-      s.people = clampS(s.people - A.late); l.due = s.day + A.again; l.late = true;
-      ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount, again: l.due }, text: 'Не повернув борг ' + nDat(l.from) + ' у строк: Стосунки −' + A.late + '. Нагадає в день ' + l.due });
+      const A = C.actions.loan, fem = C.friends.female.includes(l.from);
+      s.people = clampS(s.people - A.late);
+      loseFriend(s, l.from);
+      ev.push({ kind: 'friends', debt: { from: l.from, amount: l.amount }, text: 'Не повернув борг ' + nDat(l.from) + ' — ' + (fem ? 'її' : 'його') + ' втрачено назавжди. Стосунки −' + A.late });
     }
     recalcBase(s);
 
@@ -800,7 +809,7 @@
     if (peopleAtDusk >= C.links.peopleGood) s.gigWait = (s.gigWait || 0) + 1; else s.gigWait = 0;
     // Шанс щоночі, а якщо близькі поруч уже кілька ночей і досі нічого — пропонують напевно.
     const GL = C.links.gigLow, close = peopleAtDusk >= C.links.peopleGood;
-    if (!s.gig && s.day < s.days && (close ? rand(s) < C.links.gigChance || s.gigWait >= C.links.gigSure : peopleAtDusk >= GL.min && rand(s) < GL.chance)) {
+    if (!s.gig && s.day < s.days && s.friendNames.length && (close ? rand(s) < C.links.gigChance || s.gigWait >= C.links.gigSure : peopleAtDusk >= GL.min && rand(s) < GL.chance)) {
       s.gigWait = 0;
       // Близькі (7+) — більше; просто знайомі (3–6) — менше.
       s.gig = { day: s.day + 1, from: pick(s, s.friendNames), pay: close ? C.actions.gig.pay : GL.pay };
@@ -1052,7 +1061,7 @@
     const medsTotal = (st.medsPills || 0) + (st.medsPainkiller || 0) + (st.medsBlock || 0);
     if (medsTotal) lostItems.push('Витрачено на ліки: ' + medsTotal + ' ₴ (' + [['пігулки', st.medsPills], ['знеболювальне', st.medsPainkiller], ['блокада', st.medsBlock]].filter(([, v]) => v).map(([n, v]) => n + ' ' + v).join(', ') + ')');
     // Кому так і не віддав — ті друзі вже не прийдуть.
-    const lostTo = [...new Set(s.loans.map((l) => l.from))];
+    const lostTo = [...new Set((s.lostFriends || []).concat(s.loans.map((l) => l.from)))];
     if (lostTo.length) lostItems.push('Втрачено ' + lostTo.length + ' ' + (lostTo.length === 1 ? 'друга' : 'друзів') + ' через борг: ' + lostTo.join(', '));
     if (st.loans) lostItems.push('Позичав у друзів: ' + st.loans + ' р.' + (s.loans.length ? ', не повернуто ' + s.loans.reduce((x, l) => x + l.amount, 0) + ' ₴' : ''));
     if (st.blocks) kept.push('Блокад: ' + st.blocks);

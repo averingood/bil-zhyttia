@@ -418,14 +418,14 @@
     const lastDay = game.day >= game.days && game.loans.length;
     const debts = lastDay ? [] : (fc && !fc.lost && fc.debts) || [];
     const debtText = lastDay
-      ? `Сьогодні останній день курсу. Неповернений борг: ${game.loans.map((l) => esc(G.config.friends.dat && G.config.friends.dat[l.from] || l.from) + ' ' + l.amount + ' ₴').join(', ')} — втратиш ${game.loans.length > 1 ? 'друзів' : 'друга'}. Повернути можна на дивані, якщо є гроші.`
-      : debts.map((d) => `Сьогодні строк віддати ${d.amount} ₴ ${esc(d.dat)}. Не повернеш (диван → «Повернути борг») — Стосунки −${C.actions.loan.late}, нагадає в день ${d.again}. Поки винен — ${esc(d.from)} не приходить; не віддаси до кінця курсу — втратиш друга.`).join(' ');
+      ? `Сьогодні останній день курсу. Не повернеш борг (${game.loans.map((l) => esc(G.config.friends.dat && G.config.friends.dat[l.from] || l.from) + ' ' + l.amount + ' ₴').join(', ')}) — ${game.loans.length > 1 ? 'втратиш цих друзів назавжди, більше їх не побачиш' : 'втратиш ' + (C.friends.female.includes(game.loans[0].from) ? 'її' : 'його') + ' назавжди, більше не побачиш'}. Повернути — диван → «Повернути борг».`
+      : debts.map((d) => { const her = C.friends.female.includes(d.from); return `Сьогодні строк повернути ${esc(d.dat)} ${d.amount} ₴ (диван → «Повернути борг»). Не повернеш — втратиш ${her ? 'її' : 'його'} назавжди, більше не побачиш.`; }).join(' ');
     if (fc && (fc.lost || fc.hospital || debts.length || lastDay)) {
-      const title = fc.lost ? 'Після цієї ночі гра закінчиться' : fc.hospital ? 'Цієї ночі доведеться викликати швидку' : lastDay ? 'Втратиш ' + (game.loans.length > 1 ? 'друзів' : 'друга') : 'Борг не повернено — ризикуєш втратити друга';
+      const title = fc.lost ? 'Після цієї ночі гра закінчиться' : fc.hospital ? 'Цієї ночі доведеться викликати швидку' : lastDay ? 'Втратиш ' + (game.loans.length > 1 ? 'друзів' : 'друга') : 'Не повернеш борг — втратиш друга';
       const text = fc.lost ? esc(lossWarning(fc.lost, fc)) : (fc.hospital ? `Біль дійде до 10 — доведеться викликати швидку: укол зніме біль до мінімуму, Тіло +${C.hospital.body}. −${C.hospital.cost} ₴, Настрій −${C.hospital.soul}.` + (debtText ? ' ' : '') : '') + debtText;
       openModal(`
         <h2>${title}</h2>
-        <p>${text} Можна ще щось змінити, якщо лишився ресурс.</p>
+        <p>${text}${fc.lost || fc.hospital ? ' Можна ще щось змінити, якщо лишився ресурс.' : ''}</p>
         <div class="row">
           <button class="btn" data-k="back">Повернутися</button>
           <button class="btn primary" data-k="go">Завершити день</button>
@@ -796,7 +796,7 @@ ${ended ? '' : `      <div class="sec tipped" tabindex="0" data-k="res">
         <ul class="tl">
           <li><b>Заробити:</b> робота (ресурс ${C.actions.work.spoons}, гроші ${C.actions.work.payDelay === 1 ? 'завтра' : 'через ' + C.actions.work.payDelay + ' дні'}), підробіток від друга.</li>
           <li><b>Витрати:</b> оренда щоночі ${C.costs.join(' / ')} ₴ по тижнях, пігулки ${C.course.money.join(' / ')} ₴, двічі на тиждень — несподіваний рахунок.</li>
-          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} ${dayWord(C.actions.loan.dueIn)}, Стосунки −${C.actions.loan.people}. Повертаєш сам (диван → «Повернути борг»), сам борг не списується. Поки винен — цей друг не приходить; повернув — Стосунки +${C.actions.loan.repayPeople}.</li>
+          <li><b>Позика:</b> ${C.actions.loan.amount} ₴ на ${C.actions.loan.dueIn} ${dayWord(C.actions.loan.dueIn)}, Стосунки −${C.actions.loan.people}. Повертаєш сам (диван → «Повернути борг»). Поки винен — цей друг не приходить; повернув — Стосунки +${C.actions.loan.repayPeople}; не повернув у строк — друга втрачено назавжди.</li>
         </ul>`)}
       ${sphereSec(s, 'people', `<p><b>Зараз:</b> ${s.people}.${s.people < C.actions.loan.minPeople ? ' Позичити нема в кого.' : ''}</p>
         <ul class="tl">
